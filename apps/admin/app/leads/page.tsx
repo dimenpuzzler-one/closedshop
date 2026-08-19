@@ -1,0 +1,8 @@
+import { Badge } from '@closed-commerce/ui';
+import { loadAdminLeads } from '@/lib/admin-data';
+import { AdminActionButton } from '@/components/admin-action-button';
+
+export default async function LeadsPage() {
+  const result = await loadAdminLeads();
+  return <><div className="admin-heading"><div><p className="eyebrow">B2B PIPELINE</p><h1>기업·단체 Lead</h1><p className="muted">B2B 대량구매 문의를 저장하고 상담 상태를 업데이트합니다.</p></div><div><span className={`badge ${result.source === 'supabase' ? 'badge-success' : 'badge-warning'}`}>{result.source}</span> <button className="button button-primary">CSV 내보내기</button></div></div>{result.source === 'unavailable' ? <div className="admin-note">Supabase service role 환경변수를 설정하면 실제 Lead가 표시됩니다.</div> : null}<div className="card table-wrap"><table className="data-table"><thead><tr><th>회사명</th><th>담당자</th><th>희망 상품</th><th>수량</th><th>희망 납기</th><th>상태</th><th>액션</th></tr></thead><tbody>{result.leads.map((lead) => <tr key={lead.id}><td><strong>{lead.companyName}</strong></td><td>{lead.contactName}</td><td>{lead.requestedProduct}</td><td>{lead.quantity.toLocaleString()}개</td><td>{lead.desiredDeliveryDate ?? '협의'}</td><td><Badge tone={lead.status === 'new' ? 'warning' : lead.status === 'closed' ? 'neutral' : 'success'}>{lead.status}</Badge></td><td>{lead.status === 'new' ? <AdminActionButton endpoint={`/api/leads/${lead.id}`} payload={{ status: 'contacted' }} label="연락완료" /> : lead.status === 'contacted' ? <AdminActionButton endpoint={`/api/leads/${lead.id}`} payload={{ status: 'quoted' }} label="견적 발송" /> : lead.status === 'quoted' ? <AdminActionButton endpoint={`/api/leads/${lead.id}`} payload={{ status: 'closed' }} label="종료" /> : '—'}</td></tr>)}</tbody></table></div></>;
+}

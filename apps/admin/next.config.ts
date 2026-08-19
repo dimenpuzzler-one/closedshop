@@ -1,0 +1,16 @@
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  transpilePackages: [
+    '@closed-commerce/auth',
+    '@closed-commerce/commerce',
+    '@closed-commerce/config',
+    '@closed-commerce/db',
+    '@closed-commerce/payment',
+    '@closed-commerce/referral',
+    '@closed-commerce/types',
+    '@closed-commerce/ui',
+  ],
+};
+
+export default nextConfig;

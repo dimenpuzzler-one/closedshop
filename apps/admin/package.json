@@ -1,0 +1,28 @@
+{
+  "name": "admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@closed-commerce/auth": "workspace:*",
+    "@closed-commerce/commerce": "workspace:*",
+    "@closed-commerce/config": "workspace:*",
+    "@closed-commerce/db": "workspace:*",
+    "@closed-commerce/payment": "workspace:*",
+    "@closed-commerce/referral": "workspace:*",
+    "@closed-commerce/types": "workspace:*",
+    "@closed-commerce/ui": "workspace:*",
+    "@closed-commerce/validation": "workspace:*",
+    "@supabase/ssr": "0.7.0",
+    "next": "15.5.7",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

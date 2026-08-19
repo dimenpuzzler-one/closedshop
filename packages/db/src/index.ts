@@ -1,0 +1,166 @@
+import { createBrowserClient, createServerClient } from '@supabase/ssr';
+import type { CookieOptions } from '@supabase/ssr';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+type Table<Row, Insert, Update> = { Row: Row; Insert: Insert; Update: Update };
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: Table<
+        { id: string; display_name: string | null; role: 'customer' | 'operator' | 'admin'; created_at: string },
+        { id: string; display_name?: string | null; role?: 'customer' | 'operator' | 'admin' },
+        { display_name?: string | null; role?: 'customer' | 'operator' | 'admin' }
+      >;
+      products: Table<
+        { id: string; slug: string; name: string; short_description: string; description: string; base_price: number; supply_cost: number | null; shipping_fee: number; visibility: 'public' | 'member' | 'referral' | 'hidden'; status: 'draft' | 'active' | 'paused' | 'archived'; created_at: string },
+        { slug: string; name: string; short_description?: string; description?: string; base_price: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' },
+        { slug?: string; name?: string; short_description?: string; description?: string; base_price?: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' }
+      >;
+      product_options: Table<
+        { id: string; product_id: string; name: string; value: string; price: number },
+        { product_id: string; name: string; value: string; price: number },
+        { name?: string; value?: string; price?: number }
+      >;
+      inventory: Table<
+        { product_id: string; quantity: number; reserved_quantity: number },
+        { product_id: string; quantity?: number; reserved_quantity?: number },
+        { quantity?: number; reserved_quantity?: number }
+      >;
+      referral_codes: Table<
+        { id: string; code: string; owner_user_id: string; campaign_id: string | null; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; created_at: string },
+        { code: string; owner_user_id: string; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null },
+        { code?: string; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null }
+      >;
+      referral_relationships: Table<
+        { id: string; referred_user_id: string; referrer_user_id: string; referral_code_id: string; source: 'link' | 'manual' | 'admin'; campaign_id: string | null; created_at: string },
+        { referred_user_id: string; referrer_user_id: string; referral_code_id: string; source?: 'link' | 'manual' | 'admin'; campaign_id?: string | null },
+        { source?: 'link' | 'manual' | 'admin'; campaign_id?: string | null }
+      >;
+      promotion_codes: Table<
+        { id: string; code: string; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; total_usage_limit: number | null; per_member_usage_limit: number | null; usage_count: number },
+        { code: string; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null; total_usage_limit?: number | null; per_member_usage_limit?: number | null; usage_count?: number },
+        { code?: string; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null; total_usage_limit?: number | null; per_member_usage_limit?: number | null; usage_count?: number }
+      >;
+      promotion_rules: Table<
+        { id: string; promotion_code_id: string; product_ids: string[]; referral_code_ids: string[]; minimum_order_amount: number | null; minimum_quantity: number | null; discount_rate: number | null; discount_amount: number | null },
+        { promotion_code_id: string; product_ids?: string[]; referral_code_ids?: string[]; minimum_order_amount?: number | null; minimum_quantity?: number | null; discount_rate?: number | null; discount_amount?: number | null },
+        { product_ids?: string[]; referral_code_ids?: string[]; minimum_order_amount?: number | null; minimum_quantity?: number | null; discount_rate?: number | null; discount_amount?: number | null }
+      >;
+      orders: Table<
+        { id: string; order_number: string; buyer_user_id: string; referrer_user_id: string | null; referral_code: string | null; promotion_code: string | null; status: string; gross_amount: number; discount_amount: number; shipping_amount: number; paid_amount: number; commissionable_amount: number; address_snapshot: Json; paid_at: string | null; created_at: string },
+        { id?: string; order_number: string; buyer_user_id: string; referrer_user_id?: string | null; referral_code?: string | null; promotion_code?: string | null; status?: string; gross_amount: number; discount_amount?: number; shipping_amount?: number; paid_amount: number; commissionable_amount: number; address_snapshot: Json; paid_at?: string | null },
+        { status?: string; paid_at?: string | null; shipped_at?: string | null; delivered_at?: string | null; cancelled_at?: string | null; refunded_at?: string | null }
+      >;
+      order_items: Table<
+        { id: string; order_id: string; product_id: string; option_id: string | null; product_name_snapshot: string; option_name_snapshot: string | null; unit_price: number; quantity: number; subtotal: number; commissionable_amount: number },
+        { order_id: string; product_id: string; option_id?: string | null; product_name_snapshot: string; option_name_snapshot?: string | null; unit_price: number; quantity: number; subtotal: number; commissionable_amount: number },
+        never
+      >;
+      promotion_redemptions: Table<
+        { id: string; promotion_code_id: string; user_id: string; order_id: string; discount_amount: number; redeemed_at: string },
+        { promotion_code_id: string; user_id: string; order_id: string; discount_amount: number },
+        never
+      >;
+      payments: Table<
+        { id: string; order_id: string; provider: string; provider_payment_id: string | null; status: string; amount: number; paid_at: string | null; raw_payload: Json },
+        { order_id: string; provider: string; provider_payment_id?: string | null; status?: string; amount: number; paid_at?: string | null; raw_payload?: Json },
+        { status?: string; paid_at?: string | null; cancelled_at?: string | null; refunded_at?: string | null; raw_payload?: Json }
+      >;
+      refunds: Table<
+        { id: string; order_id: string; payment_id: string | null; amount: number; reason: string; status: string; completed_at: string | null; created_at: string },
+        { order_id: string; payment_id?: string | null; amount: number; reason: string; status?: string; completed_at?: string | null },
+        { status?: string; completed_at?: string | null }
+      >;
+      commissions: Table<
+        { id: string; order_id: string; buyer_user_id: string; beneficiary_user_id: string; depth: 1 | 2; commission_base: number; commission_rate: number; commission_amount: number; status: 'pending' | 'approved' | 'payable' | 'paid' | 'cancelled' | 'reversed'; created_at: string; approved_at: string | null; paid_at: string | null },
+        { order_id: string; buyer_user_id: string; beneficiary_user_id: string; depth: 1 | 2; commission_base: number; commission_rate: number; commission_amount: number; status?: 'pending' | 'approved' | 'payable' | 'paid' | 'cancelled' | 'reversed' },
+        { status?: 'pending' | 'approved' | 'payable' | 'paid' | 'cancelled' | 'reversed'; approved_at?: string | null; paid_at?: string | null }
+      >;
+      shipments: Table<
+        { id: string; order_id: string; shipping_company: string | null; tracking_number: string | null; status: string; shipped_at: string | null; delivered_at: string | null },
+        { order_id: string; shipping_company?: string | null; tracking_number?: string | null; status?: string },
+        { shipping_company?: string | null; tracking_number?: string | null; status?: string; shipped_at?: string | null; delivered_at?: string | null }
+      >;
+      analytics_events: Table<
+        { id: string; user_id: string | null; event_name: string; referral_code: string | null; referrer_user_id: string | null; campaign_id: string | null; utm_source: string | null; utm_medium: string | null; utm_campaign: string | null; properties: Json; occurred_at: string },
+        { user_id?: string | null; event_name: string; referral_code?: string | null; referrer_user_id?: string | null; campaign_id?: string | null; utm_source?: string | null; utm_medium?: string | null; utm_campaign?: string | null; properties?: Json; occurred_at?: string },
+        never
+      >;
+      b2b_leads: Table<
+        { id: string; company_name: string; contact_name: string; phone: string; email: string; requested_product: string; quantity: number; desired_delivery_date: string | null; budget: number | null; memo: string | null; status: 'new' | 'contacted' | 'quoted' | 'closed'; created_at: string },
+        { company_name: string; contact_name: string; phone: string; email: string; requested_product: string; quantity: number; desired_delivery_date?: string | null; budget?: number | null; memo?: string | null; status?: 'new' | 'contacted' | 'quoted' | 'closed' },
+        { status?: 'new' | 'contacted' | 'quoted' | 'closed' }
+      >;
+      admin_audit_logs: Table<
+        { id: string; actor_user_id: string | null; action: string; entity_type: string; entity_id: string | null; before_data: Json; after_data: Json; created_at: string },
+        { actor_user_id?: string | null; action: string; entity_type: string; entity_id?: string | null; before_data?: Json; after_data?: Json },
+        never
+      >;
+    };
+    Views: Record<string, never>;
+    Functions: {
+      reserve_inventory: { Args: { p_product_id: string; p_quantity: number }; Returns: boolean };
+      release_inventory: { Args: { p_product_id: string; p_quantity: number }; Returns: boolean };
+      redeem_promotion_code: { Args: { p_promotion_code_id: string; p_user_id: string; p_order_id: string; p_discount_amount: number }; Returns: boolean };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+
+export type AppSupabaseClient = SupabaseClient<Database>;
+
+export function hasSupabaseEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+}
+
+export function hasServiceRoleEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+function getSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error('Supabase 환경변수가 설정되지 않았습니다.');
+  return { url, key };
+}
+
+function getSupabaseServiceEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Supabase 서버 환경변수가 설정되지 않았습니다.');
+  return { url, key };
+}
+
+export function createBrowserSupabaseClient(): AppSupabaseClient {
+  const { url, key } = getSupabaseEnv();
+  return createBrowserClient<Database>(url, key);
+}
+
+/** Server-only. Never import this helper from a Client Component. */
+export function createServiceRoleSupabaseClient(): AppSupabaseClient {
+  const { url, key } = getSupabaseServiceEnv();
+  return createClient<Database>(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+
+export interface ServerCookieStore {
+  getAll(): { name: string; value: string }[];
+  setAll(cookies: { name: string; value: string; options?: CookieOptions }[]): void;
+}
+
+export function createServerSupabaseClient(cookieStore: ServerCookieStore): AppSupabaseClient {
+  const { url, key } = getSupabaseEnv();
+  return createServerClient<Database>(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookieStore.setAll(cookiesToSet);
+      },
+    },
+  });
+}
