@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { hasSupabaseEnv } from '@closed-commerce/db';
 import { canAccessAdmin, getProfileRole, getVerifiedUser } from '@closed-commerce/auth';
@@ -19,8 +18,6 @@ async function canRenderAdmin() {
 }
 
 export async function AdminShell({ children }: { children: ReactNode }) {
-  const requestHeaders = await headers();
-  if (requestHeaders.get('x-pathname') === '/login') return <>{children}</>;
   const allowed = await canRenderAdmin();
   if (!allowed) return <div className="unauthorized"><div className="card"><p className="eyebrow">ADMIN ONLY</p><h1>관리자 권한이 필요합니다.</h1><p className="muted">관리자 앱은 별도 배포 단위로 운영되며, 사용자 metadata가 아니라 profiles.role을 확인합니다.</p><Link href="/login" className="button button-primary">관리자 로그인</Link></div></div>;
   const webUrl = process.env.NEXT_PUBLIC_WEB_URL ?? 'http://localhost:3000';
