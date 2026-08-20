@@ -8,3 +8,5 @@ coverage
 .env.local
 pnpm-debug.log
 *.tsbuildinfo
+
+.vercel
