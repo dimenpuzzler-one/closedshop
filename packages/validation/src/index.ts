@@ -63,6 +63,7 @@ export const productCreateSchema = z.object({
   shortDescription: z.string().trim().max(300).default(''),
   description: z.string().trim().max(4000).default(''),
   basePrice: z.number().int().min(0),
+  supplyCost: z.number().int().min(0).optional(),
   shippingFee: z.number().int().min(0).default(0),
   visibility: z.enum(['public', 'member', 'referral', 'hidden']).default('referral'),
   status: z.enum(['draft', 'active', 'paused', 'archived']).default('draft'),

@@ -494,7 +494,18 @@ create policy campaigns_admin_write on public.referral_campaigns for all to auth
 create policy referral_codes_validate on public.referral_codes for select to anon, authenticated using (status = 'active' and (starts_at is null or starts_at <= now()) and (expires_at is null or expires_at >= now()) or private.is_operator_or_admin());
 create policy referral_codes_admin_write on public.referral_codes for all to authenticated using (private.is_operator_or_admin()) with check (private.is_operator_or_admin());
 create policy referral_relationships_read_owner on public.referral_relationships for select to authenticated using ((select auth.uid()) = referred_user_id or (select auth.uid()) = referrer_user_id or private.is_operator_or_admin());
-create policy referral_relationships_insert_self on public.referral_relationships for insert to authenticated with check ((select auth.uid()) = referred_user_id and not exists (select 1 from public.referral_relationships existing where existing.referred_user_id = referred_user_id));
+create policy referral_relationships_insert_self on public.referral_relationships for insert to authenticated with check (
+  (select auth.uid()) = referred_user_id
+  and not exists (select 1 from public.referral_relationships existing where existing.referred_user_id = referred_user_id)
+  and exists (
+    select 1 from public.referral_codes code
+    where code.id = referral_code_id
+      and code.owner_user_id = referrer_user_id
+      and code.status = 'active'
+      and (code.starts_at is null or code.starts_at <= now())
+      and (code.expires_at is null or code.expires_at >= now())
+  )
+);
 create policy promotion_codes_read_active on public.promotion_codes for select to anon, authenticated using (status = 'active' or private.is_operator_or_admin());
 create policy promotion_codes_admin_write on public.promotion_codes for all to authenticated using (private.is_operator_or_admin()) with check (private.is_operator_or_admin());
 create policy promotion_rules_read_active on public.promotion_rules for select to anon, authenticated using (exists (select 1 from public.promotion_codes p where p.id = promotion_code_id and p.status = 'active'));
@@ -525,3 +536,10 @@ create policy analytics_admin_read on public.analytics_events for select to auth
 create policy leads_insert_any on public.b2b_leads for insert to anon, authenticated with check (true);
 create policy leads_admin_read on public.b2b_leads for select to authenticated using (private.is_operator_or_admin());
 create policy leads_admin_update on public.b2b_leads for update to authenticated using (private.is_operator_or_admin()) with check (private.is_operator_or_admin());
+
+-- Data API privileges are explicit so the app remains available when automatic
+-- public-schema exposure is disabled. Row Level Security policies above still
+-- control every client-side row access.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
