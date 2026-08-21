@@ -11,6 +11,13 @@ export interface ProductOption {
   stock: number;
 }
 
+export interface ProductImage {
+  id: Id;
+  url: string;
+  altText: string;
+  sortOrder: number;
+}
+
 export interface Product {
   id: Id;
   slug: string;
@@ -24,6 +31,7 @@ export interface Product {
   visibility: ProductVisibility;
   status: ProductStatus;
   imageUrl: string;
+  images?: ProductImage[];
   options: ProductOption[];
   tags: string[];
   commissionableRate?: number;

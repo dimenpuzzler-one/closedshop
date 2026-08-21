@@ -29,6 +29,11 @@ export type Database = {
         { product_id: string; quantity?: number; reserved_quantity?: number },
         { quantity?: number; reserved_quantity?: number }
       >;
+      product_images: Table<
+        { id: string; product_id: string; storage_path: string; alt_text: string; sort_order: number; created_at: string },
+        { product_id: string; storage_path: string; alt_text?: string; sort_order?: number },
+        { storage_path?: string; alt_text?: string; sort_order?: number }
+      >;
       referral_codes: Table<
         { id: string; code: string; owner_user_id: string; campaign_id: string | null; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; created_at: string },
         { code: string; owner_user_id: string; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null },

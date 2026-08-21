@@ -69,7 +69,7 @@ export const productCreateSchema = z.object({
   status: z.enum(['draft', 'active', 'paused', 'archived']).default('draft'),
   optionName: z.string().trim().min(1).max(80),
   optionValue: z.string().trim().min(1).max(80),
-  optionPrice: z.number().int().min(0),
+  optionPrice: z.number().int().min(0).optional(),
   stock: z.number().int().min(0),
 });
 

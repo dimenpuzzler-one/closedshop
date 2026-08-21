@@ -1,6 +1,6 @@
 import { DEMO_PRODUCTS, DEMO_PROMOTIONS, DEMO_REFERRAL_CODES } from '@closed-commerce/commerce';
 import { createServiceRoleSupabaseClient, hasServiceRoleEnv, hasSupabaseEnv } from '@closed-commerce/db';
-import type { B2BLead, Product, PromotionCode, ReferralCode } from '@closed-commerce/types';
+import type { B2BLead, Product, ProductImage, PromotionCode, ReferralCode } from '@closed-commerce/types';
 
 export type AdminDataSource = 'supabase' | 'demo' | 'unavailable';
 
@@ -15,10 +15,21 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const client = createServiceRoleSupabaseClient();
   const { data: rows, error } = await client.from('products').select('id, slug, name, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').order('created_at', { ascending: false });
   if (error || !rows) return { source: 'unavailable', products: [] };
-  const { data: options } = await client.from('product_options').select('id, product_id, name, value, price').in('product_id', rows.map((row) => row.id));
-  const { data: inventories } = await client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', rows.map((row) => row.id));
+  const productIds = rows.map((row) => row.id);
+  const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
+    productIds.length ? client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds) : Promise.resolve({ data: [] }),
+    productIds.length ? client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds) : Promise.resolve({ data: [] }),
+    productIds.length ? client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, created_at').in('product_id', productIds).order('sort_order') : Promise.resolve({ data: [] }),
+  ]);
   const stock = new Map((inventories ?? []).map((item) => [item.product_id, Math.max(0, item.quantity - item.reserved_quantity)]));
-  return { source: 'supabase', products: rows.map((row) => ({ id: row.id, slug: row.slug, name: row.name, shortDescription: row.short_description, description: row.description, weight: (options ?? []).find((option) => option.product_id === row.id)?.value ?? '', price: row.base_price, supplyCost: row.supply_cost ?? undefined, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: '', options: (options ?? []).filter((option) => option.product_id === row.id).map((option) => ({ id: option.id, name: option.name, value: option.value, price: option.price, stock: stock.get(row.id) ?? 0 })), tags: [] })) };
+  const imagesByProduct = new Map<string, ProductImage[]>();
+  (imageRows ?? []).forEach((image) => {
+    const url = client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl;
+    const current = imagesByProduct.get(image.product_id) ?? [];
+    current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order });
+    imagesByProduct.set(image.product_id, current);
+  });
+  return { source: 'supabase', products: rows.map((row) => { const images = imagesByProduct.get(row.id) ?? []; const productOptions = (options ?? []).filter((option) => option.product_id === row.id); return { id: row.id, slug: row.slug, name: row.name, shortDescription: row.short_description, description: row.description, weight: productOptions[0]?.value ?? '', price: productOptions[0]?.price ?? row.base_price, supplyCost: row.supply_cost ?? undefined, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: images[0]?.url ?? '', images, options: productOptions.map((option) => ({ id: option.id, name: option.name, value: option.value, price: option.price, stock: stock.get(row.id) ?? 0 })), tags: [] }; }) };
 }
 
 export interface AdminOrderRow {
