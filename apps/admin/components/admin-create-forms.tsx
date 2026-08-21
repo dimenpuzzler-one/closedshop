@@ -241,7 +241,7 @@ export function ProductCreateForm() {
       <form className="stack" onSubmit={form.submit} encType="multipart/form-data">
         <p className="field-hint">옵션은 고객이 선택하는 구성·중량입니다. 단일 구성 상품이면 기본값을 그대로 쓰고 옵션가는 비워두세요.</p>
         <div className="form-grid">
-          <label className="field"><span className="field-label">Slug</span><input className="input" name="slug" placeholder="premium-pear-500g" required /><span className="field-hint">영문 소문자, 숫자, 하이픈만 사용합니다.</span></label>
+          <label className="field"><span className="field-label">URL slug(선택)</span><input className="input" name="slug" placeholder="비워두면 자동 생성" /><span className="field-hint">영문/숫자/공백을 입력하면 서버가 URL용으로 정리합니다. 한글만 입력하거나 비워두면 자동 생성됩니다.</span></label>
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" required /></label>
           <label className="field"><span className="field-label">제품 카테고리</span><input className="input" name="category" defaultValue="기타" maxLength={80} required /><span className="field-hint">고객몰에서 상품을 분류할 이름입니다.</span></label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">옵션가를 비워두면 이 금액이 판매가가 됩니다.</span></label>

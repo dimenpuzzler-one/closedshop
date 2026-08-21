@@ -27,6 +27,26 @@ function formatMb(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }
 
+/**
+ * 관리자가 slug 규칙을 몰라도 상품을 등록할 수 있도록 서버에서 정리한다.
+ * 영문/숫자 slug는 그대로 소문자 하이픈 형태로 만들고, 한글만 입력된 경우에는
+ * 상품명 기반으로 만들 수 없으므로 충돌이 없는 자동 slug를 사용한다.
+ */
+function normalizeSlug(value: unknown, name: unknown) {
+  const source = [value, name].find((candidate) => typeof candidate === 'string' && candidate.trim()) as string | undefined;
+  const normalized = source
+    ?.trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100)
+    .replace(/-+$/g, '');
+  if (normalized && normalized.length >= 2) return normalized;
+  return `product-${Date.now()}-${randomUUID().slice(0, 8)}`;
+}
+
 function getUploadCandidates(formData: FormData) {
   const thumbnail = formData.get('thumbnail');
   const detailImages = formData.getAll('detailImages');
@@ -123,6 +143,7 @@ export const POST = withAdmin(
     const { values, images } = await parseRequest(request);
     const totalBytes = assertImagesAreUploadable(images);
 
+    values.slug = normalizeSlug(values.slug, values.name);
     const parsed = productCreateSchema.safeParse(values);
     if (!parsed.success) {
       const flat = parsed.error.flatten();
@@ -234,7 +255,7 @@ export const POST = withAdmin(
 
     logServerEvent('admin.products.create', requestId, { stage: 'done', productId: product.id });
     return NextResponse.json({
-      message: `상품이 등록되었습니다${uploadedImages.length ? ` (이미지 ${uploadedImages.length}장 포함)` : ''}.`,
+      message: `상품이 등록되었습니다${uploadedImages.length ? ` (이미지 ${uploadedImages.length}장 포함)` : ''}. URL slug: ${parsed.data.slug}`,
       productId: product.id,
       requestId,
     });
