@@ -131,6 +131,30 @@ export function hasServiceRoleEnv(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+/**
+ * 데모 모드는 로컬 개발용 편의 기능이다. 운영에서 환경변수가 빠졌을 때
+ * 조용히 데모로 넘어가면 "가짜 성공" 응답과 무인증 관리자 화면이 만들어지므로,
+ * production에서는 절대 허용하지 않는다(fail-closed).
+ */
+export function isDemoModeAllowed(): boolean {
+  if (process.env.NODE_ENV === 'production') return false;
+  return process.env.CC_DISABLE_DEMO !== '1';
+}
+
+export type RuntimeMode = 'supabase' | 'demo' | 'unavailable';
+
+/**
+ * 앱이 지금 어떤 모드로 동작해야 하는지 한 곳에서 결정한다.
+ * 호출부가 hasSupabaseEnv/hasServiceRoleEnv를 각자 조합하면
+ * 라우트마다 폴백 규칙이 갈라지므로 여기서만 판단한다.
+ */
+export function resolveRuntimeMode(options: { requireServiceRole?: boolean } = {}): RuntimeMode {
+  const needsServiceRole = options.requireServiceRole ?? true;
+  if (hasSupabaseEnv() && (!needsServiceRole || hasServiceRoleEnv())) return 'supabase';
+  if (isDemoModeAllowed() && !hasSupabaseEnv()) return 'demo';
+  return 'unavailable';
+}
+
 function getSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

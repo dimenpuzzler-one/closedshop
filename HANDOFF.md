@@ -1,6 +1,6 @@
 # Closed Commerce 핸드오프 문서
 
-> 마지막 갱신: 2026-08-21 (Asia/Seoul)
+> 마지막 갱신: 2026-08-21 (Asia/Seoul) — 코드 점검/수정 반영본. 변경 요약은 docs/2026-08-21-changes.md
 > 저장 위치: 저장소 루트 HANDOFF.md
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 
@@ -22,7 +22,11 @@ Closed Commerce는 추천인(Referral Code)으로 입장하는 폐쇄형 특판�
 
 ## 2. 현재 Git 및 배포 상태
 
-현재 main 브랜치에 모든 변경사항이 푸시되어 있고, 작업 트리는 깨끗한 상태입니다.
+현재 main 브랜치에 모든 변경사항이 푸시되어 있습니다.
+
+> 2026-08-21 점검에서 확인된 사항: `.gitattributes`가 없어 Windows 체크아웃에서
+> `.gitignore`와 tsconfig 2개가 CRLF 차이만으로 항상 modified로 남았습니다.
+> `.gitattributes`(eol=lf)를 추가해 해소했습니다.
 
 | 커밋 | 내용 |
 | --- | --- |
@@ -91,7 +95,12 @@ SUPABASE_SERVICE_ROLE_KEY는 절대 NEXT_PUBLIC_ 이름으로 만들거나 Clien
     pnpm lint        # 전체 lint
     pnpm check       # lint + typecheck + test + build
 
-마지막 구현 시점의 pnpm check 결과는 38 successful, 38 total입니다.
+`pnpm check` 결과는 41 successful, 41 total입니다.
+
+> 주의: 이전 문서의 "38 successful"은 실제 lint가 아니었습니다.
+> `lint` 스크립트가 `tsc --noEmit`이라 타입체크를 두 번 돌린 결과였고,
+> 저장소에 ESLint 설정 자체가 없었습니다. 지금은 `eslint.config.mjs`가 있고
+> `lint`는 진짜 ESLint를 돌립니다(no-floating-promises 포함).
 
 ## 4. 관리자 인증 구조
 
@@ -198,7 +207,14 @@ public.products.category가 추가되었고 관리자 목록 및 고객몰 카�
 
 상품 상세 route가 더 이상 단순 404로 끝나지 않습니다. Supabase 환경에서 비로그인 사용자가 접근하면 로그인/추천 코드 안내가 표시되고, 존재하지 않거나 접근할 수 없는 상품만 404가 됩니다.
 
-주의: 현재 홈 화면 apps/web/app/page.tsx의 FIRST DROP 영역은 DEMO_PRODUCTS를 사용합니다. /products 목록과 주문 검증은 Supabase live 상품을 사용하지만, 홈 화면의 상품 섹션은 새 상품이 자동으로 반영되지 않습니다. 다음 작업에서 홈도 loadVisibleCatalog 또는 별도 public catalog loader로 통일할 수 있습니다.
+(해소됨) 홈 화면 FIRST DROP은 loadShowcaseProducts로 live 상품을 봅니다.
+비로그인 방문자에게는 가격 대신 "회원 전용 가격"이 표시됩니다.
+
+더 심각했던 문제도 함께 해소했습니다: 장바구니(cart-view)와 주문서(checkout-form)가
+DEMO_PRODUCTS만 아는 calculateCartTotals/getProductById를 직접 호출하고 있었습니다.
+localStorage에는 실제 상품 UUID가 저장되므로 live 상품을 담으면 조회 실패 →
+예외 → /cart 렌더 자체가 깨졌습니다. 이제 금액은 전부 서버(`POST /api/cart/quote`)가
+계산합니다.
 
 ## 7. 배송 마감 설정
 

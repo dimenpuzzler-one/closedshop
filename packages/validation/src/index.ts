@@ -23,8 +23,17 @@ export const addressSchema = z.object({
   deliveryMessage: z.string().trim().max(200).optional(),
 });
 
+export const cartQuoteSchema = z.object({
+  items: z.array(cartItemSchema).max(100),
+  promotionCode: z.string().trim().max(32).optional(),
+});
+
 export const orderCreateSchema = z.object({
-  buyerUserId: z.string().min(1),
+  /**
+   * Supabase 모드에서는 서버가 세션 사용자로 덮어쓰므로 클라이언트가 보내지 않는다.
+   * 데모 모드 호환을 위해서만 남겨둔 선택 필드다.
+   */
+  buyerUserId: z.string().min(1).optional(),
   items: z.array(cartItemSchema).min(1).max(100),
   referralCode: z.string().trim().max(32).optional(),
   promotionCode: z.string().trim().max(32).optional(),
@@ -74,6 +83,23 @@ export const productCreateSchema = z.object({
   stock: z.number().int().min(0),
 });
 
+/** 등록 후 고칠 수 있어야 하는 항목들. 보낸 필드만 반영한다(부분 수정). */
+export const productUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(160).optional(),
+  category: z.string().trim().min(1).max(80).optional(),
+  shortDescription: z.string().trim().max(300).optional(),
+  description: z.string().trim().max(4000).optional(),
+  basePrice: z.number().int().min(0).optional(),
+  supplyCost: z.number().int().min(0).nullable().optional(),
+  shippingFee: z.number().int().min(0).optional(),
+  visibility: z.enum(['public', 'member', 'referral', 'hidden']).optional(),
+  status: z.enum(['draft', 'active', 'paused', 'archived']).optional(),
+  optionPrice: z.number().int().min(0).optional(),
+  stock: z.number().int().min(0).optional(),
+}).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+  message: '변경할 항목이 없습니다.',
+});
+
 export const shippingSettingsSchema = z.object({
   shippingCutoffTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, '배송 마감 시간은 HH:MM 형식이어야 합니다.'),
 });
@@ -100,4 +126,6 @@ export const promotionCreateSchema = z.object({
 }).refine((value) => (value.discountRate !== undefined) !== (value.discountAmount !== undefined), { message: '할인율 또는 정액 할인 중 하나만 입력해야 합니다.' });
 
 export type CreateOrderInput = z.infer<typeof orderCreateSchema>;
+export type CartQuoteInput = z.infer<typeof cartQuoteSchema>;
+export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CreateB2BLeadInput = z.infer<typeof b2bLeadSchema>;

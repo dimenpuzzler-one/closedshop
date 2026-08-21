@@ -10,3 +10,6 @@ pnpm-debug.log
 *.tsbuildinfo
 
 .vercel
+
+# 세션 간 코드 전송에 쓰는 임시 번들
+*.bundle

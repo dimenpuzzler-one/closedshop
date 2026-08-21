@@ -1,19 +1,55 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalDependencies": [".env", ".env.local"],
-  "globalEnv": ["NODE_ENV", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_WEB_URL", "ADMIN_LOGIN_EMAIL_DOMAIN", "SUPABASE_SERVICE_ROLE_KEY", "PAYMENT_WEBHOOK_SECRET"],
+  "globalDependencies": [
+    ".env",
+    ".env.local"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_WEB_URL",
+    "ADMIN_LOGIN_EMAIL_DOMAIN",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "PAYMENT_WEBHOOK_SECRET",
+    "L1_COMMISSION_RATE",
+    "L2_COMMISSION_RATE",
+    "COMMISSION_APPROVAL_DAYS",
+    "CC_DISABLE_DEMO"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"],
-      "env": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_WEB_URL", "ADMIN_LOGIN_EMAIL_DOMAIN", "SUPABASE_SERVICE_ROLE_KEY", "PAYMENT_WEBHOOK_SECRET"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**"
+      ],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "NEXT_PUBLIC_WEB_URL",
+        "ADMIN_LOGIN_EMAIL_DOMAIN",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "PAYMENT_WEBHOOK_SECRET",
+        "L1_COMMISSION_RATE",
+        "L2_COMMISSION_RATE",
+        "COMMISSION_APPROVAL_DAYS",
+        "CC_DISABLE_DEMO"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck", "build"],
+      "dependsOn": [
+        "^typecheck",
+        "build"
+      ],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "lint": {

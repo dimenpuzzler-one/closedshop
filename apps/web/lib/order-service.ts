@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { getCommissionRule } from '@closed-commerce/config';
-import { calculateCartTotalsFromLines, type CatalogLine } from '@closed-commerce/commerce';
+import { allocateDiscount, calculateCartTotalsFromLines, type CatalogLine } from '@closed-commerce/commerce';
 import { createServiceRoleSupabaseClient, type AppSupabaseClient, type Json } from '@closed-commerce/db';
 import { MockPaymentProvider } from '@closed-commerce/payment';
+import { logServerError, logServerEvent } from '@closed-commerce/observability';
 import { calculateTwoDepthCommissions } from '@closed-commerce/referral';
 import type { CommissionSnapshot, Product, PromotionCode, ReferralNode } from '@closed-commerce/types';
 import type { CreateOrderInput } from '@closed-commerce/validation';
@@ -78,12 +79,18 @@ async function loadPromotion(client: AppSupabaseClient, input: CreateOrderInput,
 async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): Promise<{ lines: CatalogLine[]; products: Product[] }> {
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   const [{ data: products, error: productError }, { data: options, error: optionError }, { data: inventory, error: inventoryError }] = await Promise.all([
-    client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').in('id', productIds).eq('status', 'active'),
+    // status만 보고 visibility를 보지 않으면, 판매를 내린 hidden 상품도 id만 알면 주문된다.
+    // service role은 RLS(products_visible_read)를 우회하므로 여기서 직접 막는다.
+    client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').in('id', productIds).eq('status', 'active').neq('visibility', 'hidden'),
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
     client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds),
   ]);
   if (productError || optionError || inventoryError) fail(500, '상품 정보를 불러오지 못했습니다.');
-  if ((products?.length ?? 0) !== productIds.length) fail(400, '판매 중인 상품이 아니거나 상품을 찾을 수 없습니다.');
+  if ((products?.length ?? 0) !== productIds.length) {
+    const found = new Set((products ?? []).map((product) => product.id));
+    const missing = productIds.filter((id) => !found.has(id));
+    fail(400, `판매 중인 상품이 아니거나 상품을 찾을 수 없습니다. (${missing.length}건)`);
+  }
   const productMap = new Map((products ?? []).map((product) => [product.id, product]));
   const optionMap = new Map((options ?? []).map((option) => [option.id, option]));
   const inventoryMap = new Map((inventory ?? []).map((row) => [row.product_id, row]));
@@ -150,7 +157,7 @@ async function loadReferral(client: AppSupabaseClient, buyerUserId: string, refe
   return { referral, lookup };
 }
 
-export async function createPersistedOrder(input: CreateOrderInput, buyerUserId: string): Promise<PersistedOrderResult> {
+export async function createPersistedOrder(input: CreateOrderInput, buyerUserId: string, requestId = 'no-request-id'): Promise<PersistedOrderResult> {
   const client = createServiceRoleSupabaseClient();
   const { referral, lookup } = await loadReferral(client, buyerUserId, input.referralCode);
   const { lines } = await loadCatalog(client, input);
@@ -178,13 +185,15 @@ export async function createPersistedOrder(input: CreateOrderInput, buyerUserId:
       shipping_amount: totals.shippingAmount,
       paid_amount: totals.paidAmount,
       commissionable_amount: totals.commissionableAmount,
-      address_snapshot: input.address as unknown as Json,
+      address_snapshot: input.address,
     });
     if (orderError) fail(500, '주문을 저장하지 못했습니다.');
     orderCreated = true;
-    const { error: itemError } = await client.from('order_items').insert(lines.map((line) => {
+    // 라인별 반올림 합계가 주문 할인액과 어긋나지 않도록 잔차를 마지막 라인에 몰아준다.
+    const discountShares = allocateDiscount(lines, totals.grossAmount, totals.discountAmount);
+    const { error: itemError } = await client.from('order_items').insert(lines.map((line, index) => {
       const subtotal = line.unitPrice * line.quantity;
-      const discountShare = totals.grossAmount > 0 ? Math.round(totals.discountAmount * subtotal / totals.grossAmount) : 0;
+      const discountShare = discountShares[index] ?? 0;
       return { order_id: orderId, product_id: line.productId, option_id: line.optionId ?? null, product_name_snapshot: line.productName, option_name_snapshot: line.optionName ?? null, unit_price: line.unitPrice, quantity: line.quantity, subtotal, commissionable_amount: Math.max(0, subtotal - discountShare) };
     }));
     if (itemError) fail(500, '주문 상품을 저장하지 못했습니다.');
@@ -207,14 +216,29 @@ export async function createPersistedOrder(input: CreateOrderInput, buyerUserId:
       const { data: redeemed, error: redemptionError } = await client.rpc('redeem_promotion_code', { p_promotion_code_id: promotion.id, p_user_id: buyerUserId, p_order_id: orderId, p_discount_amount: totals.discountAmount });
       if (redemptionError || !redeemed) fail(409, 'Promotion Code 사용 한도가 방금 소진되었습니다.');
     }
+    logServerEvent('order.create', requestId, { stage: 'paid', orderId, orderNumber, paidAmount: totals.paidAmount });
     await client.from('analytics_events').insert({ user_id: buyerUserId, event_name: 'order_paid', referral_code: referral.code, referrer_user_id: referral.owner_user_id, properties: { order_id: orderId, amount: totals.paidAmount, commission_amount: commissions.commissions.reduce((sum, commission) => sum + commission.commissionAmount, 0) } });
     return { orderId, orderNumber, payment: verifiedPayment, totals, commissionPreview: commissions.commissions.map(({ depth, beneficiaryName, commissionAmount, status }) => ({ depth, beneficiaryName, commissionAmount, status })) };
   } catch (error) {
-    if (verifiedPayment) await payment.refundPayment({ paymentId: verifiedPayment.paymentId, amount: verifiedPayment.amount, reason: '주문 저장 후속 처리 실패' });
-    await Promise.all(reservedLines.map((line) => client.rpc('release_inventory', { p_product_id: line.productId, p_quantity: line.quantity })));
+    // 보상(rollback) 자체가 실패하면 재고/커미션이 어긋난 채로 남는다.
+    // 예전에는 결과를 버려서 아무도 몰랐다. 이제 전부 로그로 남긴다.
+    logServerError('order.compensate', requestId, error, { stage: 'begin', orderId, reservedCount: reservedLines.length, orderCreated });
+    if (verifiedPayment) {
+      try {
+        await payment.refundPayment({ paymentId: verifiedPayment.paymentId, amount: verifiedPayment.amount, reason: '주문 저장 후속 처리 실패' });
+      } catch (refundError) {
+        logServerError('order.compensate', requestId, refundError, { stage: 'refund', orderId });
+      }
+    }
+    const released = await Promise.all(reservedLines.map((line) => client.rpc('release_inventory', { p_product_id: line.productId, p_quantity: line.quantity })));
+    released.forEach((result, index) => {
+      if (result.error) logServerError('order.compensate', requestId, result.error, { stage: 'release_inventory', orderId, itemIndex: index });
+    });
     if (orderCreated) {
-      await client.from('commissions').update({ status: 'reversed' }).eq('order_id', orderId).in('status', ['pending', 'approved', 'payable']);
-      await client.from('orders').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', orderId).in('status', ['payment_pending', 'paid']);
+      const { error: commissionError } = await client.from('commissions').update({ status: 'reversed' }).eq('order_id', orderId).in('status', ['pending', 'approved', 'payable']);
+      if (commissionError) logServerError('order.compensate', requestId, commissionError, { stage: 'commission_reverse', orderId });
+      const { error: cancelError } = await client.from('orders').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', orderId).in('status', ['payment_pending', 'paid']);
+      if (cancelError) logServerError('order.compensate', requestId, cancelError, { stage: 'order_cancel', orderId });
     }
     throw error;
   }

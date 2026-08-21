@@ -1,19 +1,31 @@
 import { DEMO_PRODUCTS, DEMO_PROMOTIONS, DEMO_REFERRAL_CODES } from '@closed-commerce/commerce';
-import { createServiceRoleSupabaseClient, hasServiceRoleEnv, hasSupabaseEnv } from '@closed-commerce/db';
+import type { AppSupabaseClient } from '@closed-commerce/db';
 import type { B2BLead, Product, ProductImage, PromotionCode, ReferralCode } from '@closed-commerce/types';
+import { requireAdminClient } from '@/lib/admin-auth';
 
 export type AdminDataSource = 'supabase' | 'demo' | 'unavailable';
 export const DEFAULT_SHIPPING_CUTOFF_TIME = '14:00';
 
-function source(): AdminDataSource {
-  if (!hasSupabaseEnv()) return 'demo';
-  return hasServiceRoleEnv() ? 'supabase' : 'unavailable';
+type AdminGate =
+  | { source: 'supabase'; client: AppSupabaseClient }
+  | { source: 'demo' | 'unavailable'; client?: undefined };
+
+/**
+ * 예전에는 이 파일이 인증과 무관하게 service role 클라이언트를 직접 만들었다.
+ * 권한 확인은 layout(AdminShell)에만 있었는데, App Router는 layout과 page를
+ * 병렬로 실행하므로 비로그인 요청에서도 아래 조회들이 전부 실행됐다.
+ * 이제 권한을 통과해야만 client가 나온다 — 인가와 권한 클라이언트를 타입으로 묶는다.
+ */
+async function adminGate(): Promise<AdminGate> {
+  const result = await requireAdminClient();
+  if (result.ok) return { source: 'supabase', client: result.client };
+  return { source: result.mode === 'demo' ? 'demo' : 'unavailable' };
 }
 
 export async function loadAdminProducts(): Promise<{ source: AdminDataSource; products: Product[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, products: currentSource === 'demo' ? DEMO_PRODUCTS : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, products: gate.source === 'demo' ? DEMO_PRODUCTS : [] };
+  const client = gate.client;
   const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').order('created_at', { ascending: false });
   if (error || !rows) return { source: 'unavailable', products: [] };
   const productIds = rows.map((row) => row.id);
@@ -34,9 +46,9 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
 }
 
 export async function loadStoreSettings(): Promise<{ source: AdminDataSource; shippingCutoffTime: string }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
+  const client = gate.client;
   const { data, error } = await client.from('store_settings').select('shipping_cutoff_time').eq('id', 1).maybeSingle();
   if (error) return { source: 'unavailable', shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
   return { source: 'supabase', shippingCutoffTime: data?.shipping_cutoff_time?.slice(0, 5) ?? DEFAULT_SHIPPING_CUTOFF_TIME };
@@ -61,9 +73,9 @@ const demoOrders: AdminOrderRow[] = [
 ];
 
 export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orders: AdminOrderRow[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, orders: currentSource === 'demo' ? demoOrders : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, orders: gate.source === 'demo' ? demoOrders : [] };
+  const client = gate.client;
   const { data: orders, error } = await client.from('orders').select('id, order_number, buyer_user_id, referral_code, status, paid_amount, created_at').order('created_at', { ascending: false });
   if (error || !orders) return { source: 'unavailable', orders: [] };
   const orderIds = orders.map((order) => order.id);
@@ -78,9 +90,9 @@ export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orde
 }
 
 export async function loadAdminReferralCodes(): Promise<{ source: AdminDataSource; codes: (ReferralCode & { members: number; l1Commission: number; l2Commission: number })[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, codes: currentSource === 'demo' ? DEMO_REFERRAL_CODES.map((code, index) => ({ ...code, members: [47, 31, 18][index] ?? 0, l1Commission: [102400, 52320, 44160][index] ?? 0, l2Commission: [19620, 0, 8400][index] ?? 0 })) : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, codes: gate.source === 'demo' ? DEMO_REFERRAL_CODES.map((code, index) => ({ ...code, members: [47, 31, 18][index] ?? 0, l1Commission: [102400, 52320, 44160][index] ?? 0, l2Commission: [19620, 0, 8400][index] ?? 0 })) : [] };
+  const client = gate.client;
   const { data: codes, error } = await client.from('referral_codes').select('id, code, owner_user_id, campaign_id, status, starts_at, expires_at, created_at').order('created_at', { ascending: false });
   if (error || !codes) return { source: 'unavailable', codes: [] };
   const [{ data: relationships }, { data: commissions }, { data: profiles }] = await Promise.all([
@@ -97,9 +109,9 @@ export async function loadAdminReferralCodes(): Promise<{ source: AdminDataSourc
 }
 
 export async function loadAdminPromotions(): Promise<{ source: AdminDataSource; promotions: PromotionCode[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, promotions: currentSource === 'demo' ? DEMO_PROMOTIONS : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, promotions: gate.source === 'demo' ? DEMO_PROMOTIONS : [] };
+  const client = gate.client;
   const { data: codes, error } = await client.from('promotion_codes').select('id, code, status, starts_at, expires_at, total_usage_limit, per_member_usage_limit, usage_count').order('code');
   if (error || !codes) return { source: 'unavailable', promotions: [] };
   const { data: rules } = await client.from('promotion_rules').select('promotion_code_id, product_ids, referral_code_ids, minimum_order_amount, minimum_quantity, discount_rate, discount_amount').in('promotion_code_id', codes.map((code) => code.id));
@@ -107,18 +119,18 @@ export async function loadAdminPromotions(): Promise<{ source: AdminDataSource; 
 }
 
 export async function loadAdminLeads(): Promise<{ source: AdminDataSource; leads: B2BLead[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, leads: currentSource === 'demo' ? [{ id: 'demo-lead-1', companyName: '그린파트너스', contactName: '박지훈', phone: '010-0000-0000', email: 'demo@example.com', requestedProduct: '육포 420g', quantity: 200, desiredDeliveryDate: '2026-09-10', status: 'new', createdAt: '2026-08-19' }] : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, leads: gate.source === 'demo' ? [{ id: 'demo-lead-1', companyName: '그린파트너스', contactName: '박지훈', phone: '010-0000-0000', email: 'demo@example.com', requestedProduct: '육포 420g', quantity: 200, desiredDeliveryDate: '2026-09-10', status: 'new', createdAt: '2026-08-19' }] : [] };
+  const client = gate.client;
   const { data, error } = await client.from('b2b_leads').select('id, company_name, contact_name, phone, email, requested_product, quantity, desired_delivery_date, budget, memo, status, created_at').order('created_at', { ascending: false });
   if (error || !data) return { source: 'unavailable', leads: [] };
   return { source: 'supabase', leads: data.map((lead) => ({ id: lead.id, companyName: lead.company_name, contactName: lead.contact_name, phone: lead.phone, email: lead.email, requestedProduct: lead.requested_product, quantity: lead.quantity, desiredDeliveryDate: lead.desired_delivery_date ?? undefined, budget: lead.budget ?? undefined, memo: lead.memo ?? undefined, status: lead.status, createdAt: lead.created_at })) };
 }
 
 export async function loadAdminSummary() {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, members: 128, sales: 2486000, payableCommission: 184200, leads: 7 };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, members: 128, sales: 2486000, payableCommission: 184200, leads: 7 };
+  const client = gate.client;
   const [{ count: members }, { data: paidOrders }, { data: commissions }, { count: leads }] = await Promise.all([
     client.from('profiles').select('id', { count: 'exact', head: true }),
     client.from('orders').select('paid_amount').eq('status', 'paid'),
@@ -131,9 +143,9 @@ export async function loadAdminSummary() {
 export interface AdminSettlementRow { id: string; owner: string; depth: 1 | 2; base: number; rate: number; amount: number; status: string; createdAt: string }
 
 export async function loadAdminSettlements(): Promise<{ source: AdminDataSource; settlements: AdminSettlementRow[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, settlements: currentSource === 'demo' ? [{ id: 'COM-001', owner: '김건엽', depth: 1, base: 1280000, rate: 0.08, amount: 102400, status: 'payable', createdAt: '2026-08-19' }, { id: 'COM-002', owner: '이정복', depth: 2, base: 654000, rate: 0.03, amount: 19620, status: 'payable', createdAt: '2026-08-19' }, { id: 'COM-003', owner: '지혜 파트너', depth: 1, base: 552000, rate: 0.08, amount: 44160, status: 'approved', createdAt: '2026-08-19' }] : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, settlements: gate.source === 'demo' ? [{ id: 'COM-001', owner: '김건엽', depth: 1, base: 1280000, rate: 0.08, amount: 102400, status: 'payable', createdAt: '2026-08-19' }, { id: 'COM-002', owner: '이정복', depth: 2, base: 654000, rate: 0.03, amount: 19620, status: 'payable', createdAt: '2026-08-19' }, { id: 'COM-003', owner: '지혜 파트너', depth: 1, base: 552000, rate: 0.08, amount: 44160, status: 'approved', createdAt: '2026-08-19' }] : [] };
+  const client = gate.client;
   const { data: commissions, error } = await client.from('commissions').select('id, beneficiary_user_id, depth, commission_base, commission_rate, commission_amount, status, created_at').order('created_at', { ascending: false });
   if (error || !commissions) return { source: 'unavailable', settlements: [] };
   const { data: profiles } = await client.from('profiles').select('id, display_name').in('id', commissions.map((commission) => commission.beneficiary_user_id));
@@ -159,9 +171,9 @@ const demoMembers: AdminMemberRow[] = [
 ];
 
 export async function loadAdminMembers(): Promise<{ source: AdminDataSource; members: AdminMemberRow[] }> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return { source: currentSource, members: currentSource === 'demo' ? demoMembers : [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, members: gate.source === 'demo' ? demoMembers : [] };
+  const client = gate.client;
   const [{ data: profiles, error }, { data: relationships }, { data: orders }, { data: commissions }] = await Promise.all([
     client.from('profiles').select('id, display_name, role, created_at').order('created_at', { ascending: false }),
     client.from('referral_relationships').select('referrer_user_id'),
@@ -203,9 +215,9 @@ const demoAnalytics: AdminAnalyticsData = {
 };
 
 export async function loadAdminAnalytics(): Promise<AdminAnalyticsData> {
-  const currentSource = source();
-  if (currentSource !== 'supabase') return currentSource === 'demo' ? demoAnalytics : { source: currentSource, funnel: { landings: 0, signups: 0, orders: 0 }, referrals: [], channels: [] };
-  const client = createServiceRoleSupabaseClient();
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return gate.source === 'demo' ? demoAnalytics : { source: gate.source, funnel: { landings: 0, signups: 0, orders: 0 }, referrals: [], channels: [] };
+  const client = gate.client;
   const [{ data: events, error }, { data: orders }] = await Promise.all([
     client.from('analytics_events').select('event_name, referral_code, utm_source'),
     client.from('orders').select('referral_code, paid_amount, status'),

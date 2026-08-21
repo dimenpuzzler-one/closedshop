@@ -1,15 +1,34 @@
 import { NextResponse } from 'next/server';
 import { referralCreateSchema } from '@closed-commerce/validation';
-import { getAdminContext } from '@/lib/admin-auth';
+import { ApiError, demoResponse, failFromSupabase, readJson, withAdmin } from '@/lib/route-handler';
 
-export async function POST(request: Request) {
-  const parsed = referralCreateSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: 'Referral Code 입력값이 올바르지 않습니다.' }, { status: 400 });
-  const context = await getAdminContext();
-  if (context.mode === 'demo') return NextResponse.json({ message: '데모 Referral Code가 생성되었습니다.', code: parsed.data.code.toUpperCase() });
-  if (context.mode !== 'supabase') return NextResponse.json({ error: context.message }, { status: context.mode === 'unauthorized' ? 403 : 503 });
-  const { data: code, error } = await context.client.from('referral_codes').insert({ code: parsed.data.code.toUpperCase(), owner_user_id: parsed.data.ownerUserId, campaign_id: parsed.data.campaignId ?? null, status: 'active' }).select('id, code').single();
-  if (error || !code) return NextResponse.json({ error: 'Referral Code를 생성하지 못했습니다.' }, { status: 500 });
-  await context.client.from('admin_audit_logs').insert({ actor_user_id: context.userId, action: 'referral_code_created', entity_type: 'referral_code', entity_id: code.id, after_data: parsed.data });
-  return NextResponse.json({ message: 'Referral Code가 생성되었습니다.', code });
-}
+export const POST = withAdmin(
+  'admin.referrals.create',
+  async ({ requestId, client, userId }, request) => {
+    const parsed = referralCreateSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      throw new ApiError(400, 'Referral Code 입력값이 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
+    }
+    const code = parsed.data.code.toUpperCase();
+    const { data: created, error } = await client
+      .from('referral_codes')
+      .insert({ code, owner_user_id: parsed.data.ownerUserId, campaign_id: parsed.data.campaignId ?? null, status: 'active' })
+      .select('id, code')
+      .single();
+    if (error || !created) {
+      if (error?.code === '23505') throw new ApiError(409, `이미 존재하는 Referral Code입니다: ${code}`, 'duplicate_code');
+      if (error?.code === '23503') throw new ApiError(400, '해당 User ID의 프로필이 없습니다. 먼저 회원 가입이 되어 있어야 합니다.', 'owner_not_found');
+      failFromSupabase('Referral Code를 생성하지 못했습니다.', error, 'referral_insert_failed');
+    }
+
+    await client.from('admin_audit_logs').insert({
+      actor_user_id: userId,
+      action: 'referral_code_created',
+      entity_type: 'referral_code',
+      entity_id: created.id,
+      after_data: { ...parsed.data, requestId },
+    });
+    return NextResponse.json({ message: `Referral Code ${created.code}가 생성되었습니다.`, code: created, requestId });
+  },
+  { demo: (requestId) => demoResponse(requestId, { message: 'Referral Code가 생성되었습니다.' }) },
+);

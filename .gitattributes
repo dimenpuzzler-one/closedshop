@@ -1,0 +1,12 @@
+# 저장소의 표준 줄바꿈은 LF다.
+# 이 파일이 없어서 Windows 체크아웃에서 .gitignore와 tsconfig.json 3개가
+# CRLF 차이만으로 항상 "modified"로 남았고, 핸드오프 문서의 "작업 트리 clean"과 어긋났다.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary

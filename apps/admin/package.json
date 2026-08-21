@@ -8,13 +8,14 @@
     "build": "next build",
     "start": "next start --port 3001",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit -p tsconfig.lint.json"
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "@closed-commerce/auth": "workspace:*",
     "@closed-commerce/commerce": "workspace:*",
     "@closed-commerce/config": "workspace:*",
     "@closed-commerce/db": "workspace:*",
+    "@closed-commerce/observability": "workspace:*",
     "@closed-commerce/payment": "workspace:*",
     "@closed-commerce/referral": "workspace:*",
     "@closed-commerce/types": "workspace:*",

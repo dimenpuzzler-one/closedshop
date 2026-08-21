@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { hasSupabaseEnv } from '@closed-commerce/db';
+import { resolveRuntimeMode } from '@closed-commerce/db';
 import { canAccessAdmin, getProfileRole, getVerifiedUser } from '@closed-commerce/auth';
 import { createServerAppClient } from '@/lib/supabase-server';
 
@@ -9,7 +9,9 @@ const links: Array<[string, string]> = [
 ];
 
 async function canRenderAdmin() {
-  if (!hasSupabaseEnv()) return true;
+  const mode = resolveRuntimeMode({ requireServiceRole: true });
+  if (mode === 'unavailable') return false;
+  if (mode === 'demo') return true;
   const client = await createServerAppClient();
   const user = await getVerifiedUser(client);
   if (!user) return false;
