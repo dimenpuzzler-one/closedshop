@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   if (context.mode === 'demo') return NextResponse.json({ message: '데모 상품 등록이 처리되었습니다.', productId: `demo-${Date.now()}` });
   if (context.mode !== 'supabase') return NextResponse.json({ error: context.message }, { status: context.mode === 'unauthorized' ? 403 : 503 });
 
-  const { data: product, error: productError } = await context.client.from('products').insert({ slug: parsed.data.slug, name: parsed.data.name, short_description: parsed.data.shortDescription, description: parsed.data.description, base_price: parsed.data.basePrice, supply_cost: parsed.data.supplyCost, shipping_fee: parsed.data.shippingFee, visibility: parsed.data.visibility, status: parsed.data.status }).select('id').single();
+  const { data: product, error: productError } = await context.client.from('products').insert({ slug: parsed.data.slug, name: parsed.data.name, category: parsed.data.category, short_description: parsed.data.shortDescription, description: parsed.data.description, base_price: parsed.data.basePrice, supply_cost: parsed.data.supplyCost, shipping_fee: parsed.data.shippingFee, visibility: parsed.data.visibility, status: parsed.data.status }).select('id').single();
   if (productError || !product) return NextResponse.json({ error: productError?.code === '23505' ? '이미 사용 중인 상품 slug입니다.' : '상품을 저장하지 못했습니다.' }, { status: 500 });
 
   const cleanup = async (paths: string[] = []) => {

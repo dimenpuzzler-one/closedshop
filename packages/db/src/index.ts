@@ -15,9 +15,9 @@ export type Database = {
         { display_name?: string | null; role?: 'customer' | 'operator' | 'admin' }
       >;
       products: Table<
-        { id: string; slug: string; name: string; short_description: string; description: string; base_price: number; supply_cost: number | null; shipping_fee: number; visibility: 'public' | 'member' | 'referral' | 'hidden'; status: 'draft' | 'active' | 'paused' | 'archived'; created_at: string },
-        { slug: string; name: string; short_description?: string; description?: string; base_price: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' },
-        { slug?: string; name?: string; short_description?: string; description?: string; base_price?: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' }
+        { id: string; slug: string; name: string; category: string; short_description: string; description: string; base_price: number; supply_cost: number | null; shipping_fee: number; visibility: 'public' | 'member' | 'referral' | 'hidden'; status: 'draft' | 'active' | 'paused' | 'archived'; created_at: string },
+        { slug: string; name: string; category?: string; short_description?: string; description?: string; base_price: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' },
+        { slug?: string; name?: string; category?: string; short_description?: string; description?: string; base_price?: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' }
       >;
       product_options: Table<
         { id: string; product_id: string; name: string; value: string; price: number },
@@ -33,6 +33,11 @@ export type Database = {
         { id: string; product_id: string; storage_path: string; alt_text: string; sort_order: number; created_at: string },
         { product_id: string; storage_path: string; alt_text?: string; sort_order?: number },
         { storage_path?: string; alt_text?: string; sort_order?: number }
+      >;
+      store_settings: Table<
+        { id: number; shipping_cutoff_time: string; updated_at: string },
+        { id?: number; shipping_cutoff_time?: string },
+        { shipping_cutoff_time?: string }
       >;
       referral_codes: Table<
         { id: string; code: string; owner_user_id: string; campaign_id: string | null; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; created_at: string },

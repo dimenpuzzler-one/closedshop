@@ -60,6 +60,7 @@ export const leadUpdateSchema = z.object({
 export const productCreateSchema = z.object({
   slug: z.string().trim().min(2).max(120).regex(/^[a-z0-9-]+$/),
   name: z.string().trim().min(1).max(160),
+  category: z.string().trim().min(1).max(80).default('기타'),
   shortDescription: z.string().trim().max(300).default(''),
   description: z.string().trim().max(4000).default(''),
   basePrice: z.number().int().min(0),
@@ -71,6 +72,10 @@ export const productCreateSchema = z.object({
   optionValue: z.string().trim().min(1).max(80),
   optionPrice: z.number().int().min(0).optional(),
   stock: z.number().int().min(0),
+});
+
+export const shippingSettingsSchema = z.object({
+  shippingCutoffTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, '배송 마감 시간은 HH:MM 형식이어야 합니다.'),
 });
 
 export const refundSchema = z.object({

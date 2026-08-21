@@ -11,7 +11,7 @@ export function ProductCard({ product, referralCode = 'KGY001', interactive = tr
       <span className="product-weight">{product.weight}</span>
     </Link>
     <div className="product-body">
-      <Link href={`/products/${product.slug}?ref=${encodeURIComponent(referralCode)}`}><h3>{product.name}</h3></Link>
+      <Link href={`/products/${product.slug}?ref=${encodeURIComponent(referralCode)}`}><span className="product-category">{product.category}</span><h3>{product.name}</h3></Link>
       <p className="muted">{product.shortDescription}</p>
       <div className="product-tags">{product.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div>
       <div className="product-meta">

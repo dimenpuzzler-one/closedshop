@@ -22,6 +22,7 @@ export interface Product {
   id: Id;
   slug: string;
   name: string;
+  category: string;
   shortDescription: string;
   description: string;
   weight: string;
@@ -35,6 +36,10 @@ export interface Product {
   options: ProductOption[];
   tags: string[];
   commissionableRate?: number;
+}
+
+export interface StoreSettings {
+  shippingCutoffTime: string;
 }
 
 export interface ReferralCode {

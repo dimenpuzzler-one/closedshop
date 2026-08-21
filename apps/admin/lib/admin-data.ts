@@ -3,6 +3,7 @@ import { createServiceRoleSupabaseClient, hasServiceRoleEnv, hasSupabaseEnv } fr
 import type { B2BLead, Product, ProductImage, PromotionCode, ReferralCode } from '@closed-commerce/types';
 
 export type AdminDataSource = 'supabase' | 'demo' | 'unavailable';
+export const DEFAULT_SHIPPING_CUTOFF_TIME = '14:00';
 
 function source(): AdminDataSource {
   if (!hasSupabaseEnv()) return 'demo';
@@ -13,7 +14,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const currentSource = source();
   if (currentSource !== 'supabase') return { source: currentSource, products: currentSource === 'demo' ? DEMO_PRODUCTS : [] };
   const client = createServiceRoleSupabaseClient();
-  const { data: rows, error } = await client.from('products').select('id, slug, name, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').order('created_at', { ascending: false });
+  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').order('created_at', { ascending: false });
   if (error || !rows) return { source: 'unavailable', products: [] };
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
@@ -29,7 +30,16 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
     current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order });
     imagesByProduct.set(image.product_id, current);
   });
-  return { source: 'supabase', products: rows.map((row) => { const images = imagesByProduct.get(row.id) ?? []; const productOptions = (options ?? []).filter((option) => option.product_id === row.id); return { id: row.id, slug: row.slug, name: row.name, shortDescription: row.short_description, description: row.description, weight: productOptions[0]?.value ?? '', price: productOptions[0]?.price ?? row.base_price, supplyCost: row.supply_cost ?? undefined, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: images[0]?.url ?? '', images, options: productOptions.map((option) => ({ id: option.id, name: option.name, value: option.value, price: option.price, stock: stock.get(row.id) ?? 0 })), tags: [] }; }) };
+  return { source: 'supabase', products: rows.map((row) => { const images = imagesByProduct.get(row.id) ?? []; const productOptions = (options ?? []).filter((option) => option.product_id === row.id); return { id: row.id, slug: row.slug, name: row.name, category: row.category, shortDescription: row.short_description, description: row.description, weight: productOptions[0]?.value ?? '', price: productOptions[0]?.price ?? row.base_price, supplyCost: row.supply_cost ?? undefined, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: images[0]?.url ?? '', images, options: productOptions.map((option) => ({ id: option.id, name: option.name, value: option.value, price: option.price, stock: stock.get(row.id) ?? 0 })), tags: [] }; }) };
+}
+
+export async function loadStoreSettings(): Promise<{ source: AdminDataSource; shippingCutoffTime: string }> {
+  const currentSource = source();
+  if (currentSource !== 'supabase') return { source: currentSource, shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
+  const client = createServiceRoleSupabaseClient();
+  const { data, error } = await client.from('store_settings').select('shipping_cutoff_time').eq('id', 1).maybeSingle();
+  if (error) return { source: 'unavailable', shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
+  return { source: 'supabase', shippingCutoffTime: data?.shipping_cutoff_time?.slice(0, 5) ?? DEFAULT_SHIPPING_CUTOFF_TIME };
 }
 
 export interface AdminOrderRow {

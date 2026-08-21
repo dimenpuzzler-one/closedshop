@@ -60,6 +60,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-visual:before { content: 'PREMIUM\A JERKY'; white-space: pre; display: block; color: rgba(22, 61, 42, .45); font-size: 12px; letter-spacing: .12em; line-height: 1.4; }
 .product-weight { margin-left: auto; font-weight: 800; color: var(--green-dark); font-size: 28px; letter-spacing: -.06em; position: relative; z-index: 1; text-shadow: 0 1px 8px rgba(255,255,255,.7); }
 .product-body { padding: 22px; }
+.product-category { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .product-body h3 { font-size: 19px; }
 .product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 18px; }
 .product-price { font-size: 20px; font-weight: 800; }
@@ -106,6 +107,8 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .total-line { font-size: 16px; }
 .total-line strong { font-size: 22px; }
 .notice { padding: 14px 16px; border-radius: 12px; background: #fff7e9; color: #895b22; font-size: 13px; line-height: 1.6; }
+.shipping-cutoff-notice { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.shipping-cutoff-notice strong { color: var(--green-dark); }
 
 .badge { border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 800; display: inline-block; }
 .badge-neutral { color: var(--muted); background: #eef1ee; }
@@ -136,6 +139,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .hero-art { min-height: 260px; }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .nav { display: none; }
+  .shipping-cutoff-notice { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
 @media (max-width: 580px) {
   .container { width: min(100% - 28px, 1120px); }

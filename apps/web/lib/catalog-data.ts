@@ -4,8 +4,8 @@ import { findValidReferralCode } from '@closed-commerce/referral';
 import type { Product, ProductImage } from '@closed-commerce/types';
 import { createServerAppClient } from '@/lib/supabase-server';
 
-function mapProduct(row: { id: string; slug: string; name: string; short_description: string; description: string; base_price: number; shipping_fee: number; visibility: Product['visibility']; status: Product['status'] }, options: { id: string; name: string; value: string; price: number; stock: number }[], images: ProductImage[] = []): Product {
-  return { id: row.id, slug: row.slug, name: row.name, shortDescription: row.short_description, description: row.description, weight: options[0]?.value ?? '', price: options[0]?.price ?? row.base_price, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: images[0]?.url ?? '', images, options, tags: [] };
+function mapProduct(row: { id: string; slug: string; name: string; category: string; short_description: string; description: string; base_price: number; shipping_fee: number; visibility: Product['visibility']; status: Product['status'] }, options: { id: string; name: string; value: string; price: number; stock: number }[], images: ProductImage[] = []): Product {
+  return { id: row.id, slug: row.slug, name: row.name, category: row.category, shortDescription: row.short_description, description: row.description, weight: options[0]?.value ?? '', price: options[0]?.price ?? row.base_price, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: images[0]?.url ?? '', images, options, tags: [] };
 }
 
 export async function loadVisibleCatalog(referralCode?: string): Promise<{ products: Product[]; validReferralCode?: string; authenticated: boolean }> {
@@ -22,7 +22,7 @@ export async function loadVisibleCatalog(referralCode?: string): Promise<{ produ
     const { data: code } = await client.from('referral_codes').select('code').eq('id', relationship.referral_code_id).eq('status', 'active').maybeSingle();
     validReferralCode = code?.code;
   }
-  const { data: rows, error } = await client.from('products').select('id, slug, name, short_description, description, base_price, shipping_fee, visibility, status, created_at').eq('status', 'active');
+  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, shipping_fee, visibility, status, created_at').eq('status', 'active');
   if (error || !rows || rows.length === 0) return { products: [], validReferralCode, authenticated: true };
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([

@@ -78,7 +78,7 @@ async function loadPromotion(client: AppSupabaseClient, input: CreateOrderInput,
 async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): Promise<{ lines: CatalogLine[]; products: Product[] }> {
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   const [{ data: products, error: productError }, { data: options, error: optionError }, { data: inventory, error: inventoryError }] = await Promise.all([
-    client.from('products').select('id, slug, name, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').in('id', productIds).eq('status', 'active'),
+    client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').in('id', productIds).eq('status', 'active'),
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
     client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds),
   ]);
@@ -102,6 +102,7 @@ async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): 
     id: product.id,
     slug: product.slug,
     name: product.name,
+    category: product.category,
     shortDescription: product.short_description,
     description: product.description,
     weight: '',
