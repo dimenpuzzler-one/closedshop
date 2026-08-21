@@ -417,4 +417,4 @@ Vercel Dashboard의 Project Settings → Environment Variables에서 Production/
 - 입력 검증: packages/validation/src/index.ts
 - DB migrations: supabase/migrations
 
-이 문서의 마지막 기준 커밋은 d81852c입니다. 이후 변경이 생기면 상단 갱신일, 커밋 목록, 배포 URL, 완료/미완료 범위를 함께 업데이트하세요.
+이 문서의 기능 기준 커밋은 afcca0d이며, 이후 문서 전용 커밋이 추가될 수 있습니다. 최신 상태는 항상 git log와 git status로 확인하고, 기능 변경이 생기면 상단 갱신일, 커밋 목록, 배포 URL, 완료/미완료 범위를 함께 업데이트하세요.
