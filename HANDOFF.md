@@ -40,8 +40,8 @@ GitHub main 브랜치: https://github.com/dimenpuzzler-one/closedshop/tree/main
 - Admin project: closed-commerce-admin
 - Web Vercel project id: prj_4ces16gANl0SMxsIemZm6lwtrFZN
 - Admin Vercel project id: prj_jdW4QcCvK4vmt2qkWs3kmnG9DvdW
-- 최신 확인 배포 상태: web/admin 모두 Production Ready
-- 최신 확인 배포 URL:
+- 문서 작성 당시 확인 배포 상태: web/admin 모두 Production Ready
+- 참고용 배포 URL (deployment마다 바뀔 수 있으므로 canonical alias 사용 권장):
   - web: https://closed-commerce-btlqn04jj-withclaudefirst.vercel.app
   - admin: https://closed-commerce-admin-r7pbg91wt-withclaudefirst.vercel.app
 - canonical alias:
@@ -417,5 +417,4 @@ Vercel Dashboard의 Project Settings → Environment Variables에서 Production/
 - 입력 검증: packages/validation/src/index.ts
 - DB migrations: supabase/migrations
 
-이 문서의 마지막 기준 커밋은 afcca0d입니다. 이후 변경이 생기면 상단 갱신일, 커밋 목록, 배포 URL, 완료/미완료 범위를 함께 업데이트하세요.
-
+이 문서의 마지막 기준 커밋은 d81852c입니다. 이후 변경이 생기면 상단 갱신일, 커밋 목록, 배포 URL, 완료/미완료 범위를 함께 업데이트하세요.
