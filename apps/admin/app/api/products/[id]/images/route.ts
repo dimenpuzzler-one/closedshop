@@ -35,6 +35,22 @@ function validatePath(productId: string, path: unknown): path is string {
     && /^[0-9a-f-]+\/[0-9]{2,3}-[0-9a-f-]+\.(?:jpg|png|webp)$/.test(path);
 }
 
+function requireDirectUploadRequest(request: Request) {
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+  if (contentType.includes('application/json')) return;
+  if (contentType.includes('multipart/form-data')) {
+    throw new ApiError(
+      409,
+      '이미지 업로드 방식이 업데이트되었습니다. 관리자 페이지를 새로고침한 뒤 사진을 다시 선택해 주세요.',
+      'upload_client_outdated',
+      { receivedContentType: 'multipart/form-data' },
+    );
+  }
+  throw new ApiError(400, '이미지 업로드 요청 형식이 올바르지 않습니다.', 'expected_json', {
+    receivedContentType: contentType || '(none)',
+  });
+}
+
 async function requireProduct(client: AdminRouteContext['client'], id: string) {
   const { data: product, error } = await client.from('products').select('id, name').eq('id', id).maybeSingle();
   if (error) failFromSupabase('상품을 조회하지 못했습니다.', error, 'product_read_failed');
@@ -46,6 +62,7 @@ async function requireProduct(client: AdminRouteContext['client'], id: string) {
 export const POST = withAdminParams<{ id: string }>(
   'admin.products.images.prepare',
   async ({ requestId, client }, request, { id }) => {
+    requireDirectUploadRequest(request);
     await requireProduct(client, id);
     const body = await readJson(request) as { files?: unknown };
     if (!Array.isArray(body.files) || body.files.length === 0) {
@@ -101,6 +118,7 @@ export const POST = withAdminParams<{ id: string }>(
 export const PUT = withAdminParams<{ id: string }>(
   'admin.products.images.complete',
   async ({ requestId, client, userId }, request, { id }) => {
+    requireDirectUploadRequest(request);
     const product = await requireProduct(client, id);
     const body = await readJson(request) as { uploads?: unknown };
     if (!Array.isArray(body.uploads) || body.uploads.length === 0) {
@@ -164,6 +182,7 @@ export const PUT = withAdminParams<{ id: string }>(
 export const DELETE = withAdminParams<{ id: string }>(
   'admin.products.images.cleanup',
   async ({ requestId, client }, request, { id }) => {
+    requireDirectUploadRequest(request);
     await requireProduct(client, id);
     const body = await readJson(request) as { paths?: unknown };
     const requested = Array.isArray(body.paths) ? body.paths.filter((path) => validatePath(id, path)) : [];
