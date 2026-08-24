@@ -149,3 +149,39 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .form-grid .full { grid-column: auto; }
   .gate-form, .footer-inner { flex-direction: column; align-items: stretch; }
 }
+
+/* ---- 상품 상세 ---- */
+/* 대표 이미지는 잘라내지 않고 전체가 보이게 한다. 선물세트는 패키지 전체가 정보다. */
+.product-hero-image { position: relative; width: 100%; min-height: 460px; border-radius: 20px; overflow: hidden; background: #eef4ef; }
+.product-hero-image img { object-fit: contain; padding: 12px; }
+
+.product-detail-section { border-top: 1px solid var(--line); }
+.product-detail-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+.product-detail-tab { padding: 12px 18px; font-size: 14px; font-weight: 700; color: var(--muted); border-bottom: 2px solid transparent; }
+.product-detail-tab.active { color: var(--green-dark); border-bottom-color: var(--green-dark); }
+
+.product-detail-body { max-width: 860px; margin: 0 auto 40px; }
+.product-detail-body h3 { margin-bottom: 14px; }
+/* 관리자가 넣은 줄바꿈을 그대로 살린다. 예전에는 한 문단으로 뭉쳤다. */
+.product-detail-text { white-space: pre-wrap; line-height: 1.9; font-size: 15px; color: #33413a; margin-bottom: 28px; }
+
+/* 상세 이미지는 세로로 이어 붙인다(일반 쇼핑몰 상세페이지 형태). */
+.product-detail-images { display: flex; flex-direction: column; gap: 0; }
+.product-detail-image { width: 100%; line-height: 0; }
+.product-detail-image img { width: 100%; height: auto; display: block; }
+.product-detail-image:first-child img { border-radius: 16px 16px 0 0; }
+.product-detail-image:last-child img { border-radius: 0 0 16px 16px; }
+.product-detail-image:only-child img { border-radius: 16px; }
+
+.product-spec-list { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.product-spec-list > div { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.product-spec-list dt { font-weight: 700; color: var(--muted); }
+.product-spec-list dd { margin: 0; line-height: 1.7; }
+
+.header-viewer { font-size: 13px; white-space: nowrap; }
+
+@media (max-width: 850px) {
+  .product-hero-image { min-height: 320px; }
+  .product-spec-list > div { grid-template-columns: 1fr; gap: 4px; }
+  .header-viewer { display: none; }
+}

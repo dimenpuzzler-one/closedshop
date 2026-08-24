@@ -98,6 +98,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       message: data.session ? '회원가입과 로그인이 완료되었습니다.' : '가입이 완료되었습니다. 이메일 인증 후 로그인해 주세요.',
+      // 세션이 바로 생겼는지에 따라 화면이 갈린다.
+      // 생겼으면 상품 목록으로 보내고, 아니면 "메일 확인" 안내를 남긴다.
+      authenticated: Boolean(data.session),
       requestId,
     });
   } catch (error) {
