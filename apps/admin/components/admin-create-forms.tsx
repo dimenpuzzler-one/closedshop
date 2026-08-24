@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { slugify } from '@closed-commerce/validation';
 
 type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: ValidationDetails };
@@ -24,9 +25,19 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  slug: '상품 주소', name: '상품명', category: '카테고리', shortDescription: '짧은 소개',
+  description: '상세 설명', basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비',
+  visibility: '노출 대상', status: '판매 상태', optionName: '옵션명', optionValue: '옵션값',
+  optionPrice: '옵션가', stock: '초기재고', shippingCutoffTime: '배송 마감 시간',
+  code: '코드', ownerUserId: '소유자 User ID', discountRate: '할인율', discountAmount: '정액할인',
+};
+
 function formatValidationDetails(details?: ValidationDetails) {
   if (!details) return '';
-  const fieldMessages = Object.entries(details.fieldErrors ?? {}).map(([field, messages]) => `${field}: ${(messages ?? []).join(', ')}`);
+  const fieldMessages = Object.entries(details.fieldErrors ?? {}).map(
+    ([field, messages]) => `${FIELD_LABELS[field] ?? field}: ${(messages ?? []).join(', ')}`,
+  );
   return [...(details.formErrors ?? []), ...fieldMessages].join(' / ');
 }
 
@@ -58,9 +69,11 @@ async function readResponse(response: Response): Promise<ApiResult> {
 }
 
 function describeFailure(response: Response, result: ApiResult) {
-  const parts = [result.error ?? '저장하지 못했습니다.'];
+  const base = result.error ?? '저장하지 못했습니다.';
   const validation = formatValidationDetails(result.details);
-  if (validation) parts.push(validation);
+  // 서버 문구에 이미 같은 내용이 들어 있으면 다시 붙이지 않는다.
+  // 예전에는 "slug: Invalid slug: Invalid"처럼 두 번 찍혔다.
+  const parts = validation && !base.includes(validation) ? [base, validation] : [base];
   const tags = [`HTTP ${response.status}`];
   if (result.code) tags.push(result.code);
   if (result.requestId) tags.push(`오류번호 ${result.requestId}`);
@@ -235,14 +248,40 @@ function FormFeedback({ error, message }: { error: string; message: string }) {
 
 export function ProductCreateForm() {
   const form = useCreate('/api/products', { multipart: true });
+  // 상품명에서 상품 주소를 자동으로 만든다. 운영자가 URL 규칙을 알 필요가 없다.
+  // 직접 고치면 그때부터는 손댄 값을 존중한다.
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+  const effectiveSlug = slugTouched ? slug : slugify(name);
+
   return (
     <details className="card admin-section">
       <summary className="button button-secondary">상품 등록 열기</summary>
-      <form className="stack" onSubmit={form.submit} encType="multipart/form-data">
+      <form
+        className="stack"
+        onSubmit={form.submit}
+        onReset={() => { setName(''); setSlug(''); setSlugTouched(false); }}
+        encType="multipart/form-data"
+      >
         <p className="field-hint">옵션은 고객이 선택하는 구성·중량입니다. 단일 구성 상품이면 기본값을 그대로 쓰고 옵션가는 비워두세요.</p>
         <div className="form-grid">
-          <label className="field"><span className="field-label">Slug</span><input className="input" name="slug" placeholder="premium-pear-500g" required /><span className="field-hint">영문 소문자, 숫자, 하이픈만 사용합니다.</span></label>
-          <label className="field"><span className="field-label">상품명</span><input className="input" name="name" required /></label>
+          <label className="field"><span className="field-label">상품명</span><input className="input" name="name" value={name} onChange={(event) => setName(event.currentTarget.value)} required /></label>
+          <label className="field">
+            <span className="field-label">상품 주소 (자동)</span>
+            <input
+              className="input"
+              name="slug"
+              value={effectiveSlug}
+              onChange={(event) => { setSlugTouched(true); setSlug(event.currentTarget.value); }}
+              placeholder="상품명을 입력하면 자동으로 만들어집니다"
+            />
+            <span className="field-hint">
+              {effectiveSlug
+                ? `고객몰 주소: /products/${effectiveSlug}`
+                : '비워 두시면 서버가 자동으로 만듭니다. 직접 넣으실 때만 영문 소문자·숫자·하이픈을 쓰세요.'}
+            </span>
+          </label>
           <label className="field"><span className="field-label">제품 카테고리</span><input className="input" name="category" defaultValue="기타" maxLength={80} required /><span className="field-hint">고객몰에서 상품을 분류할 이름입니다.</span></label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">옵션가를 비워두면 이 금액이 판매가가 됩니다.</span></label>
           <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" /></label>

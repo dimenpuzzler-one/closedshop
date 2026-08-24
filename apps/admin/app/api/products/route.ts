@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { logServerEvent } from '@closed-commerce/observability';
-import { productCreateSchema } from '@closed-commerce/validation';
+import { nextSlugCandidate, productCreateSchema, slugify } from '@closed-commerce/validation';
 import { ApiError, demoResponse, failFromSupabase, withAdmin, type AdminRouteContext } from '@/lib/route-handler';
 
 const IMAGE_BUCKET = 'product-images';
@@ -123,49 +123,69 @@ export const POST = withAdmin(
     const { values, images } = await parseRequest(request);
     const totalBytes = assertImagesAreUploadable(images);
 
+    // slug를 비워 보내면 상품명에서 자동으로 만든다.
+    // 운영자가 URL 규칙을 알아야 할 이유가 없다.
+    const providedSlug = typeof values.slug === 'string' ? values.slug.trim() : '';
+    const autoSlug = providedSlug.length === 0;
+    if (autoSlug) {
+      const fromName = typeof values.name === 'string' ? slugify(values.name) : '';
+      values.slug = fromName || `item-${Date.now().toString(36)}`;
+    }
+
     const parsed = productCreateSchema.safeParse(values);
     if (!parsed.success) {
-      const flat = parsed.error.flatten();
-      const fieldSummary = Object.entries(flat.fieldErrors)
-        .map(([field, messages]) => `${field}: ${(messages ?? []).join(', ')}`)
-        .join(' / ');
-      throw new ApiError(
-        400,
-        `상품 입력값이 올바르지 않습니다. ${fieldSummary || flat.formErrors.join(' ')}`.trim(),
-        'validation_failed',
-        flat,
-      );
+      // 메시지 본문은 기본 문구만 두고, 항목별 사유는 details로 보낸다.
+      // 예전에는 양쪽에 다 넣어 화면에 "slug: Invalid slug: Invalid"처럼 두 번 찍혔다.
+      throw new ApiError(400, '상품 입력값이 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
     }
+    const productSlug = parsed.data.slug ?? `item-${Date.now().toString(36)}`;
 
     logServerEvent('admin.products.create', requestId, {
       stage: 'validated',
-      slug: parsed.data.slug,
+      slug: productSlug,
+      autoSlug,
       imageCount: images.length,
       uploadBytes: totalBytes,
     });
 
-    const { data: product, error: productError } = await client
-      .from('products')
-      .insert({
-        slug: parsed.data.slug,
-        name: parsed.data.name,
-        category: parsed.data.category,
-        short_description: parsed.data.shortDescription,
-        description: parsed.data.description,
-        base_price: parsed.data.basePrice,
-        supply_cost: parsed.data.supplyCost ?? null,
-        shipping_fee: parsed.data.shippingFee,
-        visibility: parsed.data.visibility,
-        status: parsed.data.status,
-      })
-      .select('id')
-      .single();
+    const insertProduct = (slug: string) =>
+      client
+        .from('products')
+        .insert({
+          slug,
+          name: parsed.data.name,
+          category: parsed.data.category,
+          short_description: parsed.data.shortDescription,
+          description: parsed.data.description,
+          base_price: parsed.data.basePrice,
+          supply_cost: parsed.data.supplyCost ?? null,
+          shipping_fee: parsed.data.shippingFee,
+          visibility: parsed.data.visibility,
+          status: parsed.data.status,
+        })
+        .select('id, slug')
+        .single();
 
-    if (productError || !product) {
-      if (productError?.code === '23505') {
-        throw new ApiError(409, `이미 사용 중인 상품 slug입니다: ${parsed.data.slug}`, 'duplicate_slug');
+    let slugToUse = productSlug;
+    let inserted = await insertProduct(slugToUse);
+
+    // 자동 생성 slug는 같은 상품명이면 당연히 겹친다. 운영자에게 물어볼 일이 아니라 번호를 올린다.
+    for (let attempt = 0; autoSlug && inserted.error?.code === '23505' && attempt < 20; attempt += 1) {
+      slugToUse = nextSlugCandidate(slugToUse);
+      inserted = await insertProduct(slugToUse);
+    }
+
+    const product = inserted.data;
+    if (inserted.error || !product) {
+      if (inserted.error?.code === '23505') {
+        throw new ApiError(
+          409,
+          `상품 주소(slug) "${slugToUse}"는 이미 다른 상품이 쓰고 있습니다. 뒤에 숫자를 붙이거나 비워 두시면 자동으로 만들어 드립니다.`,
+          'duplicate_slug',
+          { slug: slugToUse, suggestion: nextSlugCandidate(slugToUse) },
+        );
       }
-      failFromSupabase('상품을 저장하지 못했습니다.', productError, 'product_insert_failed');
+      failFromSupabase('상품을 저장하지 못했습니다.', inserted.error, 'product_insert_failed');
     }
 
     const cleanup = async (paths: string[] = []) => {
@@ -229,13 +249,14 @@ export const POST = withAdmin(
       action: 'product_created',
       entity_type: 'product',
       entity_id: product.id,
-      after_data: { ...parsed.data, imageCount: uploadedImages.length, requestId },
+      after_data: { ...parsed.data, slug: product.slug, autoSlug, imageCount: uploadedImages.length, requestId },
     });
 
-    logServerEvent('admin.products.create', requestId, { stage: 'done', productId: product.id });
+    logServerEvent('admin.products.create', requestId, { stage: 'done', productId: product.id, slug: product.slug });
     return NextResponse.json({
-      message: `상품이 등록되었습니다${uploadedImages.length ? ` (이미지 ${uploadedImages.length}장 포함)` : ''}.`,
+      message: `상품이 등록되었습니다${uploadedImages.length ? ` (이미지 ${uploadedImages.length}장 포함)` : ''}. 상품 주소: ${product.slug}`,
       productId: product.id,
+      slug: product.slug,
       requestId,
     });
   },

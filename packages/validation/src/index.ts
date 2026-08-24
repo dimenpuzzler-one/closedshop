@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export { romanizeKorean, slugify, nextSlugCandidate } from './slug';
+
 export const referralCodeSchema = z.object({
   code: z.string().trim().min(3).max(32).regex(/^[A-Z0-9_-]+$/i),
 });
@@ -66,21 +68,47 @@ export const leadUpdateSchema = z.object({
   status: z.enum(['new', 'contacted', 'quoted', 'closed']),
 });
 
+/**
+ * 모든 메시지를 한국어로 명시한다.
+ * 기본 메시지는 정규식 실패 시 "Invalid" 한 단어뿐이라, 화면에 "slug: Invalid"만 떴다.
+ * 무엇이 잘못됐고 어떻게 고치면 되는지가 메시지 안에 들어 있어야 한다.
+ */
+const wonAmount = (label: string) =>
+  z
+    .number({ invalid_type_error: `${label}은(는) 숫자만 입력할 수 있습니다. 쉼표(,)나 "원"은 빼 주세요.` })
+    .int(`${label}은(는) 소수점 없이 입력해 주세요.`)
+    .min(0, `${label}은(는) 0 이상이어야 합니다.`);
+
+export const productSlugSchema = z
+  .string()
+  .trim()
+  .min(2, '상품 주소(slug)는 2자 이상이어야 합니다.')
+  .max(120, '상품 주소(slug)는 120자를 넘을 수 없습니다.')
+  .regex(
+    /^[a-z0-9-]+$/,
+    '상품 주소(slug)에는 영문 소문자, 숫자, 하이픈(-)만 쓸 수 있습니다. 한글·공백·대문자·밑줄(_)은 쓸 수 없습니다. 예: gift-set-500g',
+  );
+
 export const productCreateSchema = z.object({
-  slug: z.string().trim().min(2).max(120).regex(/^[a-z0-9-]+$/),
-  name: z.string().trim().min(1).max(160),
-  category: z.string().trim().min(1).max(80).default('기타'),
-  shortDescription: z.string().trim().max(300).default(''),
-  description: z.string().trim().max(4000).default(''),
-  basePrice: z.number().int().min(0),
-  supplyCost: z.number().int().min(0).optional(),
-  shippingFee: z.number().int().min(0).default(0),
-  visibility: z.enum(['public', 'member', 'referral', 'hidden']).default('referral'),
-  status: z.enum(['draft', 'active', 'paused', 'archived']).default('draft'),
-  optionName: z.string().trim().min(1).max(80),
-  optionValue: z.string().trim().min(1).max(80),
-  optionPrice: z.number().int().min(0).optional(),
-  stock: z.number().int().min(0),
+  // 비워서 보내면 서버가 상품명에서 자동으로 만든다.
+  slug: productSlugSchema.optional(),
+  name: z.string().trim().min(1, '상품명을 입력해 주세요.').max(160, '상품명은 160자를 넘을 수 없습니다.'),
+  category: z.string().trim().min(1, '카테고리를 입력해 주세요.').max(80, '카테고리는 80자를 넘을 수 없습니다.').default('기타'),
+  shortDescription: z.string().trim().max(300, '짧은 소개는 300자를 넘을 수 없습니다.').default(''),
+  description: z.string().trim().max(4000, '상세 설명은 4000자를 넘을 수 없습니다.').default(''),
+  basePrice: wonAmount('기본가'),
+  supplyCost: wonAmount('공급가').optional(),
+  shippingFee: wonAmount('배송비').default(0),
+  visibility: z.enum(['public', 'member', 'referral', 'hidden'], {
+    errorMap: () => ({ message: '노출 대상은 공개/회원 전용/추천 회원 전용/비공개 중에서 골라 주세요.' }),
+  }).default('referral'),
+  status: z.enum(['draft', 'active', 'paused', 'archived'], {
+    errorMap: () => ({ message: '판매 상태는 즉시 판매/초안/판매 중지 중에서 골라 주세요.' }),
+  }).default('draft'),
+  optionName: z.string().trim().min(1, '옵션명을 입력해 주세요. (예: 구성)').max(80, '옵션명은 80자를 넘을 수 없습니다.'),
+  optionValue: z.string().trim().min(1, '옵션값을 입력해 주세요. (예: 300g)').max(80, '옵션값은 80자를 넘을 수 없습니다.'),
+  optionPrice: wonAmount('옵션가').optional(),
+  stock: wonAmount('초기재고'),
 });
 
 /** 등록 후 고칠 수 있어야 하는 항목들. 보낸 필드만 반영한다(부분 수정). */
