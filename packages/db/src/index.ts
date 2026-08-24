@@ -30,9 +30,9 @@ export type Database = {
         { quantity?: number; reserved_quantity?: number }
       >;
       product_images: Table<
-        { id: string; product_id: string; storage_path: string; alt_text: string; sort_order: number; created_at: string },
-        { product_id: string; storage_path: string; alt_text?: string; sort_order?: number },
-        { storage_path?: string; alt_text?: string; sort_order?: number }
+        { id: string; product_id: string; storage_path: string; alt_text: string; sort_order: number; width: number | null; height: number | null; byte_size: number | null; mime_type: string | null; created_at: string },
+        { product_id: string; storage_path: string; alt_text?: string; sort_order?: number; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null },
+        { storage_path?: string; alt_text?: string; sort_order?: number; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null }
       >;
       store_settings: Table<
         { id: number; shipping_cutoff_time: string; updated_at: string },
@@ -112,6 +112,7 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      admin_update_product: { Args: { p_product_id: string; p_patch: Json }; Returns: Json };
       reserve_inventory: { Args: { p_product_id: string; p_quantity: number }; Returns: boolean };
       release_inventory: { Args: { p_product_id: string; p_quantity: number }; Returns: boolean };
       redeem_promotion_code: { Args: { p_promotion_code_id: string; p_user_id: string; p_order_id: string; p_discount_amount: number }; Returns: boolean };

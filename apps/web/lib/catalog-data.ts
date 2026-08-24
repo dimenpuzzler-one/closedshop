@@ -30,6 +30,7 @@ function mapProduct(
     shortDescription: row.short_description,
     description: row.description,
     weight: options[0]?.value ?? '',
+    basePrice: row.base_price,
     price: options[0]?.price ?? row.base_price,
     shippingFee: row.shipping_fee,
     visibility: row.visibility,
@@ -64,7 +65,7 @@ async function hydrate(
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: imageRows }] = await Promise.all([
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
-    client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, created_at').in('product_id', productIds).order('sort_order'),
+    client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, width, height, byte_size, mime_type, created_at').in('product_id', productIds).order('sort_order'),
   ]);
   // inventory는 회원이 읽을 수 있는 RLS 정책이 없어 세션 클라이언트로는 항상 0행이다.
   // 그래서 고객몰의 재고 표시가 계속 0이었다. 인가는 위 RLS에서 이미 끝났으므로
@@ -74,7 +75,7 @@ async function hydrate(
   (imageRows ?? []).forEach((image) => {
     const url = client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl;
     const current = imagesByProduct.get(image.product_id) ?? [];
-    current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order });
+    current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order, width: image.width ?? undefined, height: image.height ?? undefined, byteSize: image.byte_size ?? undefined, mimeType: image.mime_type ?? undefined });
     imagesByProduct.set(image.product_id, current);
   });
   return rows.map((row) => {
@@ -183,13 +184,13 @@ export async function loadShowcaseProducts(limit = 4): Promise<{ products: Produ
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: imageRows }] = await Promise.all([
     serviceClient.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
-    serviceClient.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, created_at').in('product_id', productIds).order('sort_order'),
+    serviceClient.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, width, height, byte_size, mime_type, created_at').in('product_id', productIds).order('sort_order'),
   ]);
   const imagesByProduct = new Map<string, ProductImage[]>();
   (imageRows ?? []).forEach((image) => {
     const url = serviceClient.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl;
     const current = imagesByProduct.get(image.product_id) ?? [];
-    current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order });
+    current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order, width: image.width ?? undefined, height: image.height ?? undefined, byteSize: image.byte_size ?? undefined, mimeType: image.mime_type ?? undefined });
     imagesByProduct.set(image.product_id, current);
   });
 

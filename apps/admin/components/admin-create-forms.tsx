@@ -5,25 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { slugify } from '@closed-commerce/validation';
+import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
 
 type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
-type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: ValidationDetails };
+type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; productId?: string; details?: ValidationDetails };
 
 const NUMERIC_KEYS = [
   'basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock',
   'discountRate', 'discountAmount', 'minimumOrderAmount', 'minimumQuantity', 'totalUsageLimit', 'perMemberUsageLimit',
 ];
-
-/** Vercel 함수 요청 본문 한도(4.5MB)보다 넉넉히 아래로 잡는다. */
-const MAX_TOTAL_UPLOAD_BYTES = 4 * 1024 * 1024;
-const COMPRESS_ABOVE_BYTES = 900 * 1024;
-const MAX_IMAGE_EDGE = 1600;
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-}
 
 const FIELD_LABELS: Record<string, string> = {
   slug: '상품 주소', name: '상품명', category: '카테고리', shortDescription: '짧은 소개',
@@ -58,7 +48,7 @@ async function readResponse(response: Response): Promise<ApiResult> {
   const text = await response.text().catch(() => '');
   if (response.status === 413) {
     return {
-      error: `업로드 용량이 서버 한도를 넘었습니다 (HTTP 413). 이미지 총합을 ${formatBytes(MAX_TOTAL_UPLOAD_BYTES)} 이하로 줄여 주세요.`,
+      error: '요청 용량이 서버 한도를 넘었습니다. 이미지 파일은 직접 업로드 경로를 사용해야 합니다.',
       code: 'payload_too_large',
     };
   }
@@ -80,44 +70,7 @@ function describeFailure(response: Response, result: ApiResult) {
   return `${parts.join(' ')} [${tags.join(' · ')}]`;
 }
 
-/**
- * 휴대폰 사진은 보통 3~5MB라 한 장만 넣어도 플랫폼 한도를 넘긴다.
- * 브라우저에서 미리 줄여 보내면 원인 자체가 사라진다(보통 300~600KB).
- * 변환에 실패하면 원본을 그대로 보내고 서버가 이유를 알려준다.
- */
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith('image/')) return file;
-  if (typeof createImageBitmap !== 'function') return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const longestEdge = Math.max(bitmap.width, bitmap.height);
-    const needsResize = longestEdge > MAX_IMAGE_EDGE;
-    if (!needsResize && file.size <= COMPRESS_ABOVE_BYTES) {
-      bitmap.close();
-      return file;
-    }
-    const scale = needsResize ? MAX_IMAGE_EDGE / longestEdge : 1;
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    if (!context) {
-      bitmap.close();
-      return file;
-    }
-    context.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
-  } catch {
-    return file;
-  }
-}
-
-function useCreate(endpoint: string, options?: { multipart?: boolean }) {
+function useCreate(endpoint: string, options?: { productImages?: boolean }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -135,41 +88,13 @@ function useCreate(endpoint: string, options?: { multipart?: boolean }) {
 
     try {
       const formData = new FormData(formElement);
-      let request: RequestInit;
-
-      if (options?.multipart) {
-        for (const key of NUMERIC_KEYS) {
-          const value = formData.get(key);
-          if (typeof value !== 'string') continue;
-          if (value.trim() === '') formData.delete(key);
-          else formData.set(key, String(Number(value)));
-        }
-
-        const compressed = new FormData();
-        let totalBytes = 0;
-        for (const [key, value] of formData.entries()) {
-          if (!(value instanceof File)) {
-            compressed.append(key, value);
-            continue;
-          }
-          if (value.size === 0) continue;
-          const next = await compressImage(value);
-          totalBytes += next.size;
-          compressed.append(key, next, next.name);
-        }
-
-        if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
-          setError(
-            `이미지를 줄여도 총 ${formatBytes(totalBytes)}라 한도(${formatBytes(MAX_TOTAL_UPLOAD_BYTES)})를 넘습니다. 장수를 줄이고 다시 시도해 주세요.`,
-          );
-          return;
-        }
-        request = { method: 'POST', body: compressed };
-      } else {
-        const values: Record<string, unknown> = Object.fromEntries(formData.entries());
-        for (const key of NUMERIC_KEYS) if (typeof values[key] === 'string' && values[key] !== '') values[key] = Number(values[key]);
-        request = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) };
+      const values: Record<string, unknown> = {};
+      for (const [key, value] of formData.entries()) if (typeof value === 'string') values[key] = value;
+      for (const key of NUMERIC_KEYS) {
+        if (typeof values[key] === 'string' && values[key] !== '') values[key] = Number(values[key]);
+        else if (values[key] === '') delete values[key];
       }
+      const request: RequestInit = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) };
 
       const response = await fetch(endpoint, request);
       const result = await readResponse(response);
@@ -178,7 +103,23 @@ function useCreate(endpoint: string, options?: { multipart?: boolean }) {
         setError(describeFailure(response, result));
         return;
       }
-      setMessage([result.message ?? '저장되었습니다.', result.requestId ? `(처리번호 ${result.requestId})` : ''].filter(Boolean).join(' '));
+      let successMessage = result.message ?? '저장되었습니다.';
+      if (options?.productImages) {
+        const files = [
+          ...formData.getAll('thumbnail'),
+          ...formData.getAll('detailImages'),
+        ].filter((value): value is File => value instanceof File && value.size > 0);
+        if (files.length > 0) {
+          if (!result.productId) throw new Error('상품은 등록됐지만 이미지 업로드에 필요한 상품 ID를 받지 못했습니다. 수정 화면에서 이미지를 다시 올려 주세요.');
+          try {
+            const imageMessage = await uploadProductImages(result.productId, files);
+            successMessage = `${successMessage} ${imageMessage}`;
+          } catch (imageError) {
+            setError(`상품 정보는 등록됐지만 이미지는 올리지 못했습니다. 수정 화면에서 다시 시도해 주세요: ${imageError instanceof Error ? imageError.message : String(imageError)}`);
+          }
+        }
+      }
+      setMessage([successMessage, result.requestId ? `(처리번호 ${result.requestId})` : ''].filter(Boolean).join(' '));
       formElement.reset();
       router.refresh();
     } catch (caught) {
@@ -208,13 +149,13 @@ function ImagePicker({ label, name, multiple = false, hint }: { label: string; n
 
   return (
     <div className="field">
-      <span className="field-label">{label}</span>
-      <input className="input" type="file" name={name} accept="image/jpeg,image/png,image/webp" multiple={multiple} onChange={handleChange} />
+      <label className="field-label" htmlFor={name}>{label}</label>
+      <input id={name} className="input" type="file" name={name} accept="image/jpeg,image/png,image/webp" multiple={multiple} onChange={handleChange} />
       <span className="field-hint">{hint}</span>
       {previews.length ? (
         <>
           <span className="field-hint">
-            선택 {previews.length}장 · 원본 합계 {formatBytes(total)} · 업로드 전 자동으로 줄여서 전송합니다.
+            선택 {previews.length}장 · 원본 합계 {formatBytes(total)} · 픽셀을 줄이지 않고 Storage로 직접 전송합니다.
           </span>
           <div className="image-preview-grid" aria-label="이미지 미리보기">
             {previews.map((preview, index) => (
@@ -247,7 +188,7 @@ function FormFeedback({ error, message }: { error: string; message: string }) {
 }
 
 export function ProductCreateForm() {
-  const form = useCreate('/api/products', { multipart: true });
+  const form = useCreate('/api/products', { productImages: true });
   // 상품명에서 상품 주소를 자동으로 만든다. 운영자가 URL 규칙을 알 필요가 없다.
   // 직접 고치면 그때부터는 손댄 값을 존중한다.
   const [name, setName] = useState('');
@@ -262,7 +203,6 @@ export function ProductCreateForm() {
         className="stack"
         onSubmit={form.submit}
         onReset={() => { setName(''); setSlug(''); setSlugTouched(false); }}
-        encType="multipart/form-data"
       >
         <p className="field-hint">옵션은 고객이 선택하는 구성·중량입니다. 단일 구성 상품이면 기본값을 그대로 쓰고 옵션가는 비워두세요.</p>
         <div className="form-grid">
@@ -296,8 +236,8 @@ export function ProductCreateForm() {
         <label className="field"><span className="field-label">짧은 소개</span><input className="input" name="shortDescription" maxLength={300} placeholder="목록에 표시할 한 줄 소개" /></label>
         <label className="field"><span className="field-label">상세페이지 설명</span><textarea className="textarea" name="description" maxLength={4000} placeholder="고객이 상세 페이지에서 볼 상품 설명" /></label>
         <div className="form-grid">
-          <ImagePicker label="썸네일 이미지(선택, 1장)" name="thumbnail" hint="JPG, PNG, WEBP / 아이폰 HEIC는 지원하지 않습니다" />
-          <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="최대 8장 / 전송 전 자동 축소" />
+          <ImagePicker label="썸네일 이미지(선택, 1장)" name="thumbnail" hint="JPG, PNG, WEBP / 원본 화질 / 한 장 최대 20MB" />
+          <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="원본 화질 유지 / 전체 사진 최대 21장 / 한 번에 최대 200MB" />
         </div>
         <button className="button button-primary" disabled={form.busy}>{form.busy ? '등록 중…' : '상품 등록'}</button>
         <FormFeedback error={form.error} message={form.message} />

@@ -16,6 +16,10 @@ export interface ProductImage {
   url: string;
   altText: string;
   sortOrder: number;
+  width?: number;
+  height?: number;
+  byteSize?: number;
+  mimeType?: string;
 }
 
 export interface Product {
@@ -26,6 +30,8 @@ export interface Product {
   shortDescription: string;
   description: string;
   weight: string;
+  /** Catalog/list price. Kept separate from the option selling price. */
+  basePrice?: number;
   price: number;
   supplyCost?: number;
   shippingFee: number;
@@ -33,6 +39,9 @@ export interface Product {
   status: ProductStatus;
   imageUrl: string;
   images?: ProductImage[];
+  /** Physical inventory, before subtracting reservations. Admin-only projection. */
+  inventoryQuantity?: number;
+  reservedQuantity?: number;
   options: ProductOption[];
   tags: string[];
   commissionableRate?: number;

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@closed-commerce/types';
+import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
 
@@ -13,15 +14,6 @@ const FIELD_LABELS: Record<string, string> = {
   basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비', visibility: '노출 대상',
   status: '판매 상태', optionPrice: '옵션가', stock: '재고',
 };
-
-const MAX_TOTAL_UPLOAD_BYTES = 4 * 1024 * 1024;
-const COMPRESS_ABOVE_BYTES = 900 * 1024;
-const MAX_IMAGE_EDGE = 1600;
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-}
 
 async function readResponse(response: Response): Promise<ApiResult> {
   const contentType = response.headers.get('content-type') ?? '';
@@ -34,7 +26,7 @@ async function readResponse(response: Response): Promise<ApiResult> {
   }
   const body = await response.text().catch(() => '');
   if (response.status === 413) {
-    return { error: `업로드 용량이 서버 한도를 넘었습니다 (HTTP 413). 총합을 ${formatBytes(MAX_TOTAL_UPLOAD_BYTES)} 이하로 줄여 주세요.`, code: 'payload_too_large' };
+    return { error: '요청 용량이 서버 한도를 넘었습니다. 이미지 파일은 직접 업로드 경로를 사용해야 합니다.', code: 'payload_too_large' };
   }
   return { error: `서버가 예상과 다른 응답을 보냈습니다. (HTTP ${response.status}) ${body.slice(0, 160)}`.trim(), code: 'non_json_response' };
 }
@@ -52,38 +44,6 @@ function describeFailure(response: Response, result: ApiResult) {
   return `${parts.join(' ')} [${tags.join(' · ')}]`;
 }
 
-/** 등록 폼과 같은 방식으로 브라우저에서 사진을 줄여 보낸다. */
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith('image/') || typeof createImageBitmap !== 'function') return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const longestEdge = Math.max(bitmap.width, bitmap.height);
-    const needsResize = longestEdge > MAX_IMAGE_EDGE;
-    if (!needsResize && file.size <= COMPRESS_ABOVE_BYTES) {
-      bitmap.close();
-      return file;
-    }
-    const scale = needsResize ? MAX_IMAGE_EDGE / longestEdge : 1;
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    if (!context) {
-      bitmap.close();
-      return file;
-    }
-    context.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
-  } catch {
-    return file;
-  }
-}
-
 export function ProductEditPanel({ product }: { product: Product }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +51,7 @@ export function ProductEditPanel({ product }: { product: Product }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const router = useRouter();
 
-  const stock = product.options.reduce((sum, option) => sum + option.stock, 0);
+  const stock = product.inventoryQuantity ?? product.options.reduce((sum, option) => sum + option.stock, 0);
   const optionPrice = product.options[0]?.price ?? product.price;
 
   async function send(url: string, init: RequestInit, successFallback: string) {
@@ -163,24 +123,8 @@ export function ProductEditPanel({ product }: { product: Product }) {
     setError('');
     setMessage('');
     try {
-      const body = new FormData();
-      let total = 0;
-      for (const file of picked) {
-        const next = await compressImage(file);
-        total += next.size;
-        body.append('images', next, next.name);
-      }
-      if (total > MAX_TOTAL_UPLOAD_BYTES) {
-        setError(`줄여도 총 ${formatBytes(total)}라 한도(${formatBytes(MAX_TOTAL_UPLOAD_BYTES)})를 넘습니다. 장수를 줄여 주세요.`);
-        return;
-      }
-      const response = await fetch(`/api/products/${product.id}/images`, { method: 'POST', body });
-      const result = await readResponse(response);
-      if (!response.ok) {
-        setError(describeFailure(response, result));
-        return;
-      }
-      setMessage(result.message ?? '사진을 추가했습니다.');
+      const resultMessage = await uploadProductImages(product.id, picked);
+      setMessage(resultMessage);
       formElement.reset();
       router.refresh();
     } catch (caught) {
@@ -198,11 +142,11 @@ export function ProductEditPanel({ product }: { product: Product }) {
         <div className="form-grid">
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" defaultValue={product.name} required /></label>
           <label className="field"><span className="field-label">카테고리</span><input className="input" name="category" defaultValue={product.category} maxLength={80} required /></label>
-          <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.price} /></label>
+          <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /></label>
           <label className="field"><span className="field-label">판매가(옵션가)</span><input className="input" type="number" min="0" name="optionPrice" defaultValue={optionPrice} /><span className="field-hint">고객이 실제로 결제하는 금액입니다.</span></label>
           <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" defaultValue={product.supplyCost ?? ''} /></label>
           <label className="field"><span className="field-label">배송비</span><input className="input" type="number" min="0" name="shippingFee" defaultValue={product.shippingFee} /></label>
-          <label className="field"><span className="field-label">재고</span><input className="input" type="number" min="0" name="stock" defaultValue={stock} /><span className="field-hint">이미 주문된 수량보다 낮추면 거부됩니다.</span></label>
+          <label className="field"><span className="field-label">총재고</span><input className="input" type="number" min="0" name="stock" defaultValue={stock} /><span className="field-hint">예약 {product.reservedQuantity ?? 0}개 · 판매 가능 {Math.max(0, stock - (product.reservedQuantity ?? 0))}개</span></label>
           <label className="field">
             <span className="field-label">노출 대상</span>
             <select className="select" name="visibility" defaultValue={product.visibility}>
@@ -234,13 +178,15 @@ export function ProductEditPanel({ product }: { product: Product }) {
 
       <div className="stack">
         <strong>사진 {images.length}장</strong>
-        <span className="field-hint">맨 앞(대표)이 목록에 보이는 썸네일입니다. 사진을 바꾸려면 지우고 새로 올리시면 됩니다.</span>
+        <span className="field-hint">맨 앞(대표)이 목록 썸네일입니다. 원본 해상도를 유지하며 한 장 20MB, 상품당 21장까지 올릴 수 있습니다.</span>
         {images.length ? (
           <div className="image-preview-grid">
             {images.map((image, index) => (
               <div className="image-preview stack" key={image.id} style={{ gap: '0.3rem' }}>
                 <Image src={image.url} alt={image.altText || product.name} width={160} height={100} unoptimized />
-                <span className="field-hint">{index === 0 ? '대표 사진' : `${index}번째`}</span>
+                <span className="field-hint">
+                  {index === 0 ? '대표 사진' : `상세 ${index}`} · {image.width && image.height ? `${image.width}×${image.height}` : '크기 미기록'}{image.byteSize ? ` · ${formatBytes(image.byteSize)}` : ''}
+                </span>
                 <div className="row" style={{ gap: '0.3rem' }}>
                   {index !== 0 ? (
                     <button
@@ -269,8 +215,11 @@ export function ProductEditPanel({ product }: { product: Product }) {
         )}
 
         <form className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }} onSubmit={addImages}>
-          <input className="input" type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple />
-          <button className="button button-secondary" disabled={busy}>{busy ? '올리는 중…' : '사진 추가'}</button>
+          <label className="field" htmlFor={`images-${product.id}`}>
+            <span className="field-label">추가할 상품 사진</span>
+            <input id={`images-${product.id}`} className="input" type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple />
+          </label>
+          <button className="button button-secondary" disabled={busy}>{busy ? '원본 올리는 중…' : '원본 화질로 사진 추가'}</button>
         </form>
       </div>
 

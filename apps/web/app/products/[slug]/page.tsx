@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Container, Price, Badge } from '@closed-commerce/ui';
 import { AddToCartButton } from '@/components/add-to-cart-button';
+import { ProductImageGallery } from '@/components/product-image-gallery';
 import { ReferralGate } from '@/components/referral-gate';
 import { ShippingCutoffNotice } from '@/components/shipping-cutoff-notice';
 import { loadProductBySlug } from '@/lib/catalog-data';
@@ -72,15 +73,7 @@ export default async function ProductDetailPage({
         <Container className="two-column">
           <div className="product-hero">
             {heroImage ? (
-              <div className="product-hero-image">
-                <Image
-                  src={heroImage.url}
-                  alt={heroImage.altText || product.name}
-                  fill
-                  sizes="(max-width: 850px) 100vw, 60vw"
-                  priority
-                />
-              </div>
+              <ProductImageGallery key={product.id} images={images} productName={product.name} />
             ) : (
               <div className="hero-art" style={{ minHeight: 460 }}>
                 <span className="hero-art-label">PRIVATE DROP</span>
@@ -155,9 +148,10 @@ export default async function ProductDetailPage({
                     <Image
                       src={image.url}
                       alt={image.altText || `${product.name} 상세 이미지 ${index + 1}`}
-                      width={1000}
-                      height={1400}
+                      width={image.width && image.width >= 600 ? image.width : 1000}
+                      height={image.width && image.width >= 600 ? (image.height ?? 1400) : 1400}
                       sizes="(max-width: 850px) 100vw, 860px"
+                      quality={95}
                     />
                   </div>
                 ))}

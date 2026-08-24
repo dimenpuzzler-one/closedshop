@@ -32,17 +32,61 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
     productIds.length ? client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds) : Promise.resolve({ data: [] }),
     productIds.length ? client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds) : Promise.resolve({ data: [] }),
-    productIds.length ? client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, created_at').in('product_id', productIds).order('sort_order') : Promise.resolve({ data: [] }),
+    productIds.length ? client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, width, height, byte_size, mime_type, created_at').in('product_id', productIds).order('sort_order') : Promise.resolve({ data: [] }),
   ]);
-  const stock = new Map((inventories ?? []).map((item) => [item.product_id, Math.max(0, item.quantity - item.reserved_quantity)]));
+  const stock = new Map((inventories ?? []).map((item) => [item.product_id, {
+    quantity: item.quantity,
+    reserved: item.reserved_quantity,
+    available: Math.max(0, item.quantity - item.reserved_quantity),
+  }]));
   const imagesByProduct = new Map<string, ProductImage[]>();
   (imageRows ?? []).forEach((image) => {
     const url = client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl;
     const current = imagesByProduct.get(image.product_id) ?? [];
-    current.push({ id: image.id, url, altText: image.alt_text, sortOrder: image.sort_order });
+    current.push({
+      id: image.id,
+      url,
+      altText: image.alt_text,
+      sortOrder: image.sort_order,
+      width: image.width ?? undefined,
+      height: image.height ?? undefined,
+      byteSize: image.byte_size ?? undefined,
+      mimeType: image.mime_type ?? undefined,
+    });
     imagesByProduct.set(image.product_id, current);
   });
-  return { source: 'supabase', products: rows.map((row) => { const images = imagesByProduct.get(row.id) ?? []; const productOptions = (options ?? []).filter((option) => option.product_id === row.id); return { id: row.id, slug: row.slug, name: row.name, category: row.category, shortDescription: row.short_description, description: row.description, weight: productOptions[0]?.value ?? '', price: productOptions[0]?.price ?? row.base_price, supplyCost: row.supply_cost ?? undefined, shippingFee: row.shipping_fee, visibility: row.visibility, status: row.status, imageUrl: images[0]?.url ?? '', images, options: productOptions.map((option) => ({ id: option.id, name: option.name, value: option.value, price: option.price, stock: stock.get(row.id) ?? 0 })), tags: [] }; }) };
+  return { source: 'supabase', products: rows.map((row) => {
+    const images = imagesByProduct.get(row.id) ?? [];
+    const productOptions = (options ?? []).filter((option) => option.product_id === row.id);
+    const inventory = stock.get(row.id);
+    return {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      category: row.category,
+      shortDescription: row.short_description,
+      description: row.description,
+      weight: productOptions[0]?.value ?? '',
+      basePrice: row.base_price,
+      price: productOptions[0]?.price ?? row.base_price,
+      supplyCost: row.supply_cost ?? undefined,
+      shippingFee: row.shipping_fee,
+      visibility: row.visibility,
+      status: row.status,
+      imageUrl: images[0]?.url ?? '',
+      images,
+      inventoryQuantity: inventory?.quantity ?? 0,
+      reservedQuantity: inventory?.reserved ?? 0,
+      options: productOptions.map((option) => ({
+        id: option.id,
+        name: option.name,
+        value: option.value,
+        price: option.price,
+        stock: inventory?.available ?? 0,
+      })),
+      tags: [],
+    };
+  }) };
 }
 
 export async function loadStoreSettings(): Promise<{ source: AdminDataSource; shippingCutoffTime: string }> {
