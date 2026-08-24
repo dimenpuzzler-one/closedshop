@@ -47,18 +47,29 @@ function isSupabaseMode() {
   return resolveRuntimeMode({ requireServiceRole: false }) === 'supabase';
 }
 
+/** 재고 조회. 호출 전에 RLS로 열람 권한이 확정되어 있어야 한다. */
+async function loadAvailableStock(productIds: string[]): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map();
+  if (resolveRuntimeMode({ requireServiceRole: true }) !== 'supabase') return new Map();
+  const admin = createServiceRoleSupabaseClient();
+  const { data } = await admin.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds);
+  return new Map((data ?? []).map((row) => [row.product_id, Math.max(0, row.quantity - row.reserved_quantity)]));
+}
+
 async function hydrate(
   client: Awaited<ReturnType<typeof createServerAppClient>>,
   rows: ProductRow[],
 ): Promise<Product[]> {
   if (rows.length === 0) return [];
   const productIds = rows.map((row) => row.id);
-  const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
+  const [{ data: options }, { data: imageRows }] = await Promise.all([
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
-    client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds),
     client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, created_at').in('product_id', productIds).order('sort_order'),
   ]);
-  const stockByProduct = new Map((inventories ?? []).map((item) => [item.product_id, Math.max(0, item.quantity - item.reserved_quantity)]));
+  // inventory는 회원이 읽을 수 있는 RLS 정책이 없어 세션 클라이언트로는 항상 0행이다.
+  // 그래서 고객몰의 재고 표시가 계속 0이었다. 인가는 위 RLS에서 이미 끝났으므로
+  // 확정된 상품 id에 한해 서버 전용 클라이언트로 읽는다.
+  const stockByProduct = await loadAvailableStock(productIds);
   const imagesByProduct = new Map<string, ProductImage[]>();
   (imageRows ?? []).forEach((image) => {
     const url = client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl;

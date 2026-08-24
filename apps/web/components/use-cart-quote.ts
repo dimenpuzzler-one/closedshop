@@ -12,7 +12,7 @@ export interface QuotedLine {
   unitPrice: number;
   shippingFee: number;
   quantity: number;
-  availableStock: number;
+  availableStock?: number;
   imageUrl?: string;
   slug: string;
 }

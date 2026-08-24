@@ -56,17 +56,25 @@ export function CartView() {
               <h3>{line.productName}</h3>
               <p className="muted">{line.optionName}</p>
               <Price amount={line.unitPrice} />
-              {line.availableStock <= 5 ? <p className="muted">재고 {line.availableStock}개</p> : null}
+              {line.availableStock !== undefined && line.availableStock <= 5 ? (
+                <p className="muted">재고 {line.availableStock}개</p>
+              ) : null}
             </div>
             <div className="row">
               <button className="button button-ghost" onClick={() => update(line.productId, line.optionId, line.quantity - 1)} type="button" aria-label="수량 줄이기">−</button>
               <strong>{line.quantity}</strong>
               <button
                 className="button button-ghost"
-                onClick={() => update(line.productId, line.optionId, Math.min(line.quantity + 1, Math.max(line.availableStock, 1)))}
+                onClick={() =>
+                  update(
+                    line.productId,
+                    line.optionId,
+                    line.availableStock === undefined ? line.quantity + 1 : Math.min(line.quantity + 1, Math.max(line.availableStock, 1)),
+                  )
+                }
                 type="button"
                 aria-label="수량 늘리기"
-                disabled={line.quantity >= line.availableStock}
+                disabled={line.availableStock !== undefined && line.quantity >= line.availableStock}
               >
                 ＋
               </button>

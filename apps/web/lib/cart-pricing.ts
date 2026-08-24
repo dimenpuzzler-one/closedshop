@@ -5,7 +5,8 @@ import {
   type CartTotals,
   type CatalogLine,
 } from '@closed-commerce/commerce';
-import { resolveRuntimeMode } from '@closed-commerce/db';
+import { createServiceRoleSupabaseClient, resolveRuntimeMode } from '@closed-commerce/db';
+import { logServerError } from '@closed-commerce/observability';
 import type { CartItem } from '@closed-commerce/types';
 import { createServerAppClient } from '@/lib/supabase-server';
 
@@ -23,7 +24,8 @@ import { createServerAppClient } from '@/lib/supabase-server';
 
 export interface QuotedLine extends CatalogLine {
   imageUrl?: string;
-  availableStock: number;
+  /** 재고를 확인하지 못했으면 undefined. JSON에서 Infinity는 null이 되므로 값 자체를 빼는 편이 안전하다. */
+  availableStock?: number;
   slug: string;
 }
 
@@ -60,6 +62,28 @@ function demoQuote(items: CartItem[]): CartQuote {
   return { lines, totals: calculateCartTotalsFromLines(lines), issues, authenticated: true };
 }
 
+/**
+ * 판매 가능 재고를 읽는다.
+ * 호출 전에 반드시 RLS로 "이 회원이 볼 수 있는 상품"을 확정해야 한다 —
+ * 여기서는 인가를 하지 않고, 넘겨받은 id의 재고만 읽는다.
+ */
+async function loadAvailableStock(productIds: string[]): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map();
+  if (resolveRuntimeMode({ requireServiceRole: true }) !== 'supabase') return new Map();
+  try {
+    const admin = createServiceRoleSupabaseClient();
+    const { data, error } = await admin.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds);
+    if (error) {
+      logServerError('web.cart.stock', 'cart-quote', error, { productCount: productIds.length });
+      return new Map();
+    }
+    return new Map((data ?? []).map((row) => [row.product_id, Math.max(0, row.quantity - row.reserved_quantity)]));
+  } catch (error) {
+    logServerError('web.cart.stock', 'cart-quote', error, { productCount: productIds.length });
+    return new Map();
+  }
+}
+
 export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
   if (items.length === 0) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: true };
   if (resolveRuntimeMode({ requireServiceRole: false }) !== 'supabase') return demoQuote(items);
@@ -79,17 +103,20 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
   }
 
   // 세션 클라이언트를 쓰므로 RLS(products_visible_read)가 그대로 적용된다.
-  // 회원이 볼 수 없는 상품은 애초에 조회되지 않는다.
-  const [{ data: products }, { data: options }, { data: inventory }, { data: images }] = await Promise.all([
+  // 회원이 볼 수 없는 상품은 애초에 조회되지 않는다 = 여기서 인가가 끝난다.
+  const [{ data: products }, { data: options }, { data: images }] = await Promise.all([
     client.from('products').select('id, slug, name, base_price, shipping_fee, status, visibility').in('id', productIds).eq('status', 'active'),
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
-    client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds),
     client.from('product_images').select('product_id, storage_path, sort_order').in('product_id', productIds).order('sort_order'),
   ]);
 
   const productMap = new Map((products ?? []).map((product) => [product.id, product]));
   const optionMap = new Map((options ?? []).map((option) => [option.id, option]));
-  const stockMap = new Map((inventory ?? []).map((row) => [row.product_id, Math.max(0, row.quantity - row.reserved_quantity)]));
+  // inventory에는 회원이 읽을 수 있는 RLS 정책이 없다(관리자 전용 하나뿐).
+  // 세션 클라이언트로 읽으면 항상 0행이 돌아와 모든 상품이 "품절"로 보인다.
+  // 위에서 RLS가 이미 "이 회원이 볼 수 있는 상품"을 확정했으므로,
+  // 그 id들에 한해서만 서버 전용 클라이언트로 재고를 읽는다.
+  const stockMap = await loadAvailableStock([...productMap.keys()]);
   const imageMap = new Map<string, string>();
   (images ?? []).forEach((image) => {
     if (imageMap.has(image.product_id)) return;
@@ -111,12 +138,14 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
       issues.push({ productId: item.productId, optionId: item.optionId, reason: `${product.name}의 선택 옵션이 변경되었습니다.` });
       continue;
     }
-    const availableStock = stockMap.get(item.productId) ?? 0;
-    if (availableStock < item.quantity) {
+    // 재고를 확인하지 못했으면(서비스 롤 미설정 등) 수량 제한을 걸지 않는다.
+    // 주문 시점에 서버가 다시 확인하므로 여기서 막을 이유가 없다.
+    const knownStock = stockMap.get(item.productId);
+    if (knownStock !== undefined && knownStock < item.quantity) {
       issues.push({
         productId: item.productId,
         optionId: item.optionId,
-        reason: availableStock === 0 ? `${product.name} 품절입니다.` : `${product.name} 재고가 ${availableStock}개 남았습니다.`,
+        reason: knownStock === 0 ? `${product.name} 품절입니다.` : `${product.name} 재고가 ${knownStock}개 남아 수량을 줄여야 합니다.`,
       });
     }
     lines.push({
@@ -126,8 +155,8 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
       optionName: `${option.name}: ${option.value}`,
       unitPrice: option.price,
       shippingFee: product.shipping_fee,
-      quantity: Math.min(item.quantity, Math.max(availableStock, 0)) || item.quantity,
-      availableStock,
+      quantity: item.quantity,
+      availableStock: knownStock,
       imageUrl: imageMap.get(product.id),
       slug: product.slug,
     });
