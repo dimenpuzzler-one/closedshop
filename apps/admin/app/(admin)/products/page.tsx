@@ -1,7 +1,6 @@
-import { Badge, Price } from '@closed-commerce/ui';
 import { loadAdminProducts, loadStoreSettings } from '@/lib/admin-data';
 import { ProductCreateForm, ShippingSettingsForm } from '@/components/admin-create-forms';
-import { ProductRowActions } from '@/components/product-row-actions';
+import { ProductTable } from '@/components/product-table';
 
 export default async function AdminProductsPage() {
   const [result, settings] = await Promise.all([loadAdminProducts(), loadStoreSettings()]);
@@ -11,56 +10,21 @@ export default async function AdminProductsPage() {
         <div>
           <p className="eyebrow">CATALOG</p>
           <h1>상품 관리</h1>
-          <p className="muted">상품·카테고리·옵션·이미지·재고는 공통 커머스 엔진에서 관리합니다.</p>
+          <p className="muted">등록한 상품의 이름·가격·재고·사진은 “수정” 버튼에서 바꿀 수 있습니다.</p>
         </div>
         <span className={`badge ${result.source === 'supabase' ? 'badge-success' : 'badge-warning'}`}>{result.source}</span>
       </div>
       {result.source === 'unavailable' ? (
         <div className="admin-note">Supabase service role 환경변수를 설정하면 실제 상품 데이터가 표시됩니다.</div>
       ) : null}
-      <div className="card table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>상품</th>
-              <th>카테고리</th>
-              <th>판매가</th>
-              <th>Visibility</th>
-              <th>재고</th>
-              <th>상태</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.products.map((product) => (
-              <tr key={product.id}>
-                <td>
-                  <strong>{product.name}</strong>
-                  <br />
-                  <span className="muted">{product.slug}</span>
-                </td>
-                <td><Badge tone="neutral">{product.category}</Badge></td>
-                <td><Price amount={product.price} /></td>
-                <td><Badge tone="accent">{product.visibility}</Badge></td>
-                <td>{product.options.reduce((sum, option) => sum + option.stock, 0)}개</td>
-                <td><Badge tone={product.status === 'active' ? 'success' : 'warning'}>{product.status}</Badge></td>
-                <td>
-                  {result.source === 'supabase' ? (
-                    <ProductRowActions productId={product.id} productName={product.name} status={product.status} />
-                  ) : (
-                    '—'
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      <ProductTable products={result.products} editable={result.source === 'supabase'} />
+
       <ProductCreateForm />
       <ShippingSettingsForm defaultValue={settings.shippingCutoffTime} />
       <div className="admin-section admin-note">
-        공개 검색을 막아야 하는 상품은 `referral` 또는 `hidden`으로 설정하고, 고객몰 metadata는 noindex를 유지합니다.
-        주문 이력이 있는 상품은 삭제되지 않습니다 — 판매를 멈추려면 &ldquo;판매 중지&rdquo;를 쓰세요.
+        주문 이력이 있는 상품은 삭제되지 않습니다 — 판매를 멈추려면 판매 상태를 “판매 중지”로 바꾸세요.
+        공개 검색을 막아야 하는 상품은 노출 대상을 “추천 회원 전용” 또는 “비공개”로 두면 됩니다.
       </div>
     </>
   );
