@@ -27,6 +27,23 @@ function formatMb(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }
 
+/**
+ * 관리자가 slug 규칙을 몰라도 상품을 등록할 수 있도록 서버에서 정리한다.
+ *
+ * 1) 직접 입력한 값이 있으면 그것을 정리한다. "Gift Set 500g" -> "gift-set-500g"
+ * 2) 없으면 상품명에서 만든다. 한글은 자모 단위로 로마자 표기하므로
+ *    "한우 육포 선물세트 300g" -> "hanu-yukpo-seonmulseteu-300g"가 되어
+ *    주소만 봐도 어떤 상품인지 알 수 있다.
+ * 3) 둘 다 쓸 수 없을 때만(기호뿐인 이름 등) 임의 값으로 떨어진다.
+ */
+function normalizeSlug(value: unknown, name: unknown): string {
+  const fromValue = typeof value === 'string' ? slugify(value) : '';
+  if (fromValue) return fromValue;
+  const fromName = typeof name === 'string' ? slugify(name) : '';
+  if (fromName) return fromName;
+  return `product-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
+}
+
 function getUploadCandidates(formData: FormData) {
   const thumbnail = formData.get('thumbnail');
   const detailImages = formData.getAll('detailImages');
@@ -123,15 +140,12 @@ export const POST = withAdmin(
     const { values, images } = await parseRequest(request);
     const totalBytes = assertImagesAreUploadable(images);
 
-    // slug를 비워 보내면 상품명에서 자동으로 만든다.
     // 운영자가 URL 규칙을 알아야 할 이유가 없다.
+    // 직접 입력했으면 그 값을 정리해서 쓰고("Gift Set" -> "gift-set"),
+    // 비웠으면 상품명에서 만든다("한우 육포 300g" -> "hanu-yukpo-300g").
     const providedSlug = typeof values.slug === 'string' ? values.slug.trim() : '';
-    const autoSlug = providedSlug.length === 0;
-    if (autoSlug) {
-      const fromName = typeof values.name === 'string' ? slugify(values.name) : '';
-      values.slug = fromName || `item-${Date.now().toString(36)}`;
-    }
-
+    const autoSlug = slugify(providedSlug).length === 0;
+    values.slug = normalizeSlug(values.slug, values.name);
     const parsed = productCreateSchema.safeParse(values);
     if (!parsed.success) {
       // 메시지 본문은 기본 문구만 두고, 항목별 사유는 details로 보낸다.

@@ -268,7 +268,7 @@ export function ProductCreateForm() {
         <div className="form-grid">
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" value={name} onChange={(event) => setName(event.currentTarget.value)} required /></label>
           <label className="field">
-            <span className="field-label">상품 주소 (자동)</span>
+            <span className="field-label">상품 주소 (자동, 선택)</span>
             <input
               className="input"
               name="slug"
@@ -279,7 +279,7 @@ export function ProductCreateForm() {
             <span className="field-hint">
               {effectiveSlug
                 ? `고객몰 주소: /products/${effectiveSlug}`
-                : '비워 두시면 서버가 자동으로 만듭니다. 직접 넣으실 때만 영문 소문자·숫자·하이픈을 쓰세요.'}
+                : '비워 두셔도 됩니다. 서버가 상품명에서 자동으로 만듭니다.'}
             </span>
           </label>
           <label className="field"><span className="field-label">제품 카테고리</span><input className="input" name="category" defaultValue="기타" maxLength={80} required /><span className="field-hint">고객몰에서 상품을 분류할 이름입니다.</span></label>
