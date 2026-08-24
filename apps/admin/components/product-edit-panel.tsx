@@ -12,7 +12,7 @@ type ApiResult = { message?: string; error?: string; code?: string; requestId?: 
 const FIELD_LABELS: Record<string, string> = {
   name: '상품명', category: '카테고리', shortDescription: '짧은 소개', description: '상세 설명',
   basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비', visibility: '노출 대상',
-  status: '판매 상태', optionPrice: '옵션가', stock: '재고',
+  status: '판매 상태', optionName: '옵션명', optionValue: '옵션값', optionPrice: '옵션가', stock: '재고',
 };
 
 async function readResponse(response: Response): Promise<ApiResult> {
@@ -52,7 +52,8 @@ export function ProductEditPanel({ product }: { product: Product }) {
   const router = useRouter();
 
   const stock = product.inventoryQuantity ?? product.options.reduce((sum, option) => sum + option.stock, 0);
-  const optionPrice = product.options[0]?.price ?? product.price;
+  const option = product.options[0];
+  const optionPrice = option?.price ?? product.price;
 
   async function send(url: string, init: RequestInit, successFallback: string) {
     setBusy(true);
@@ -96,6 +97,8 @@ export function ProductEditPanel({ product }: { product: Product }) {
       basePrice: numberOrUndefined('basePrice'),
       supplyCost: numberOrUndefined('supplyCost') ?? null,
       shippingFee: numberOrUndefined('shippingFee'),
+      optionName: text('optionName'),
+      optionValue: text('optionValue'),
       optionPrice: numberOrUndefined('optionPrice'),
       stock: numberOrUndefined('stock'),
       visibility: text('visibility') as Product['visibility'],
@@ -143,6 +146,8 @@ export function ProductEditPanel({ product }: { product: Product }) {
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" defaultValue={product.name} required /></label>
           <label className="field"><span className="field-label">카테고리</span><input className="input" name="category" defaultValue={product.category} maxLength={80} required /></label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /></label>
+          <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue={option?.name ?? '구성'} required /><span className="field-hint">고객이 보는 구성 항목 이름입니다. 예: 구성</span></label>
+          <label className="field"><span className="field-label">옵션값</span><input className="input" name="optionValue" defaultValue={option?.value ?? ''} placeholder="예: 300g / 기본 구성" required /><span className="field-hint">중량이나 구성 내용입니다. 예: 420g</span></label>
           <label className="field"><span className="field-label">판매가(옵션가)</span><input className="input" type="number" min="0" name="optionPrice" defaultValue={optionPrice} /><span className="field-hint">고객이 실제로 결제하는 금액입니다.</span></label>
           <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" defaultValue={product.supplyCost ?? ''} /></label>
           <label className="field"><span className="field-label">배송비</span><input className="input" type="number" min="0" name="shippingFee" defaultValue={product.shippingFee} /></label>

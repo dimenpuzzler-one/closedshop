@@ -122,6 +122,8 @@ export const productUpdateSchema = z.object({
   shippingFee: z.number().int().min(0).optional(),
   visibility: z.enum(['public', 'member', 'referral', 'hidden']).optional(),
   status: z.enum(['draft', 'active', 'paused', 'archived']).optional(),
+  optionName: z.string().trim().min(1, '옵션명을 입력해 주세요.').max(80, '옵션명은 80자를 넘을 수 없습니다.').optional(),
+  optionValue: z.string().trim().min(1, '옵션값을 입력해 주세요.').max(80, '옵션값은 80자를 넘을 수 없습니다.').optional(),
   optionPrice: z.number().int().min(0).optional(),
   stock: z.number().int().min(0).optional(),
 }).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
