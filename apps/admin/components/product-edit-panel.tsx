@@ -44,7 +44,7 @@ function describeFailure(response: Response, result: ApiResult) {
   return `${parts.join(' ')} [${tags.join(' · ')}]`;
 }
 
-export function ProductEditPanel({ product }: { product: Product }) {
+export function ProductEditPanel({ product, categories }: { product: Product; categories: string[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -96,7 +96,6 @@ export function ProductEditPanel({ product }: { product: Product }) {
       description: text('description'),
       basePrice: numberOrUndefined('basePrice'),
       supplyCost: numberOrUndefined('supplyCost') ?? null,
-      shippingFee: numberOrUndefined('shippingFee'),
       optionName: text('optionName'),
       optionValue: text('optionValue'),
       optionPrice: numberOrUndefined('optionPrice'),
@@ -144,13 +143,21 @@ export function ProductEditPanel({ product }: { product: Product }) {
       <form className="stack" onSubmit={saveDetails}>
         <div className="form-grid">
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" defaultValue={product.name} required /></label>
-          <label className="field"><span className="field-label">카테고리</span><input className="input" name="category" defaultValue={product.category} maxLength={80} required /></label>
+          <label className="field">
+            <span className="field-label">카테고리</span>
+            {/* 등록 화면과 같은 목록을 쓴다. 두 화면이 다르면 대표님이 또 헷갈린다. */}
+            <select className="select" name="category" defaultValue={product.category} required>
+              {/* 지금 값이 목록에서 빠졌더라도 선택이 풀리면 안 된다. */}
+              {categories.includes(product.category) ? null : <option value={product.category}>{product.category} (목록에 없음)</option>}
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+            <span className="field-hint">목록은 “운영 설정 → 카테고리”에서 관리합니다.</span>
+          </label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /></label>
           <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue={option?.name ?? '구성'} required /><span className="field-hint">고객이 보는 구성 항목 이름입니다. 예: 구성</span></label>
           <label className="field"><span className="field-label">옵션값</span><input className="input" name="optionValue" defaultValue={option?.value ?? ''} placeholder="예: 300g / 기본 구성" required /><span className="field-hint">중량이나 구성 내용입니다. 예: 420g</span></label>
           <label className="field"><span className="field-label">판매가(옵션가)</span><input className="input" type="number" min="0" name="optionPrice" defaultValue={optionPrice} /><span className="field-hint">고객이 실제로 결제하는 금액입니다.</span></label>
           <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" defaultValue={product.supplyCost ?? ''} /></label>
-          <label className="field"><span className="field-label">배송비</span><input className="input" type="number" min="0" name="shippingFee" defaultValue={product.shippingFee} /></label>
           <label className="field"><span className="field-label">총재고</span><input className="input" type="number" min="0" name="stock" defaultValue={stock} /><span className="field-hint">예약 {product.reservedQuantity ?? 0}개 · 판매 가능 {Math.max(0, stock - (product.reservedQuantity ?? 0))}개</span></label>
           <label className="field">
             <span className="field-label">노출 대상</span>

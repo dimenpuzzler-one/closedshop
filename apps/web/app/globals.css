@@ -204,3 +204,67 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .product-spec-list > div { grid-template-columns: 1fr; gap: 4px; }
   .header-viewer { display: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   카테고리 탐색 / 홈 배너 / 소개 영상
+   상품이 늘면 홈이 카테고리로 갈라져야 한다. 칩은 모바일에서 가로 스크롤되게 둔다 —
+   유입의 대부분이 모바일이라 줄바꿈으로 화면을 밀어내면 안 된다.
+--------------------------------------------------------------------------- */
+.category-nav {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  margin-bottom: 1.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.category-chip {
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.category-chip:hover { border-color: rgba(0, 0, 0, 0.3); }
+.category-chip.active { background: #111; border-color: #111; color: #fff; }
+
+.hero-banner {
+  border-radius: 18px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.hero-banner img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.hero-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+}
+
+.hero-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+@media (max-width: 850px) {
+  .section-heading.row { flex-wrap: wrap; gap: 0.75rem; }
+}

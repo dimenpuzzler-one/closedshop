@@ -26,21 +26,20 @@ export interface CartTotals {
   quantity: number;
 }
 
+export interface ShippingPolicy {
+  cartonQuantity: number;
+  feePerCarton: number;
+  freeShippingThreshold?: number;
+}
+
 export interface CartQuote {
   lines: QuotedLine[];
   totals: CartTotals;
   issues: { productId: string; optionId?: string; reason: string }[];
   authenticated: boolean;
+  /** 서버가 내려주는 배송비 규칙. 화면은 이걸 그대로 설명만 한다. */
+  shippingPolicy: ShippingPolicy;
 }
-
-const EMPTY_TOTALS: CartTotals = {
-  grossAmount: 0,
-  discountAmount: 0,
-  shippingAmount: 0,
-  paidAmount: 0,
-  commissionableAmount: 0,
-  quantity: 0,
-};
 
 function readCart(): CartItem[] {
   try {
@@ -69,11 +68,8 @@ export function useCartQuote() {
   const [error, setError] = useState('');
 
   const refresh = useCallback(async (nextItems: CartItem[]) => {
-    if (nextItems.length === 0) {
-      setQuote({ lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: true });
-      setState('ready');
-      return;
-    }
+    // 빈 장바구니도 서버에 묻는다. 배송비 규칙은 운영자가 바꾸는 값이라
+    // 클라이언트에 기본값을 심어두면 화면과 실제 결제 금액이 어긋난다.
     try {
       const response = await fetch('/api/cart/quote', {
         method: 'POST',

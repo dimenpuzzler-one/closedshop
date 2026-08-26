@@ -23,7 +23,7 @@ const VISIBILITY_LABEL: Record<string, string> = {
  * 상품 목록에서 "수정"을 누르면 그 줄 아래가 펼쳐지며 편집 화면이 열린다.
  * 예전에는 등록만 가능하고 이름·가격·재고·사진을 고칠 방법이 아예 없었다.
  */
-export function ProductTable({ products, editable }: { products: Product[]; editable: boolean }) {
+export function ProductTable({ products, editable, categories }: { products: Product[]; editable: boolean; categories: string[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (products.length === 0) {
@@ -86,7 +86,7 @@ export function ProductTable({ products, editable }: { products: Product[]; edit
                 {editable && isOpen ? (
                   <tr>
                     <td colSpan={8} style={{ background: 'rgba(0,0,0,0.02)' }}>
-                      <ProductEditPanel product={product} />
+                      <ProductEditPanel product={product} categories={categories} />
                     </td>
                   </tr>
                 ) : null}

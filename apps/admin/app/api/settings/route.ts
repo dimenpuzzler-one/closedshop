@@ -1,26 +1,40 @@
 import { NextResponse } from 'next/server';
-import { shippingSettingsSchema } from '@closed-commerce/validation';
+import { storeSettingsSchema } from '@closed-commerce/validation';
 import { ApiError, demoResponse, failFromSupabase, readJson, withAdmin } from '@/lib/route-handler';
 
+/**
+ * 운영자가 개발자를 부르지 않고 바꿔야 하는 값들.
+ * 보낸 필드만 반영한다 — 배송 탭만 저장했는데 홈 문구가 지워지면 안 된다.
+ */
 export const POST = withAdmin(
   'admin.settings.update',
   async ({ requestId, client, userId }, request) => {
-    const parsed = shippingSettingsSchema.safeParse(await readJson(request));
+    const parsed = storeSettingsSchema.safeParse(await readJson(request));
     if (!parsed.success) {
-      throw new ApiError(400, '배송 마감 시간이 올바르지 않습니다(HH:MM 형식).', 'validation_failed', parsed.error.flatten());
+      throw new ApiError(400, '설정값이 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
     }
-    const { error } = await client
-      .from('store_settings')
-      .upsert({ id: 1, shipping_cutoff_time: parsed.data.shippingCutoffTime }, { onConflict: 'id' });
-    if (error) failFromSupabase('배송 마감 설정을 저장하지 못했습니다.', error, 'settings_upsert_failed');
+
+    const patch: Record<string, unknown> = { id: 1 };
+    const input = parsed.data;
+    if (input.shippingCutoffTime !== undefined) patch.shipping_cutoff_time = input.shippingCutoffTime;
+    if (input.shippingFeePerCarton !== undefined) patch.shipping_fee_per_carton = input.shippingFeePerCarton;
+    if (input.shippingCartonQuantity !== undefined) patch.shipping_carton_quantity = input.shippingCartonQuantity;
+    // null은 "무료배송 없음"이라는 값이다. undefined(안 보냄)와 구분해야 한다.
+    if (input.freeShippingThreshold !== undefined) patch.free_shipping_threshold = input.freeShippingThreshold;
+    if (input.heroHeadline !== undefined) patch.hero_headline = input.heroHeadline;
+    if (input.heroSubheadline !== undefined) patch.hero_subheadline = input.heroSubheadline;
+    if (input.heroYoutubeUrl !== undefined) patch.hero_youtube_url = input.heroYoutubeUrl;
+
+    const { error } = await client.from('store_settings').upsert(patch, { onConflict: 'id' });
+    if (error) failFromSupabase('설정을 저장하지 못했습니다.', error, 'settings_upsert_failed');
 
     await client.from('admin_audit_logs').insert({
       actor_user_id: userId,
       action: 'store_settings_updated',
       entity_type: 'store_settings',
-      after_data: { ...parsed.data, requestId },
+      after_data: { ...input, requestId },
     });
-    return NextResponse.json({ message: `배송 마감 시간이 ${parsed.data.shippingCutoffTime}로 저장되었습니다.`, requestId });
+    return NextResponse.json({ message: '설정을 저장했습니다.', requestId });
   },
-  { demo: (requestId) => demoResponse(requestId, { message: '배송 마감 설정이 저장되었습니다.' }) },
+  { demo: (requestId) => demoResponse(requestId, { message: '설정이 저장되었습니다.' }) },
 );

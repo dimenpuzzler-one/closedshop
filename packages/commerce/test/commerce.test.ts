@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { allocateDiscount, calculateCartTotalsFromLines, FREE_SHIPPING_THRESHOLD, type CatalogLine } from '../src/index';
+import {
+  allocateDiscount,
+  calculateCartTotalsFromLines,
+  calculateShippingAmount,
+  DEFAULT_SHIPPING_POLICY,
+  type CatalogLine,
+} from '../src/index';
 
 const line = (overrides: Partial<CatalogLine> = {}): CatalogLine => ({
   productId: 'p-420',
@@ -23,8 +29,9 @@ describe('commerce totals', () => {
     });
     expect(result.grossAmount).toBe(104000);
     expect(result.discountAmount).toBe(10400);
-    expect(result.shippingAmount).toBe(0);
-    expect(result.paidAmount).toBe(93600);
+    // 기본 정책은 카툰 5개당 4,000원. 2개면 카툰 1개.
+    expect(result.shippingAmount).toBe(4000);
+    expect(result.paidAmount).toBe(97600);
     expect(result.commissionableAmount).toBe(93600);
   });
 
@@ -37,24 +44,41 @@ describe('commerce totals', () => {
       rule: { discountRate: 0.1, minimumOrderAmount: 50000 },
     });
     expect(result.discountAmount).toBe(0);
-    expect(result.paidAmount).toBe(42500);
+    expect(result.paidAmount).toBe(43000);
   });
 
-  it('charges no shipping once the net amount reaches the free-shipping threshold', () => {
-    const justUnder = calculateCartTotalsFromLines([line({ unitPrice: FREE_SHIPPING_THRESHOLD - 1 })]);
-    const atThreshold = calculateCartTotalsFromLines([line({ unitPrice: FREE_SHIPPING_THRESHOLD })]);
-    expect(justUnder.shippingAmount).toBe(3500);
-    expect(atThreshold.shippingAmount).toBe(0);
+  it('charges per carton on the whole order quantity, not per product line', () => {
+    // 형님이 정한 규칙: 1~5개 4,000원 / 6~10개 8,000원.
+    // 예전에는 상품별 shippingFee의 max를 썼고, 몇 개를 사든 금액이 같았다.
+    expect(calculateShippingAmount(1, 0, DEFAULT_SHIPPING_POLICY)).toBe(4000);
+    expect(calculateShippingAmount(5, 0, DEFAULT_SHIPPING_POLICY)).toBe(4000);
+    expect(calculateShippingAmount(6, 0, DEFAULT_SHIPPING_POLICY)).toBe(8000);
+    expect(calculateShippingAmount(10, 0, DEFAULT_SHIPPING_POLICY)).toBe(8000);
+    expect(calculateShippingAmount(11, 0, DEFAULT_SHIPPING_POLICY)).toBe(12000);
   });
 
-  it('uses the highest shipping fee across lines, not the first line', () => {
-    // 예전 화면용 계산기는 lines[0]의 배송비만 봤고 서버는 max를 썼다.
-    // 같은 장바구니가 화면과 서버에서 다른 금액을 냈다.
+  it('splits cartons across products because the carton is per order, not per line', () => {
     const result = calculateCartTotalsFromLines([
-      line({ productId: 'a', unitPrice: 10000, shippingFee: 0 }),
-      line({ productId: 'b', unitPrice: 10000, shippingFee: 3500 }),
+      line({ productId: 'a', unitPrice: 10000, quantity: 3 }),
+      line({ productId: 'b', unitPrice: 10000, quantity: 3 }),
     ]);
-    expect(result.shippingAmount).toBe(3500);
+    expect(result.quantity).toBe(6);
+    expect(result.shippingAmount).toBe(8000);
+  });
+
+  it('waives shipping only when the operator set a free-shipping threshold', () => {
+    const policy = { cartonQuantity: 5, feePerCarton: 4000, freeShippingThreshold: 100_000 };
+    const justUnder = calculateCartTotalsFromLines([line({ unitPrice: 99_999 })], undefined, policy);
+    const atThreshold = calculateCartTotalsFromLines([line({ unitPrice: 100_000 })], undefined, policy);
+    expect(justUnder.shippingAmount).toBe(4000);
+    expect(atThreshold.shippingAmount).toBe(0);
+    // 임계값을 안 정하면 금액과 무관하게 항상 배송비를 받는다(기본값).
+    expect(calculateCartTotalsFromLines([line({ unitPrice: 999_999 })]).shippingAmount).toBe(4000);
+  });
+
+  it('guards against a zero or negative carton quantity from bad settings', () => {
+    expect(calculateShippingAmount(3, 0, { cartonQuantity: 0, feePerCarton: 4000 })).toBe(12000);
+    expect(calculateShippingAmount(3, 0, { cartonQuantity: 5, feePerCarton: -1 })).toBe(0);
   });
 
   it('skips a product-scoped promotion when the cart contains an ineligible product', () => {

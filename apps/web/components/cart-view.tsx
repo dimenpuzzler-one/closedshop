@@ -87,6 +87,12 @@ export function CartView() {
         <h3>주문 예상금액</h3>
         <div className="row"><span className="muted">상품금액</span><Price amount={quote.totals.grossAmount} /></div>
         <div className="row"><span className="muted">배송비</span><Price amount={quote.totals.shippingAmount} /></div>
+        <p className="muted" style={{ fontSize: '0.82rem', margin: 0 }}>
+          {quote.shippingPolicy.cartonQuantity}개까지 {quote.shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원, 초과 시 {quote.shippingPolicy.cartonQuantity}개 단위로 추가됩니다.
+          {quote.shippingPolicy.freeShippingThreshold !== undefined
+            ? ` ${quote.shippingPolicy.freeShippingThreshold.toLocaleString('ko-KR')}원 이상 구매 시 무료배송입니다.`
+            : ''}
+        </p>
         <hr className="divider" />
         <div className="row total-line"><strong>결제 예정</strong><strong><Price amount={quote.totals.paidAmount} /></strong></div>
         <Link className="button button-primary" href="/checkout">주문서 작성</Link>

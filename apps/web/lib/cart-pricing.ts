@@ -1,14 +1,18 @@
 import {
   calculateCartTotalsFromLines,
+  DEFAULT_SHIPPING_POLICY,
   getProductById,
   toDemoCatalogLines,
   type CartTotals,
   type CatalogLine,
+  type ShippingPolicy,
 } from '@closed-commerce/commerce';
 import { createServiceRoleSupabaseClient, resolveRuntimeMode } from '@closed-commerce/db';
 import { logServerError } from '@closed-commerce/observability';
 import type { CartItem } from '@closed-commerce/types';
+import { resolveCatalogAccess } from '@/lib/catalog-data';
 import { createServerAppClient } from '@/lib/supabase-server';
+import { loadStoreSettings } from '@/lib/store-settings';
 
 /**
  * 장바구니/주문서의 금액을 서버에서만 계산한다.
@@ -35,6 +39,8 @@ export interface CartQuote {
   /** 담아뒀지만 지금은 살 수 없는 항목(품절/판매중지/삭제). 화면에서 알려주고 정리를 유도한다. */
   issues: { productId: string; optionId?: string; reason: string }[];
   authenticated: boolean;
+  /** 화면에 "몇 개까지 얼마"를 그대로 설명하기 위해 정책을 함께 내려보낸다. */
+  shippingPolicy: ShippingPolicy;
 }
 
 const EMPTY_TOTALS: CartTotals = {
@@ -59,7 +65,13 @@ function demoQuote(items: CartItem[]): CartQuote {
     imageUrl: getProductById(line.productId)?.imageUrl,
     slug: getProductById(line.productId)?.slug ?? '',
   }));
-  return { lines, totals: calculateCartTotalsFromLines(lines), issues, authenticated: true };
+  return {
+    lines,
+    totals: calculateCartTotalsFromLines(lines, undefined, DEFAULT_SHIPPING_POLICY),
+    issues,
+    authenticated: true,
+    shippingPolicy: DEFAULT_SHIPPING_POLICY,
+  };
 }
 
 /**
@@ -85,12 +97,34 @@ async function loadAvailableStock(productIds: string[]): Promise<Map<string, num
 }
 
 export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
-  if (items.length === 0) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: true };
-  if (resolveRuntimeMode({ requireServiceRole: false }) !== 'supabase') return demoQuote(items);
+  if (resolveRuntimeMode({ requireServiceRole: false }) !== 'supabase') {
+    return items.length === 0
+      ? { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: true, shippingPolicy: DEFAULT_SHIPPING_POLICY }
+      : demoQuote(items);
+  }
+
+  // 배송비 규칙은 운영자가 관리자 화면에서 정한다. 빈 장바구니에서도 화면이
+  // "몇 개까지 얼마"를 안내해야 하므로 라인이 없어도 함께 읽는다.
+  const { shippingPolicy } = await loadStoreSettings();
+  if (items.length === 0) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: true, shippingPolicy };
 
   const client = await createServerAppClient();
   const { data: auth } = await client.auth.getUser();
-  if (!auth.user) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: false };
+  if (!auth.user) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: false, shippingPolicy };
+
+  // 가격을 볼 자격이 없는 회원에게는 견적 자체를 내주지 않는다.
+  // 화면에서만 가리고 이 API가 금액을 돌려주면 가린 게 아니다.
+  // 주문 경로(createPersistedOrder)도 추천 귀속이 없으면 403으로 막는다 — 두 경로를 맞춘다.
+  const access = await resolveCatalogAccess(client);
+  if (!access.priceVisible) {
+    return {
+      lines: [],
+      totals: EMPTY_TOTALS,
+      issues: [{ productId: '', reason: '추천 코드로 가입한 회원만 가격 확인과 주문이 가능합니다.' }],
+      authenticated: true,
+      shippingPolicy,
+    };
+  }
 
   const productIds = [...new Set(items.map((item) => item.productId))].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
   if (productIds.length === 0) {
@@ -99,6 +133,7 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
       totals: EMPTY_TOTALS,
       issues: items.map((item) => ({ productId: item.productId, optionId: item.optionId, reason: '더 이상 판매하지 않는 상품입니다.' })),
       authenticated: true,
+      shippingPolicy,
     };
   }
 
@@ -162,5 +197,5 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
     });
   }
 
-  return { lines, totals: calculateCartTotalsFromLines(lines), issues, authenticated: true };
+  return { lines, totals: calculateCartTotalsFromLines(lines, undefined, shippingPolicy), issues, authenticated: true, shippingPolicy };
 }

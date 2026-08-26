@@ -134,6 +134,54 @@ export const shippingSettingsSchema = z.object({
   shippingCutoffTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, '배송 마감 시간은 HH:MM 형식이어야 합니다.'),
 });
 
+/**
+ * 운영자가 관리자 화면에서 바꾸는 값 전부.
+ * 보낸 필드만 반영한다 — 배송 탭만 저장했는데 홈 문구가 지워지면 안 된다.
+ */
+export const storeSettingsSchema = z.object({
+  shippingCutoffTime: z
+    .string()
+    .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, '배송 마감 시간은 HH:MM 형식이어야 합니다.')
+    .optional(),
+  shippingFeePerCarton: z
+    .number({ invalid_type_error: '배송비는 숫자로 입력해 주세요.' })
+    .int('배송비는 원 단위 정수로 입력해 주세요.')
+    .min(0, '배송비는 0원 이상이어야 합니다.')
+    .max(1_000_000, '배송비가 너무 큽니다.')
+    .optional(),
+  shippingCartonQuantity: z
+    .number({ invalid_type_error: '묶음 수량은 숫자로 입력해 주세요.' })
+    .int('묶음 수량은 정수로 입력해 주세요.')
+    .min(1, '묶음 수량은 1개 이상이어야 합니다.')
+    .max(1000, '묶음 수량이 너무 큽니다.')
+    .optional(),
+  // null은 "무료배송 없음", 숫자는 그 금액 이상 무료배송. 둘은 다른 뜻이다.
+  freeShippingThreshold: z
+    .number({ invalid_type_error: '무료배송 기준액은 숫자로 입력해 주세요.' })
+    .int('무료배송 기준액은 원 단위 정수로 입력해 주세요.')
+    .min(0, '무료배송 기준액은 0원 이상이어야 합니다.')
+    .nullable()
+    .optional(),
+  heroHeadline: z.string().trim().max(120, '메인 문구는 120자를 넘을 수 없습니다.').optional(),
+  heroSubheadline: z.string().trim().max(300, '메인 설명은 300자를 넘을 수 없습니다.').optional(),
+  heroYoutubeUrl: z
+    .string()
+    .trim()
+    .max(300, '유튜브 주소가 너무 깁니다.')
+    .refine(
+      (value) => value === '' || /^https:\/\/(?:www\.)?(?:youtube\.com\/|youtu\.be\/)/.test(value),
+      '유튜브 주소만 넣을 수 있습니다. (https://www.youtube.com/... 또는 https://youtu.be/...)',
+    )
+    .optional(),
+}).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+  message: '변경할 항목이 없습니다.',
+});
+
+export const categoryCreateSchema = z.object({
+  name: z.string().trim().min(1, '카테고리 이름을 입력해 주세요.').max(80, '카테고리 이름은 80자를 넘을 수 없습니다.'),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+});
+
 export const refundSchema = z.object({
   amount: z.number().int().positive(),
   reason: z.string().trim().min(1).max(500),

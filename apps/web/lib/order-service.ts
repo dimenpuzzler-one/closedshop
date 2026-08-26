@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { getCommissionRule } from '@closed-commerce/config';
-import { allocateDiscount, calculateCartTotalsFromLines, type CatalogLine } from '@closed-commerce/commerce';
+import {
+  allocateDiscount,
+  calculateCartTotalsFromLines,
+  DEFAULT_SHIPPING_POLICY,
+  type CatalogLine,
+  type ShippingPolicy,
+} from '@closed-commerce/commerce';
 import { createServiceRoleSupabaseClient, type AppSupabaseClient, type Json } from '@closed-commerce/db';
 import { MockPaymentProvider } from '@closed-commerce/payment';
 import { logServerError, logServerEvent } from '@closed-commerce/observability';
@@ -157,12 +163,35 @@ async function loadReferral(client: AppSupabaseClient, buyerUserId: string, refe
   return { referral, lookup };
 }
 
+/**
+ * 배송비 규칙을 store_settings에서 읽는다.
+ * 여기서는 service role 클라이언트를 이미 쥐고 있으므로 그대로 쓴다.
+ * 설정을 못 읽으면 배송비를 0으로 떨어뜨리지 말고 기본 정책으로 되돌린다 —
+ * 조용히 0원이 되면 판매자가 3PL 비용을 전액 부담한다.
+ */
+async function loadShippingPolicy(client: ReturnType<typeof createServiceRoleSupabaseClient>): Promise<ShippingPolicy> {
+  const { data, error } = await client
+    .from('store_settings')
+    .select('shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error || !data) return DEFAULT_SHIPPING_POLICY;
+  return {
+    cartonQuantity: data.shipping_carton_quantity ?? DEFAULT_SHIPPING_POLICY.cartonQuantity,
+    feePerCarton: data.shipping_fee_per_carton ?? DEFAULT_SHIPPING_POLICY.feePerCarton,
+    freeShippingThreshold: data.free_shipping_threshold ?? undefined,
+  };
+}
+
 export async function createPersistedOrder(input: CreateOrderInput, buyerUserId: string, requestId = 'no-request-id'): Promise<PersistedOrderResult> {
   const client = createServiceRoleSupabaseClient();
   const { referral, lookup } = await loadReferral(client, buyerUserId, input.referralCode);
   const { lines } = await loadCatalog(client, input);
   const promotion = await loadPromotion(client, input, buyerUserId, referral.id);
-  const totals = calculateCartTotalsFromLines(lines, promotion);
+  // 장바구니 화면과 반드시 같은 규칙으로 계산해야 한다.
+  // 다른 값을 쓰면 고객이 본 금액과 실제 결제 금액이 어긋난다.
+  const shippingPolicy = await loadShippingPolicy(client);
+  const totals = calculateCartTotalsFromLines(lines, promotion, shippingPolicy);
   if (promotion && (promotion.rule.discountRate !== undefined || promotion.rule.discountAmount !== undefined) && totals.discountAmount === 0) fail(400, 'Promotion Code의 조건을 충족하지 않았습니다.');
   const orderId = randomUUID();
   const orderNumber = `CC-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${orderId.slice(0, 6).toUpperCase()}`;

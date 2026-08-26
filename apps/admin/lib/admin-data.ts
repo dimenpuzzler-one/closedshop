@@ -89,13 +89,83 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   }) };
 }
 
-export async function loadStoreSettings(): Promise<{ source: AdminDataSource; shippingCutoffTime: string }> {
+export interface AdminStoreSettings {
+  source: AdminDataSource;
+  shippingCutoffTime: string;
+  shippingFeePerCarton: number;
+  shippingCartonQuantity: number;
+  /** null이면 무료배송 없음. 0(전액 무료배송)과 다르다. */
+  freeShippingThreshold: number | null;
+  heroHeadline: string;
+  heroSubheadline: string;
+  heroYoutubeUrl: string;
+  heroBannerUrl: string;
+}
+
+const SETTINGS_FALLBACK = {
+  shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME,
+  shippingFeePerCarton: 4000,
+  shippingCartonQuantity: 5,
+  freeShippingThreshold: null,
+  heroHeadline: '',
+  heroSubheadline: '',
+  heroYoutubeUrl: '',
+  heroBannerUrl: '',
+};
+
+export async function loadStoreSettings(): Promise<AdminStoreSettings> {
   const gate = await adminGate();
-  if (gate.source !== 'supabase') return { source: gate.source, shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
+  if (gate.source !== 'supabase') return { source: gate.source, ...SETTINGS_FALLBACK };
   const client = gate.client;
-  const { data, error } = await client.from('store_settings').select('shipping_cutoff_time').eq('id', 1).maybeSingle();
-  if (error) return { source: 'unavailable', shippingCutoffTime: DEFAULT_SHIPPING_CUTOFF_TIME };
-  return { source: 'supabase', shippingCutoffTime: data?.shipping_cutoff_time?.slice(0, 5) ?? DEFAULT_SHIPPING_CUTOFF_TIME };
+  const { data, error } = await client
+    .from('store_settings')
+    .select(
+      'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path',
+    )
+    .eq('id', 1)
+    .maybeSingle();
+  if (error) return { source: 'unavailable', ...SETTINGS_FALLBACK };
+  return {
+    source: 'supabase',
+    shippingCutoffTime: data?.shipping_cutoff_time?.slice(0, 5) ?? DEFAULT_SHIPPING_CUTOFF_TIME,
+    shippingFeePerCarton: data?.shipping_fee_per_carton ?? SETTINGS_FALLBACK.shippingFeePerCarton,
+    shippingCartonQuantity: data?.shipping_carton_quantity ?? SETTINGS_FALLBACK.shippingCartonQuantity,
+    freeShippingThreshold: data?.free_shipping_threshold ?? null,
+    heroHeadline: data?.hero_headline ?? '',
+    heroSubheadline: data?.hero_subheadline ?? '',
+    heroYoutubeUrl: data?.hero_youtube_url ?? '',
+    heroBannerUrl: data?.hero_banner_path
+      ? client.storage.from('product-images').getPublicUrl(data.hero_banner_path).data.publicUrl
+      : '',
+  };
+}
+
+export interface AdminCategory {
+  name: string;
+  sortOrder: number;
+  productCount: number;
+}
+
+/** 카테고리 목록과 각 카테고리에 붙은 상품 수. 상품 수는 삭제 가능 여부 판단에 쓴다. */
+export async function loadCategories(): Promise<{ source: AdminDataSource; categories: AdminCategory[] }> {
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, categories: [] };
+  const client = gate.client;
+  const [{ data: rows, error }, { data: products }] = await Promise.all([
+    client.from('product_categories').select('name, sort_order').order('sort_order').order('name'),
+    client.from('products').select('category'),
+  ]);
+  if (error) return { source: 'unavailable', categories: [] };
+  const counts = new Map<string, number>();
+  (products ?? []).forEach((product) => counts.set(product.category, (counts.get(product.category) ?? 0) + 1));
+  return {
+    source: 'supabase',
+    categories: (rows ?? []).map((row) => ({
+      name: row.name,
+      sortOrder: row.sort_order,
+      productCount: counts.get(row.name) ?? 0,
+    })),
+  };
 }
 
 export interface AdminOrderRow {

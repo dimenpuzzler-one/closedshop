@@ -117,10 +117,37 @@ export function getVisibleProducts(isMember = false, hasReferral = false): Produ
 }
 
 /**
- * 무료배송 기준액. 예전에는 두 개의 계산 함수에 각각 50_000이 하드코딩되어 있었다.
- * 운영자가 바꿔야 하는 값이므로 최종적으로는 store_settings로 옮겨야 한다.
+ * 배송비 규칙.
+ *
+ * 예전에는 FREE_SHIPPING_THRESHOLD = 50_000이 여기에 하드코딩되어 있었다.
+ * 육포 420g 판매가가 55,000원이라 1개만 사도 배송비가 0원이 됐고,
+ * 3PL 건당 4,000원을 판매자가 전액 부담했다. 이제 store_settings에서 읽는다.
+ *
+ * 계산: 올림(총수량 ÷ cartonQuantity) × feePerCarton
+ *   cartonQuantity=5, feePerCarton=4000 이면 1~5개 4,000원 / 6~10개 8,000원.
+ * 기준은 "주문 전체 수량"이다. 상품별로 카툰 수량이 다르면 상품 컬럼이 필요하다.
  */
-export const FREE_SHIPPING_THRESHOLD = 50_000;
+export interface ShippingPolicy {
+  /** 카툰 하나에 들어가는 수량. 1 이상. */
+  cartonQuantity: number;
+  /** 카툰 하나당 요금(원). */
+  feePerCarton: number;
+  /** 이 금액 이상이면 배송비 면제. undefined면 무료배송 없음. */
+  freeShippingThreshold?: number;
+}
+
+export const DEFAULT_SHIPPING_POLICY: ShippingPolicy = {
+  cartonQuantity: 5,
+  feePerCarton: 4_000,
+};
+
+export function calculateShippingAmount(quantity: number, netAmount: number, policy: ShippingPolicy): number {
+  if (quantity <= 0) return 0;
+  if (policy.freeShippingThreshold !== undefined && netAmount >= policy.freeShippingThreshold) return 0;
+  const unit = Math.max(1, Math.trunc(policy.cartonQuantity));
+  const fee = Math.max(0, Math.trunc(policy.feePerCarton));
+  return Math.ceil(quantity / unit) * fee;
+}
 
 export interface CatalogLine {
   productId: string;
@@ -149,7 +176,11 @@ export interface CartTotals {
  * promotion productIds 검사 여부가 서로 달라, 같은 장바구니가 화면과 서버에서
  * 다른 금액을 낼 수 있었다. 이제 이 함수 하나만 존재한다.
  */
-export function calculateCartTotalsFromLines(lines: CatalogLine[], promotion?: PromotionCode): CartTotals {
+export function calculateCartTotalsFromLines(
+  lines: CatalogLine[],
+  promotion?: PromotionCode,
+  policy: ShippingPolicy = DEFAULT_SHIPPING_POLICY,
+): CartTotals {
   const grossAmount = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const quantity = lines.reduce((sum, line) => sum + line.quantity, 0);
   const productsAllowed = !promotion?.rule.productIds?.length || lines.every((line) => promotion.rule.productIds?.includes(line.productId));
@@ -163,7 +194,9 @@ export function calculateCartTotalsFromLines(lines: CatalogLine[], promotion?: P
     : 0;
   const discountAmount = Math.min(grossAmount, rawDiscount);
   const netAmount = Math.max(0, grossAmount - discountAmount);
-  const shippingAmount = lines.length === 0 || netAmount >= FREE_SHIPPING_THRESHOLD ? 0 : Math.max(...lines.map((line) => line.shippingFee), 0);
+  // 상품별 shippingFee는 더 이상 합계에 쓰지 않는다. 실제 비용은 3PL 카툰 단위로 발생하므로
+  // 주문 전체 수량으로 한 번만 계산한다. 상품 컬럼은 표시/참고용으로만 남는다.
+  const shippingAmount = lines.length === 0 ? 0 : calculateShippingAmount(quantity, netAmount, policy);
   return {
     grossAmount,
     discountAmount,
@@ -213,7 +246,7 @@ export function findPromotionCode(code: string): PromotionCode | undefined {
 }
 
 /** 데모 모드 주문 요약. 운영 경로는 apps/web/lib/order-service.ts를 쓴다. */
-export function summarizeOrderInput(input: CreateOrderInput) {
+export function summarizeOrderInput(input: CreateOrderInput, policy: ShippingPolicy = DEFAULT_SHIPPING_POLICY) {
   const promotion = input.promotionCode ? findPromotionCode(input.promotionCode) : undefined;
-  return { ...calculateCartTotalsFromLines(toDemoCatalogLines(input.items), promotion), promotion };
+  return { ...calculateCartTotalsFromLines(toDemoCatalogLines(input.items), promotion, policy), promotion };
 }

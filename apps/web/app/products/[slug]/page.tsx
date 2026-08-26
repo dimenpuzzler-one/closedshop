@@ -7,7 +7,7 @@ import { ProductImageGallery } from '@/components/product-image-gallery';
 import { ReferralGate } from '@/components/referral-gate';
 import { ShippingCutoffNotice } from '@/components/shipping-cutoff-notice';
 import { loadProductBySlug } from '@/lib/catalog-data';
-import { loadShippingSettings } from '@/lib/store-settings';
+import { loadStoreSettings } from '@/lib/store-settings';
 
 const VISIBILITY_LABEL: Record<string, string> = {
   referral: '추천 회원 전용',
@@ -24,37 +24,30 @@ export default async function ProductDetailPage({
   searchParams: Promise<{ ref?: string }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
-  const [catalog, shipping] = await Promise.all([
+  const [catalog, settings] = await Promise.all([
     loadProductBySlug(slug, query.ref?.trim().toUpperCase()),
-    loadShippingSettings(),
+    loadStoreSettings(),
   ]);
   const product = catalog.product;
 
-  if (!product && !catalog.authenticated) {
-    return (
-      <section className="section">
-        <Container>
-          <div className="stack">
-            <div>
-              <p className="eyebrow">MEMBER ACCESS</p>
-              <h1>상품 상세는 로그인 후 확인할 수 있어요.</h1>
-              <p className="muted">추천 코드로 가입한 뒤 로그인하면 특판 상품과 판매 조건을 확인할 수 있습니다.</p>
-            </div>
-            <ReferralGate />
-          </div>
-        </Container>
-      </section>
-    );
-  }
   if (!product) notFound();
 
-  const validReferral = catalog.validReferralCode;
+  // 가격을 볼 자격이 있을 때만 금액과 장바구니를 노출한다.
+  // 자격이 없어도 상품 사진·구성·상세 설명은 그대로 보여준다 —
+  // 당근·QR·지인 공유 유입은 대부분 비로그인 상태로 이 링크를 받는다.
+  const priceVisible = catalog.priceVisible;
   const images = product.images ?? [];
   const heroImage = images[0];
   // 상세 이미지는 상단 갤러리가 아니라 아래 상세 영역에 세로로 크게 쌓는다.
   const detailImages = images.slice(1);
   const stock = product.options[0]?.stock ?? 0;
   const price = product.options[0]?.price ?? product.price;
+  const shippingPolicy = settings.shippingPolicy;
+  const shippingCopy = `${shippingPolicy.cartonQuantity}개까지 ${shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원, 초과 시 ${shippingPolicy.cartonQuantity}개 단위로 추가${
+    shippingPolicy.freeShippingThreshold !== undefined
+      ? ` (${shippingPolicy.freeShippingThreshold.toLocaleString('ko-KR')}원 이상 무료배송)`
+      : ''
+  }`;
 
   return (
     <>
@@ -90,7 +83,7 @@ export default async function ProductDetailPage({
           </div>
 
           <div className="stack">
-            <ShippingCutoffNotice time={shipping.shippingCutoffTime} />
+            <ShippingCutoffNotice time={settings.shippingCutoffTime} />
             <div className="card stack">
               <div className="row">
                 <div className="row" style={{ gap: 8, justifyContent: 'flex-start' }}>
@@ -102,7 +95,9 @@ export default async function ProductDetailPage({
               <h2>{product.name}</h2>
               <p className="muted">{product.shortDescription}</p>
               <div className="row">
-                <span className="product-price"><Price amount={price} /></span>
+                {priceVisible
+                  ? <span className="product-price"><Price amount={price} /></span>
+                  : <span className="product-price muted">회원 전용 가격</span>}
                 {product.weight ? <span className="muted">{product.weight}</span> : null}
               </div>
               {product.options.length > 0 ? (
@@ -110,16 +105,14 @@ export default async function ProductDetailPage({
                   {product.options.map((option) => (
                     <div className="row" key={option.id}>
                       <span>{option.name}: {option.value}</span>
-                      <strong><Price amount={option.price} /></strong>
+                      {priceVisible ? <strong><Price amount={option.price} /></strong> : <span className="muted">가격 비공개</span>}
                     </div>
                   ))}
                 </div>
               ) : null}
               <hr className="divider" />
-              <p className="muted">
-                {product.shippingFee ? `배송비 ${product.shippingFee.toLocaleString('ko-KR')}원` : '무료배송'}
-              </p>
-              {validReferral ? <AddToCartButton product={product} /> : <ReferralGate compact />}
+              <p className="muted">배송비 {shippingCopy}</p>
+              {priceVisible ? <AddToCartButton product={product} /> : <ReferralGate compact />}
             </div>
           </div>
         </Container>
@@ -164,11 +157,11 @@ export default async function ProductDetailPage({
             <dl className="product-spec-list">
               <div>
                 <dt>배송비</dt>
-                <dd>{product.shippingFee ? `${product.shippingFee.toLocaleString('ko-KR')}원` : '무료배송'}</dd>
+                <dd>{shippingCopy}</dd>
               </div>
               <div>
                 <dt>배송 마감</dt>
-                <dd>{shipping.shippingCutoffTime} (이후 주문은 다음 출고 일정으로 처리될 수 있습니다)</dd>
+                <dd>{settings.shippingCutoffTime} (이후 주문은 다음 출고 일정으로 처리될 수 있습니다)</dd>
               </div>
               <div>
                 <dt>구성</dt>

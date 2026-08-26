@@ -187,7 +187,7 @@ function FormFeedback({ error, message }: { error: string; message: string }) {
   );
 }
 
-export function ProductCreateForm() {
+export function ProductCreateForm({ categories }: { categories: string[] }) {
   const form = useCreate('/api/products', { productImages: true });
   // 상품명에서 상품 주소를 자동으로 만든다. 운영자가 URL 규칙을 알 필요가 없다.
   // 직접 고치면 그때부터는 손댄 값을 존중한다.
@@ -222,10 +222,16 @@ export function ProductCreateForm() {
                 : '비워 두셔도 됩니다. 서버가 상품명에서 자동으로 만듭니다.'}
             </span>
           </label>
-          <label className="field"><span className="field-label">제품 카테고리</span><input className="input" name="category" defaultValue="기타" maxLength={80} required /><span className="field-hint">고객몰에서 상품을 분류할 이름입니다.</span></label>
+          <label className="field">
+            <span className="field-label">제품 카테고리</span>
+            {/* 자유 입력이면 오타 하나로 카테고리가 갈라진다. 목록은 운영 설정에서 관리한다. */}
+            <select className="select" name="category" defaultValue={categories[0] ?? '기타'} required>
+              {categories.length ? categories.map((category) => <option key={category} value={category}>{category}</option>) : <option value="기타">기타</option>}
+            </select>
+            <span className="field-hint">목록에 없으면 “운영 설정 → 카테고리”에서 먼저 추가해 주세요.</span>
+          </label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">옵션가를 비워두면 이 금액이 판매가가 됩니다.</span></label>
           <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" /></label>
-          <label className="field"><span className="field-label">배송비</span><input className="input" type="number" min="0" name="shippingFee" defaultValue="0" required /></label>
           <label className="field"><span className="field-label">노출 대상</span><select className="select" name="visibility" defaultValue="referral"><option value="referral">추천 회원 전용</option><option value="member">회원 전용</option><option value="public">공개</option><option value="hidden">비공개</option></select></label>
           <label className="field"><span className="field-label">판매 상태</span><select className="select" name="status" defaultValue="active"><option value="active">즉시 판매</option><option value="draft">초안</option><option value="paused">판매 중지</option></select></label>
           <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue="구성" required /></label>
@@ -240,20 +246,6 @@ export function ProductCreateForm() {
           <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="원본 화질 유지 / 전체 사진 최대 21장 / 한 번에 최대 200MB" />
         </div>
         <button className="button button-primary" disabled={form.busy}>{form.busy ? '등록 중…' : '상품 등록'}</button>
-        <FormFeedback error={form.error} message={form.message} />
-      </form>
-    </details>
-  );
-}
-
-export function ShippingSettingsForm({ defaultValue }: { defaultValue: string }) {
-  const form = useCreate('/api/settings');
-  return (
-    <details className="card admin-section">
-      <summary className="button button-secondary">배송 마감 설정 열기</summary>
-      <form className="stack" onSubmit={form.submit}>
-        <label className="field"><span className="field-label">배송 마감 시간</span><input className="input" type="time" name="shippingCutoffTime" defaultValue={defaultValue} required /><span className="field-hint">기본값은 14:00이며, 이 시간은 고객몰에도 안내됩니다.</span></label>
-        <button className="button button-primary" disabled={form.busy}>{form.busy ? '저장 중…' : '배송 설정 저장'}</button>
         <FormFeedback error={form.error} message={form.message} />
       </form>
     </details>
