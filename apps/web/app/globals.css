@@ -1,14 +1,34 @@
+/*
+ * 제목용 세리프. next/font/google은 빌드 시점에 폰트를 내려받아서
+ * 네트워크가 막힌 빌드 환경에서는 빌드가 통째로 깨진다. 브라우저가 직접
+ * 받아가도록 @import로 건다. display=swap이라 폰트가 늦어도 글자는 먼저 나온다.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap');
+
+/*
+ * 색은 딜키 로고에서 뽑았다. 골드(#b8925a)와 아이보리(#f6f3ec), 먹빛 워드마크.
+ * --green-* 이름은 예전 초록 팔레트에서 왔다. 호출부가 많아 이름은 그대로 두고
+ * 값만 골드로 바꾼다. 새 코드에서는 --gold-* 별칭을 쓴다.
+ */
 :root {
-  --ink: #17211c;
-  --muted: #68736c;
-  --line: #dfe6df;
-  --paper: #f8faf7;
-  --card: #ffffff;
-  --green: #236749;
-  --green-dark: #174a35;
-  --mint: #dff2e5;
-  --orange: #d77b42;
-  --shadow: 0 14px 40px rgba(22, 44, 33, 0.08);
+  --ink: #1a1714;
+  --muted: #7a6f62;
+  --line: #e6ddcd;
+  --paper: #f6f3ec;
+  --card: #fffdf9;
+  --green: #b8925a;
+  --green-dark: #8c6d3f;
+  --mint: #efe6d3;
+  --orange: #a8763c;
+  --shadow: 0 14px 40px rgba(60, 44, 22, 0.10);
+
+  --gold: #b8925a;
+  --gold-deep: #8c6d3f;
+  --gold-soft: #efe6d3;
+  --gold-line: #d8c49b;
+  /* 로고의 금속 질감을 띠 하나로 재현한다. 버튼·강조선에 쓴다. */
+  --gold-sheen: linear-gradient(135deg, #c9a76b 0%, #e2caa0 28%, #b8925a 55%, #8c6d3f 100%);
+  --serif: 'Cormorant Garamond', 'Noto Serif KR', 'Apple SD Gothic Neo', 'Nanum Myeongjo', Georgia, serif;
 }
 
 * { box-sizing: border-box; }
@@ -22,28 +42,32 @@ button { cursor: pointer; }
 .site-header { border-bottom: 1px solid var(--line); background: rgba(248, 250, 247, .92); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px); }
 .header-inner { height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.03em; }
-.brand-mark { width: 34px; height: 34px; border-radius: 11px; background: var(--green); color: white; display: grid; place-items: center; font-size: 14px; }
+.brand-mark { width: 36px; height: 36px; display: grid; place-items: center; }
+.brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+.brand-word { font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 .nav { display: flex; align-items: center; gap: 20px; color: var(--muted); font-size: 14px; }
 .nav a:hover { color: var(--green); }
 .header-actions { display: flex; gap: 8px; align-items: center; }
 
-.hero { padding: 92px 0 84px; background: radial-gradient(circle at 78% 24%, #eff8ee 0, transparent 32%), linear-gradient(135deg, #f8faf7 0%, #edf6ee 100%); }
+.hero { padding: 92px 0 84px; background: radial-gradient(circle at 78% 24%, #f3e9d6 0, transparent 34%), linear-gradient(135deg, #faf8f3 0%, #f1ebdd 100%); }
 .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 68px; align-items: center; }
 .eyebrow { margin: 0 0 14px; color: var(--green); text-transform: uppercase; letter-spacing: .16em; font-size: 11px; font-weight: 800; }
 h1, h2, h3, p { margin-top: 0; }
 /* 한글은 어절 단위로 끊어야 읽힌다. keep-all이 없으면 "열리는"이 "열 / 리는"으로 쪼개진다. */
 h1, h2, h3, p, .muted, .hero-copy, li, dd, dt { word-break: keep-all; overflow-wrap: break-word; }
+/* 로고가 세리프라 제목도 세리프로 맞춘다. 본문은 가독성 때문에 산세리프를 유지한다. */
+h1, h2, h3, .hero-art-title, .brand-word { font-family: var(--serif); font-weight: 600; }
 h1 { font-size: clamp(36px, 5.4vw, 68px); line-height: 1.12; letter-spacing: -.045em; margin-bottom: 22px; }
 h2 { font-size: 34px; line-height: 1.1; letter-spacing: -.045em; margin-bottom: 12px; }
 h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .hero-copy { max-width: 650px; font-size: 18px; line-height: 1.7; color: var(--muted); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
 .hero-note { font-size: 12px; color: var(--muted); margin-top: 16px; }
-.hero-art { min-height: 360px; border-radius: 30px; background: linear-gradient(145deg, #276b4d, #122f26); box-shadow: var(--shadow); padding: 30px; color: white; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative; }
+.hero-art { min-height: 360px; border-radius: 30px; background: linear-gradient(145deg, #2c2621, #14110e); box-shadow: var(--shadow); padding: 30px; color: white; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative; }
 .hero-art:after { content: ''; position: absolute; width: 250px; height: 250px; border-radius: 50%; background: rgba(255,255,255,.1); right: -70px; top: -70px; }
-.hero-art-label { color: #bde3c6; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.hero-art-label { color: var(--gold-line); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
 .hero-art-title { font-size: 44px; line-height: 1; letter-spacing: -.06em; max-width: 260px; position: relative; z-index: 1; }
-.hero-art-foot { display: flex; justify-content: space-between; color: #cce7d1; font-size: 13px; position: relative; z-index: 1; }
+.hero-art-foot { display: flex; justify-content: space-between; color: var(--gold-line); font-size: 13px; position: relative; z-index: 1; }
 
 .section { padding: 84px 0; }
 .section-tight { padding: 46px 0; }
@@ -55,14 +79,14 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .muted { color: var(--muted); line-height: 1.7; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.feature-card { padding: 24px; border-top: 3px solid var(--green); }
+.feature-card { padding: 24px; border-top: 2px solid var(--gold); }
 .feature-number { color: var(--orange); font-weight: 800; font-size: 12px; }
 
 .card { border: 1px solid var(--line); background: var(--card); border-radius: 18px; padding: 22px; box-shadow: 0 8px 24px rgba(22, 44, 33, 0.03); }
 .product-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
-.product-visual { min-height: 190px; padding: 18px; display: flex; align-items: flex-end; background: linear-gradient(140deg, #dfeee1, #bfd9c4); position: relative; }
+.product-visual { min-height: 190px; padding: 18px; display: flex; align-items: flex-end; background: linear-gradient(140deg, #f2ead9, #ddcdb0); position: relative; }
 .product-image { object-fit: cover; z-index: 0; }
-.product-visual:before { content: 'PREMIUM\A JERKY'; white-space: pre; display: block; color: rgba(22, 61, 42, .45); font-size: 12px; letter-spacing: .12em; line-height: 1.4; }
+.product-visual:before { content: 'PREMIUM\A JERKY'; white-space: pre; display: block; color: rgba(90, 70, 40, .45); font-size: 12px; letter-spacing: .12em; line-height: 1.4; }
 .product-weight { margin-left: auto; font-weight: 800; color: var(--green-dark); font-size: 28px; letter-spacing: -.06em; position: relative; z-index: 1; text-shadow: 0 1px 8px rgba(255,255,255,.7); }
 .product-body { padding: 22px; }
 .product-category { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
@@ -75,26 +99,26 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 /* 모바일에서 "장바구니"가 "장바구 / 니"로 쪼개졌다. 버튼 안 글자는 절대 줄바꿈하지 않는다. */
 .button { border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 700; transition: transform .15s, background .15s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
 .button:hover { transform: translateY(-1px); }
-.button-primary { color: white; background: var(--green); }
-.button-primary:hover { background: var(--green-dark); }
+.button-primary { color: #fffdf9; background: var(--gold-sheen); box-shadow: 0 6px 18px rgba(140, 109, 63, .28); }
+.button-primary:hover { background: linear-gradient(135deg, #b8925a 0%, #8c6d3f 100%); }
 .button-secondary { color: var(--green-dark); background: var(--mint); }
 .button-ghost { color: var(--ink); background: transparent; border: 1px solid var(--line); }
 .button-danger { color: white; background: #b34e4e; }
 .button-large { padding: 14px 20px; border-radius: 12px; }
 
-.gate { padding: 20px; border: 1px dashed #aecab2; border-radius: 16px; background: #f0f8f1; }
+.gate { padding: 20px; border: 1px dashed var(--gold-line); border-radius: 16px; background: #f8f3e8; }
 .gate-form { display: flex; gap: 8px; margin-top: 16px; }
 .gate-form .input { flex: 1; }
 .field { display: flex; flex-direction: column; gap: 7px; }
 .field-label { font-size: 13px; font-weight: 700; }
 .field-hint { color: var(--muted); font-size: 12px; }
 .input, .textarea, .select { border: 1px solid var(--line); border-radius: 10px; background: white; padding: 12px 13px; color: var(--ink); width: 100%; }
-.input:focus, .textarea:focus, .select:focus { outline: 3px solid rgba(35, 103, 73, .14); border-color: var(--green); }
+.input:focus, .textarea:focus, .select:focus { outline: 3px solid rgba(184, 146, 90, .22); border-color: var(--green); }
 .textarea { min-height: 120px; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .form-grid .full { grid-column: 1 / -1; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-.form-message { margin-top: 14px; padding: 12px; border-radius: 10px; background: #f0f8f1; color: var(--green-dark); font-size: 14px; }
+.form-message { margin-top: 14px; padding: 12px; border-radius: 10px; background: #f8f3e8; color: var(--gold-deep); font-size: 14px; }
 .form-error { background: #fff1ef; color: #9b3e36; }
 
 .page-header { padding: 62px 0 32px; background: linear-gradient(135deg, #f1f7f1, #f8faf7); border-bottom: 1px solid var(--line); }
@@ -102,7 +126,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .breadcrumb { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .two-column { display: grid; grid-template-columns: 1.2fr .8fr; gap: 24px; align-items: start; }
 .product-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.product-gallery-image { min-height: 220px; border-radius: 20px; overflow: hidden; position: relative; background: #dfeee1; }
+.product-gallery-image { min-height: 220px; border-radius: 20px; overflow: hidden; position: relative; background: #f2ead9; }
 .product-gallery-image.featured { grid-column: 1 / -1; min-height: 460px; }
 .product-gallery-image img { object-fit: cover; }
 .product-option-list { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -117,7 +141,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .shipping-cutoff-notice strong { color: var(--green-dark); }
 
 .badge { border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 800; display: inline-block; }
-.badge-neutral { color: var(--muted); background: #eef1ee; }
+.badge-neutral { color: var(--muted); background: #f0ece3; }
 .badge-success { color: #236749; background: #dff2e5; }
 .badge-warning { color: #8b5b1e; background: #fff0c9; }
 .badge-accent { color: #975128; background: #ffe4d5; }
@@ -172,12 +196,12 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 
 /* ---- 상품 상세 ---- */
 /* 대표 이미지는 잘라내지 않고 전체가 보이게 한다. 선물세트는 패키지 전체가 정보다. */
-.product-hero-image { position: relative; width: 100%; min-height: 460px; border-radius: 20px; overflow: hidden; background: #eef4ef; }
+.product-hero-image { position: relative; width: 100%; min-height: 460px; border-radius: 20px; overflow: hidden; background: #f2ece0; }
 .product-hero-image img { object-fit: contain; padding: 12px; }
 .product-image-gallery { display: grid; gap: 12px; }
 .product-gallery-stage { isolation: isolate; }
 .product-gallery-stage > img { transition: opacity .18s ease; }
-.product-gallery-arrow { position: absolute; z-index: 2; top: 50%; width: 46px; height: 46px; border: 1px solid rgba(28, 48, 37, .12); border-radius: 999px; background: rgba(255, 255, 255, .92); color: var(--green-dark); box-shadow: 0 8px 24px rgba(28, 48, 37, .14); display: grid; place-items: center; cursor: pointer; transform: translateY(-50%); transition: background .15s ease, transform .15s ease; }
+.product-gallery-arrow { position: absolute; z-index: 2; top: 50%; width: 46px; height: 46px; border: 1px solid rgba(90, 70, 40, .16); border-radius: 999px; background: rgba(255, 255, 255, .92); color: var(--green-dark); box-shadow: 0 8px 24px rgba(90, 70, 40, .16); display: grid; place-items: center; cursor: pointer; transform: translateY(-50%); transition: background .15s ease, transform .15s ease; }
 .product-gallery-arrow:hover { background: white; transform: translateY(-50%) scale(1.04); }
 .product-gallery-arrow:focus-visible, .product-gallery-thumbnail:focus-visible { outline: 3px solid rgba(35, 103, 73, .28); outline-offset: 2px; }
 .product-gallery-arrow span { font-size: 34px; line-height: 1; transform: translateY(-2px); }
@@ -185,7 +209,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-gallery-arrow.next { right: 14px; }
 .product-gallery-counter { position: absolute; z-index: 2; right: 14px; bottom: 14px; padding: 6px 10px; border-radius: 999px; background: rgba(28, 48, 37, .78); color: white; font-size: 12px; font-weight: 700; }
 .product-gallery-thumbnails { display: flex; gap: 10px; padding: 2px 2px 6px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
-.product-gallery-thumbnail { position: relative; flex: 0 0 76px; width: 76px; height: 76px; padding: 0; border: 2px solid transparent; border-radius: 12px; overflow: hidden; background: #eef4ef; cursor: pointer; opacity: .68; transition: border-color .15s ease, opacity .15s ease, transform .15s ease; }
+.product-gallery-thumbnail { position: relative; flex: 0 0 76px; width: 76px; height: 76px; padding: 0; border: 2px solid transparent; border-radius: 12px; overflow: hidden; background: #f2ece0; cursor: pointer; opacity: .68; transition: border-color .15s ease, opacity .15s ease, transform .15s ease; }
 .product-gallery-thumbnail:hover { opacity: 1; transform: translateY(-1px); }
 .product-gallery-thumbnail.active { border-color: var(--green-dark); opacity: 1; }
 .product-gallery-thumbnail img { object-fit: cover; padding: 0; }

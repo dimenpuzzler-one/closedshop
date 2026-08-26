@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Container } from '@closed-commerce/ui';
 import { resolveRuntimeMode } from '@closed-commerce/db';
 import { createServerAppClient } from '@/lib/supabase-server';
@@ -26,7 +27,12 @@ export async function SiteHeader() {
   return (
     <header className="site-header">
       <Container className="header-inner">
-        <Link href="/" className="brand"><span className="brand-mark">DK</span><span>Dealkey</span></Link>
+        <Link href="/" className="brand" aria-label="딜키 홈">
+          <span className="brand-mark">
+            <Image src="/brand/dealkey-mark.png" alt="" width={36} height={33} priority />
+          </span>
+          <span className="brand-word">Dealkey</span>
+        </Link>
         <nav className="nav" aria-label="주요 메뉴">
           <Link href="/products">상품 둘러보기</Link>
           <Link href="/b2b">기업·단체 견적</Link>
