@@ -31,7 +31,9 @@ button { cursor: pointer; }
 .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 68px; align-items: center; }
 .eyebrow { margin: 0 0 14px; color: var(--green); text-transform: uppercase; letter-spacing: .16em; font-size: 11px; font-weight: 800; }
 h1, h2, h3, p { margin-top: 0; }
-h1 { font-size: clamp(40px, 6vw, 72px); line-height: 1.04; letter-spacing: -.065em; margin-bottom: 22px; }
+/* 한글은 어절 단위로 끊어야 읽힌다. keep-all이 없으면 "열리는"이 "열 / 리는"으로 쪼개진다. */
+h1, h2, h3, p, .muted, .hero-copy, li, dd, dt { word-break: keep-all; overflow-wrap: break-word; }
+h1 { font-size: clamp(36px, 5.4vw, 68px); line-height: 1.12; letter-spacing: -.045em; margin-bottom: 22px; }
 h2 { font-size: 34px; line-height: 1.1; letter-spacing: -.045em; margin-bottom: 12px; }
 h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .hero-copy { max-width: 650px; font-size: 18px; line-height: 1.7; color: var(--muted); }
@@ -45,6 +47,9 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 
 .section { padding: 84px 0; }
 .section-tight { padding: 46px 0; }
+/* section-tight를 연달아 쌓으면 46+46=92px의 죽은 여백이 생긴다. 이어붙는 구간은 위쪽 패딩을 줄인다. */
+.section-tight + .section-tight { padding-top: 0; }
+.hero + .section-tight { padding-top: 34px; }
 .section-heading { margin-bottom: 30px; }
 .section-heading .muted { max-width: 650px; }
 .muted { color: var(--muted); line-height: 1.7; }
@@ -67,7 +72,8 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .tag { color: var(--green); background: var(--mint); border-radius: 999px; padding: 5px 9px; font-size: 11px; }
 
-.button { border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 700; transition: transform .15s, background .15s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+/* 모바일에서 "장바구니"가 "장바구 / 니"로 쪼개졌다. 버튼 안 글자는 절대 줄바꿈하지 않는다. */
+.button { border: 0; border-radius: 10px; padding: 11px 16px; font-weight: 700; transition: transform .15s, background .15s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
 .button:hover { transform: translateY(-1px); }
 .button-primary { color: white; background: var(--green); }
 .button-primary:hover { background: var(--green-dark); }
@@ -136,6 +142,9 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 
 @media (max-width: 850px) {
   .hero-grid, .two-column { grid-template-columns: 1fr; }
+  .brand span:last-child { white-space: nowrap; }
+  .header-actions { gap: 6px; }
+  .header-actions .button { padding: 9px 12px; font-size: 14px; }
   .hero-art { min-height: 260px; }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .nav { display: none; }
@@ -145,10 +154,21 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .container { width: min(100% - 28px, 1120px); }
   .hero { padding: 62px 0; }
   .section { padding: 58px 0; }
-  .grid-3, .grid-4, .form-grid { grid-template-columns: 1fr; }
+  .grid-3, .form-grid { grid-template-columns: 1fr; }
+  /* 상품 그리드는 1열로 떨어뜨리지 않는다. 유입 대부분이 모바일이라
+     1열이면 상품 4개를 보는 데 화면을 네 번 넘겨야 한다. */
+  .grid-4 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .product-card .product-body { padding: 12px; }
+  .product-card h3 { font-size: 15px; }
+  /* 2열 카드에서는 가격과 버튼을 나란히 두면 버튼 글자가 잘린다("상세 보 "). */
+  .product-meta { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 12px; }
+  .product-meta .button { width: 100%; }
   .form-grid .full { grid-column: auto; }
   .gate-form, .footer-inner { flex-direction: column; align-items: stretch; }
 }
+
+/* 비회원에게 보이는 가격 자리 문구. 두 줄로 접히면 카드 높이가 어긋난다. */
+.product-price.muted { font-size: 13px; white-space: nowrap; }
 
 /* ---- 상품 상세 ---- */
 /* 대표 이미지는 잘라내지 않고 전체가 보이게 한다. 선물세트는 패키지 전체가 정보다. */

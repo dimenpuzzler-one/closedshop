@@ -5,7 +5,7 @@ import { Container } from '@closed-commerce/ui';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Closed Commerce | 초대받은 분을 위한 특판몰',
+  title: 'Dealkey | 초대받은 분을 위한 특판몰',
   description: '추천 코드로 입장하는 비공개 특판 선물몰',
   robots: { index: false, follow: false },
 };

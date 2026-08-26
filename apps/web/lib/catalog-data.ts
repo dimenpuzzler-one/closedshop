@@ -173,8 +173,17 @@ export interface CatalogResult extends CatalogAccess {
 
 export async function loadVisibleCatalog(referralCode?: string, category?: string): Promise<CatalogResult> {
   if (!isSupabaseMode()) {
+    // 데모에서도 운영과 같은 규칙을 따른다: 상품은 보이고, 가격만 추천 코드로 갈린다.
+    // 예전에는 코드가 없으면 referral 상품이 통째로 걸러져 홈이 "상품 없음"으로 보였다.
     const valid = referralCode ? findValidReferralCode(DEMO_REFERRAL_CODES, referralCode) : undefined;
-    return { products: getVisibleProducts(true, Boolean(valid)), validReferralCode: valid?.code, authenticated: true, priceVisible: true };
+    const priceVisible = Boolean(valid);
+    const all = getVisibleProducts(true, true).filter((product) => !category || product.category === category);
+    return {
+      products: priceVisible ? all : all.map(stripPrices),
+      validReferralCode: valid?.code,
+      authenticated: true,
+      priceVisible,
+    };
   }
   const sessionClient = await createServerAppClient();
   const access = await resolveCatalogAccess(sessionClient);
@@ -198,7 +207,14 @@ export async function loadVisibleCatalog(referralCode?: string, category?: strin
 export async function loadProductBySlug(slug: string, referralCode?: string): Promise<CatalogAccess & { product?: Product }> {
   if (!isSupabaseMode()) {
     const valid = referralCode ? findValidReferralCode(DEMO_REFERRAL_CODES, referralCode) : undefined;
-    return { product: getProductBySlug(slug), validReferralCode: valid?.code, authenticated: true, priceVisible: true };
+    const priceVisible = Boolean(valid);
+    const found = getProductBySlug(slug);
+    return {
+      product: found && !priceVisible ? stripPrices(found) : found,
+      validReferralCode: valid?.code,
+      authenticated: true,
+      priceVisible,
+    };
   }
   const sessionClient = await createServerAppClient();
   const access = await resolveCatalogAccess(sessionClient);

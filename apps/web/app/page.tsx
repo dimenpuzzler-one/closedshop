@@ -72,7 +72,7 @@ export default async function HomePage() {
         <Container><ShippingCutoffNotice time={settings.shippingCutoffTime} /></Container>
       </section>
 
-      {categories.length > 0 ? (
+      {categories.length > 1 ? (
         <section className="section-tight">
           <Container>
             <div className="category-nav">

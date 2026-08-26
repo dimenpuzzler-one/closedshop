@@ -26,7 +26,7 @@ export async function SiteHeader() {
   return (
     <header className="site-header">
       <Container className="header-inner">
-        <Link href="/" className="brand"><span className="brand-mark">CC</span><span>Closed Commerce</span></Link>
+        <Link href="/" className="brand"><span className="brand-mark">DK</span><span>Dealkey</span></Link>
         <nav className="nav" aria-label="주요 메뉴">
           <Link href="/products">상품 둘러보기</Link>
           <Link href="/b2b">기업·단체 견적</Link>
