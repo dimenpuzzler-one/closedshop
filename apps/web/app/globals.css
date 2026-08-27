@@ -312,3 +312,46 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 @media (max-width: 850px) {
   .section-heading.row { flex-wrap: wrap; gap: 0.75rem; }
 }
+
+/* ---------------------------------------------------------------------------
+   법적 고지 문서 (이용약관 / 개인정보처리방침 / 환불·교환 안내)
+   조문이 길어서 번호와 들여쓰기가 살아 있어야 읽힌다.
+--------------------------------------------------------------------------- */
+.legal-doc { max-width: 780px; font-size: 15px; line-height: 1.85; color: #33302b; }
+.legal-doc h2 { margin: 2.2rem 0 .7rem; font-size: 19px; letter-spacing: -.01em; padding-bottom: .4rem; border-bottom: 1px solid var(--line); }
+.legal-doc h2:first-child { margin-top: 0; }
+.legal-doc p { margin: 0 0 .9rem; }
+.legal-doc ol, .legal-doc ul { margin: 0 0 1rem; padding-left: 1.4rem; }
+.legal-doc li { margin-bottom: .45rem; }
+.legal-doc ol { list-style: decimal; }
+.legal-doc ol ol { list-style: lower-latin; margin-top: .45rem; }
+.legal-doc ul { list-style: disc; }
+.legal-doc a { color: var(--gold-deep); text-decoration: underline; text-underline-offset: 3px; }
+.legal-doc strong { color: var(--ink); }
+
+.legal-facts { list-style: none !important; padding-left: 0 !important; }
+.legal-facts li { color: var(--muted); }
+
+.legal-table { width: 100%; border-collapse: collapse; margin: 0 0 1.2rem; font-size: 14px; }
+.legal-table th, .legal-table td { border: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
+.legal-table th { background: var(--gold-soft); font-weight: 700; white-space: nowrap; }
+
+/* 형님이 확정해야 하는 칸. 조용히 배포되면 안 되므로 눈에 띄게 둔다. */
+.legal-todo {
+  display: block;
+  margin: .2rem 0 1rem;
+  padding: 12px 14px;
+  border-left: 3px solid var(--orange);
+  border-radius: 0 8px 8px 0;
+  background: #fdf6ec;
+  color: #7a4f1d;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+@media (max-width: 580px) {
+  .legal-doc { font-size: 14.5px; }
+  /* 표는 페이지를 밀어내지 말고 표 안에서만 가로로 넘긴다. */
+  .legal-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .footer-legal { flex-wrap: wrap; gap: 8px; }
+}

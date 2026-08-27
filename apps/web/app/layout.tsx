@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { COMPANY } from '@closed-commerce/config';
 import { SiteHeader } from '@/components/site-header';
 import { AttributionTracker } from '@/components/attribution-tracker';
 import { Container } from '@closed-commerce/ui';
@@ -19,15 +21,22 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <footer className="footer">
         <Container className="footer-inner">
           <div className="footer-company">
-            <strong>도미니언 (Dominion) | 대표 이정복</strong>
-            <span>사업자등록번호 818-06-03297 | 통신판매업 신고 제 2025-고양일산동-1946호</span>
-            <span>경기도 고양시 일산동구 중앙로 1123, 제상가동 2층 207호</span>
-            <span>고객센터 <a href="tel:010-4159-1942">010-4159-1942</a> | <a href="mailto:luxury194219@gmail.com">luxury194219@gmail.com</a></span>
+            <strong>{COMPANY.name} ({COMPANY.nameEn}) | 대표 {COMPANY.ceo}</strong>
+            <span>사업자등록번호 {COMPANY.businessNumber} | 통신판매업 신고 제 {COMPANY.mailOrderNumber}호</span>
+            <span>{COMPANY.address}</span>
+            <span>
+              고객센터 <a href={`tel:${COMPANY.phone}`}>{COMPANY.phone}</a> | <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>
+            </span>
           </div>
+          {/* 예전에는 링크가 아니라 <span>이라 아무 데도 가지 않았다. 통신판매업자는 이 문서들을 실제로 제공해야 한다. */}
           <div className="footer-legal" aria-label="정책 안내">
-            <span>이용약관</span><span aria-hidden="true">|</span><span>개인정보처리방침</span><span aria-hidden="true">|</span><span>환불·교환 안내</span>
+            <Link href="/legal/terms">이용약관</Link>
+            <span aria-hidden="true">|</span>
+            <Link href="/legal/privacy"><strong>개인정보처리방침</strong></Link>
+            <span aria-hidden="true">|</span>
+            <Link href="/legal/refund">환불·교환 안내</Link>
           </div>
-          <div className="footer-copy">© 2026 Dominion. All rights reserved.</div>
+          <div className="footer-copy">© 2026 {COMPANY.nameEn}. All rights reserved.</div>
         </Container>
       </footer>
     </body>

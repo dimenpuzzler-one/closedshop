@@ -364,3 +364,108 @@ export async function loadAdminAnalytics(): Promise<AdminAnalyticsData> {
   });
   return { source: 'supabase', funnel: { landings, signups, orders: orderCount }, referrals: [...referralMap.values()].sort((a, b) => b.sales - a.sales), channels: [...channelMap.entries()].map(([sourceName, eventsCount]) => ({ source: sourceName, events: eventsCount })).sort((a, b) => b.events - a.events) };
 }
+
+export interface DashboardMetrics {
+  source: AdminDataSource;
+  /** 오늘(Asia/Seoul) 결제 완료된 주문 수와 매출. */
+  todayOrders: number;
+  todaySales: number;
+  /** 결제는 됐는데 아직 출고 전. 대표님이 매일 아침 제일 먼저 볼 숫자다. */
+  unshippedOrders: number;
+  /** 승인됐거나 지급대기인 추천 보상 합계 = 곧 나갈 돈. */
+  payableCommission: number;
+  /** 아직 확정 전(pending) 보상. 반품 가능성이 남아 있어 따로 본다. */
+  pendingCommission: number;
+  topProducts: { name: string; quantity: number; sales: number }[];
+  topReferrals: { code: string; orders: number; sales: number }[];
+}
+
+const EMPTY_METRICS = {
+  todayOrders: 0,
+  todaySales: 0,
+  unshippedOrders: 0,
+  payableCommission: 0,
+  pendingCommission: 0,
+  topProducts: [] as DashboardMetrics['topProducts'],
+  topReferrals: [] as DashboardMetrics['topReferrals'],
+};
+
+/** 매출로 인정하는 상태. 취소·환불은 제외한다. */
+const REVENUE_STATUSES = ['paid', 'preparing', 'shipped', 'delivered', 'partially_refunded'];
+/** 결제됐지만 아직 고객 손에 가지 않은 상태. */
+const UNSHIPPED_STATUSES = ['paid', 'preparing'];
+
+/**
+ * 대표님이 매일 보는 한 화면.
+ * "오늘 얼마 팔렸고, 뭘 보내야 하고, 얼마를 정산해야 하는가"만 답하면 된다.
+ */
+export async function loadDashboardMetrics(): Promise<DashboardMetrics> {
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, ...EMPTY_METRICS };
+  const client = gate.client;
+
+  // 한국 시간 기준 오늘 0시. 서버가 UTC라 날짜 경계가 9시간 어긋나면
+  // 아침 9시 전 주문이 어제로 잡힌다.
+  const nowSeoul = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const startSeoul = new Date(Date.UTC(nowSeoul.getUTCFullYear(), nowSeoul.getUTCMonth(), nowSeoul.getUTCDate()));
+  const todayStartUtc = new Date(startSeoul.getTime() - 9 * 60 * 60 * 1000).toISOString();
+
+  const [ordersToday, unshipped, commissions, recentOrders] = await Promise.all([
+    client.from('orders').select('paid_amount').in('status', REVENUE_STATUSES).gte('created_at', todayStartUtc),
+    client.from('orders').select('id', { count: 'exact', head: true }).in('status', UNSHIPPED_STATUSES),
+    client.from('commissions').select('commission_amount, status').in('status', ['pending', 'approved', 'payable']),
+    client.from('orders').select('id, referral_code, paid_amount').in('status', REVENUE_STATUSES),
+  ]);
+
+  if (ordersToday.error || commissions.error || recentOrders.error) {
+    return { source: 'unavailable', ...EMPTY_METRICS };
+  }
+
+  const todayRows = ordersToday.data ?? [];
+  const commissionRows = commissions.data ?? [];
+  const orderRows = recentOrders.data ?? [];
+
+  // 상품별 판매량은 order_items에서. 취소된 주문의 항목은 빼야 한다.
+  const revenueOrderIds = orderRows.map((row) => row.id);
+  const itemsResult = revenueOrderIds.length
+    ? await client.from('order_items').select('product_name_snapshot, quantity, subtotal').in('order_id', revenueOrderIds)
+    : { data: [], error: null };
+
+  const productMap = new Map<string, { quantity: number; sales: number }>();
+  (itemsResult.data ?? []).forEach((item) => {
+    const current = productMap.get(item.product_name_snapshot) ?? { quantity: 0, sales: 0 };
+    current.quantity += item.quantity;
+    current.sales += item.subtotal;
+    productMap.set(item.product_name_snapshot, current);
+  });
+
+  const referralMap = new Map<string, { orders: number; sales: number }>();
+  orderRows.forEach((order) => {
+    const code = order.referral_code ?? '(추천 코드 없음)';
+    const current = referralMap.get(code) ?? { orders: 0, sales: 0 };
+    current.orders += 1;
+    current.sales += order.paid_amount;
+    referralMap.set(code, current);
+  });
+
+  return {
+    source: 'supabase',
+    todayOrders: todayRows.length,
+    todaySales: todayRows.reduce((sum, row) => sum + row.paid_amount, 0),
+    unshippedOrders: unshipped.count ?? 0,
+    payableCommission: commissionRows
+      .filter((row) => row.status === 'approved' || row.status === 'payable')
+      .reduce((sum, row) => sum + row.commission_amount, 0),
+    pendingCommission: commissionRows
+      .filter((row) => row.status === 'pending')
+      .reduce((sum, row) => sum + row.commission_amount, 0),
+    topProducts: [...productMap.entries()]
+      .map(([name, value]) => ({ name, ...value }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 6),
+    topReferrals: [...referralMap.entries()]
+      .map(([code, value]) => ({ code, ...value }))
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 6),
+  };
+}

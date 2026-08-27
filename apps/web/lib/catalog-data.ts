@@ -89,6 +89,13 @@ export async function resolveCatalogAccess(client: Awaited<ReturnType<typeof cre
   const { data: auth } = await client.auth.getUser();
   if (!auth.user) return { authenticated: false, priceVisible: false };
 
+  // 운영자·관리자는 추천 귀속이 없어도 가격을 봐야 한다.
+  // 그렇지 않으면 대표님이 본인 쇼핑몰에서 자기 상품 가격을 못 본다.
+  const { data: profile } = await client.from('profiles').select('role').eq('id', auth.user.id).maybeSingle();
+  if (profile?.role === 'operator' || profile?.role === 'admin') {
+    return { authenticated: true, priceVisible: true };
+  }
+
   const { data: relationship } = await client
     .from('referral_relationships')
     .select('referral_code_id')
