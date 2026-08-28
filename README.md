@@ -279,3 +279,37 @@ Vercel Deployment Protection이 켜진 프리뷰는 인증 없이 `401`이 정�
 - [ ] 배송비를 장바구니·주문서·주문 생성이 같은 규칙으로 계산하는가
 - [ ] `git diff --check`와 배포 후 운영 URL smoke test를 실행했는가
 - [ ] 로그에 시크릿이나 개인정보가 포함되지 않았는가
+
+## 다른 컴퓨터에서 이어서 작업하기
+
+코드는 전부 GitHub에 있으므로 clone만 하면 됩니다. 옮겨야 하는 것은 코드가 아니라
+**환경변수**입니다. `.env.local`은 의도적으로 git에 올리지 않습니다.
+
+```bash
+git clone https://github.com/dimenpuzzler-one/closedshop.git
+cd closedshop
+npm install -g pnpm@11.3.0     # Node 22 이상
+pnpm install
+```
+
+환경변수는 Vercel에서 그대로 내려받는 것이 가장 정확합니다. 값을 손으로 옮기다
+한 글자 틀리면 원인을 찾기 어려운 오류가 납니다.
+
+```bash
+npx vercel link      # closed-commerce-web 선택
+npx vercel env pull apps/web/.env.local
+```
+
+관리자 앱도 같은 방식으로 `closed-commerce-admin`에 연결해 `apps/admin/.env.local`을
+내려받습니다. Vercel을 쓰지 않는다면 `.env.example`을 복사해 Supabase 대시보드의
+값으로 채웁니다.
+
+확인:
+
+```bash
+pnpm check           # lint · typecheck · build · test
+pnpm --filter web dev
+```
+
+`SUPABASE_SERVICE_ROLE_KEY`와 `KORPAY_MKEY`는 서버 전용 비밀값입니다.
+채팅이나 문서에 붙여넣지 말고, 이 두 경로로만 옮깁니다.
