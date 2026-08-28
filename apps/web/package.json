@@ -22,6 +22,7 @@
     "@closed-commerce/types": "workspace:*",
     "@closed-commerce/ui": "workspace:*",
     "@closed-commerce/validation": "workspace:*",
+    "@korpay/sdk": "^1.1.8",
     "@supabase/ssr": "0.7.0",
     "next": "15.5.7",
     "react": "19.1.0",

@@ -4,10 +4,20 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { Price } from '@closed-commerce/ui';
-import { CART_KEY } from './add-to-cart-button';
+import KorpaySdk, { type PaymentData } from '@korpay/sdk';
 import { useCartQuote } from './use-cart-quote';
 
-type OrderResult = { message?: string; orderNumber?: string; error?: string; requestId?: string };
+type OrderResult = {
+  message?: string;
+  orderNumber?: string;
+  error?: string;
+  requestId?: string;
+  /** 서버가 만든 결제창 파라미터. hashKey는 서명이고 mkey는 서버에만 있다. */
+  checkoutParams?: Omit<PaymentData, 'amount'> & { amount: string };
+};
+
+/** 가이드 2장: 샘플의 BASEURL을 실제 주소로 치환해야 한다. */
+const KORPAY_BASE_URL = 'payments.korpay.com/v1';
 
 /** FormData.get()은 string | File을 돌려준다. File이 String()에 들어가면 "[object File]"이 된다. */
 function text(form: FormData, key: string): string {
@@ -30,7 +40,8 @@ async function readResponse(response: Response): Promise<OrderResult> {
 
 export function CheckoutForm() {
   const { quote, state } = useCartQuote();
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  // 성공 화면은 이제 이 컴포넌트에 없다. 코페이가 리턴 URL로 보내고 /checkout/result가 보여준다.
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -70,25 +81,37 @@ export function CheckoutForm() {
         setMessage(`${result.error ?? '주문을 처리하지 못했습니다.'}${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`);
         return;
       }
-      window.localStorage.removeItem(CART_KEY);
-      window.dispatchEvent(new Event('cart-updated'));
-      setStatus('success');
-      setMessage(`${result.orderNumber ?? ''} 주문이 접수되었습니다.`.trim());
+      if (!result.checkoutParams) {
+        setStatus('error');
+        setMessage(`결제창을 열 준비를 하지 못했습니다.${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`);
+        return;
+      }
+
+      // 장바구니는 여기서 비우지 않는다. 고객이 결제창에서 취소하면 담아둔 것이 사라진다.
+      // 결제가 실제로 끝난 뒤 결과 화면에서 비운다.
+      const params = result.checkoutParams;
+      setMessage('결제창을 여는 중입니다…');
+      KorpaySdk.payment(
+        KORPAY_BASE_URL,
+        // amount만 숫자로 바꾼다. 해시는 문자열 기준으로 만들었고 값 자체는 같다.
+        { ...params, amount: Number(params.amount) },
+        {
+          onError: (error) => {
+            setStatus('error');
+            setMessage(`결제창에서 오류가 발생했습니다: ${error}`);
+          },
+          onClose: () => {
+            // 결제 성공 시에는 코페이가 리턴 URL로 이동시키므로 이 화면이 남아 있지 않다.
+            // 이 화면이 그대로 보인다면 고객이 창을 닫은 것이다.
+            setStatus('idle');
+            setMessage('결제를 완료하지 않으셨습니다. 다시 시도하시려면 결제하기를 눌러 주세요.');
+          },
+        },
+      );
     } catch (caught) {
       setStatus('error');
       setMessage(`주문을 보내지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
     }
-  }
-
-  if (status === 'success') {
-    return (
-      <div className="card empty">
-        <p className="eyebrow">ORDER COMPLETE</p>
-        <h2>주문이 접수됐어요.</h2>
-        <p className="muted">{message}</p>
-        <Link className="button button-primary" href="/account/orders">주문 조회</Link>
-      </div>
-    );
   }
 
   if (state === 'loading') return <div className="card empty"><p className="muted">주문 정보를 불러오는 중입니다.</p></div>;
@@ -127,7 +150,7 @@ export function CheckoutForm() {
         <div className="notice">결제 성공 후 Commission은 pending으로 생성되고, 구매확정 또는 환불가능기간이 지나면 approved/payable로 전환됩니다.</div>
         <div className="form-actions">
           <button className="button button-primary button-large" disabled={status === 'submitting'}>
-            {status === 'submitting' ? '주문 처리 중…' : 'mock 결제로 주문하기'}
+            {status === 'submitting' ? '결제창 준비 중…' : '결제하기'}
           </button>
         </div>
         {status === 'error' ? <p className="form-message form-error" role="alert" style={{ whiteSpace: 'pre-wrap' }}>{message}</p> : null}

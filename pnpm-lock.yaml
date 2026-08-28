@@ -125,6 +125,9 @@ importers:
       '@closed-commerce/validation':
         specifier: workspace:*
         version: link:../../packages/validation
+      '@korpay/sdk':
+        specifier: ^1.1.8
+        version: 1.1.8
       '@supabase/ssr':
         specifier: 0.7.0
         version: 0.7.0(@supabase/supabase-js@2.50.0)
@@ -594,6 +597,10 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@korpay/sdk@1.1.8':
+    resolution: {integrity: sha512-2m+6RLHdCQfwTQydor0tZRbiNOCwmVunQn3MAps8hEdAHGlOI/7+mJ4W05urFGKth942QVZCiNFPRtQezcLE6Q==}
+    engines: {node: '>=16'}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -1917,6 +1924,8 @@ snapshots:
     optional: true
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@korpay/sdk@1.1.8': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true

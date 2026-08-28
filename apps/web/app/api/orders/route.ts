@@ -7,7 +7,8 @@ import { MockPaymentProvider } from '@closed-commerce/payment';
 import { calculateTwoDepthCommissions, findValidReferralCode } from '@closed-commerce/referral';
 import { orderCreateSchema } from '@closed-commerce/validation';
 import { createServerAppClient } from '@/lib/supabase-server';
-import { createPersistedOrder, OrderServiceError } from '@/lib/order-service';
+import { prepareOrder, OrderServiceError } from '@/lib/order-service';
+import { korpayConfigured } from '@/lib/korpay-config';
 
 export async function POST(request: Request) {
   const requestId = newRequestId();
@@ -45,9 +46,15 @@ export async function POST(request: Request) {
       const supabase = await createServerAppClient();
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) return NextResponse.json({ error: '로그인 후 주문해 주세요.', requestId }, { status: 401 });
+      if (!korpayConfigured()) {
+        // 결제 설정이 없으면 주문을 만들지 않는다. 만들어두면 재고만 잡히고 결제는 못 한다.
+        logServerError('web.orders.create', requestId, new Error('korpay not configured'), { stage: 'config' });
+        return NextResponse.json({ error: '결제 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.', requestId }, { status: 503 });
+      }
       try {
         logServerEvent('web.orders.create', requestId, { stage: 'start', userId: data.user.id, itemCount: input.items.length });
-        const result = await createPersistedOrder(input, data.user.id, requestId);
+        // 주문만 만들고 재고를 잡는다. 결제는 코페이 결제창을 거쳐 리턴 URL에서 확정된다.
+        const result = await prepareOrder(input, data.user.id, requestId);
         return NextResponse.json({ ...result, requestId });
       } catch (caught) {
         if (caught instanceof OrderServiceError) {
