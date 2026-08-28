@@ -11,7 +11,7 @@ import { createServiceRoleSupabaseClient, resolveRuntimeMode } from '@closed-com
 import { logServerError } from '@closed-commerce/observability';
 import type { CartItem } from '@closed-commerce/types';
 import { resolveCatalogAccess } from '@/lib/catalog-data';
-import { createServerAppClient } from '@/lib/supabase-server';
+import { createServerAppClient, getRequestUser } from '@/lib/supabase-server';
 import { loadStoreSettings } from '@/lib/store-settings';
 
 /**
@@ -109,8 +109,8 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
   if (items.length === 0) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: true, shippingPolicy };
 
   const client = await createServerAppClient();
-  const { data: auth } = await client.auth.getUser();
-  if (!auth.user) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: false, shippingPolicy };
+  const user = await getRequestUser();
+  if (!user) return { lines: [], totals: EMPTY_TOTALS, issues: [], authenticated: false, shippingPolicy };
 
   // 가격을 볼 자격이 없는 회원에게는 견적 자체를 내주지 않는다.
   // 화면에서만 가리고 이 API가 금액을 돌려주면 가린 게 아니다.

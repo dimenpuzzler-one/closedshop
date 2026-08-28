@@ -148,13 +148,22 @@ export default async function ProductDetailPage({
               <div className="product-detail-images">
                 {detailImages.map((image, index) => (
                   <div className="product-detail-image" key={image.id}>
+                    {/*
+                      상세 이미지는 Next 이미지 최적화를 태우지 않는다.
+                      실제로 올라온 파일이 1000 x 13,400px(1.8MB)인데, 이걸 요청마다
+                      서버에서 리사이즈·재인코딩하면 첫 요청이 몇 초씩 걸리고 배포할 때마다
+                      캐시가 날아간다. 원본이 이미 폭 1000px의 웹용 이미지라 줄일 것이 없고,
+                      Storage가 1년짜리 캐시 헤더로 CDN에서 바로 내려준다.
+                      두 번째 장부터는 화면 밖이므로 lazy로 미룬다.
+                    */}
                     <Image
                       src={image.url}
                       alt={image.altText || `${product.name} 상세 이미지 ${index + 1}`}
                       width={image.width && image.width >= 600 ? image.width : 1000}
                       height={image.width && image.width >= 600 ? (image.height ?? 1400) : 1400}
                       sizes="(max-width: 850px) 100vw, 860px"
-                      quality={95}
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      unoptimized
                     />
                   </div>
                 ))}

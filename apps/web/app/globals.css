@@ -1,11 +1,4 @@
 /*
- * 제목용 세리프. next/font/google은 빌드 시점에 폰트를 내려받아서
- * 네트워크가 막힌 빌드 환경에서는 빌드가 통째로 깨진다. 브라우저가 직접
- * 받아가도록 @import로 건다. display=swap이라 폰트가 늦어도 글자는 먼저 나온다.
- */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap');
-
-/*
  * 색은 딜키 로고에서 뽑았다. 골드(#b8925a)와 아이보리(#f6f3ec), 먹빛 워드마크.
  * --green-* 이름은 예전 초록 팔레트에서 왔다. 호출부가 많아 이름은 그대로 두고
  * 값만 골드로 바꾼다. 새 코드에서는 --gold-* 별칭을 쓴다.

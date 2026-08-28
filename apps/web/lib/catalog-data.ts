@@ -1,8 +1,9 @@
 import { DEMO_PRODUCTS, DEMO_REFERRAL_CODES, getProductBySlug, getVisibleProducts } from '@closed-commerce/commerce';
+import { cache } from 'react';
 import { createServiceRoleSupabaseClient, resolveRuntimeMode } from '@closed-commerce/db';
 import { findValidReferralCode } from '@closed-commerce/referral';
 import type { Product, ProductImage } from '@closed-commerce/types';
-import { createServerAppClient } from '@/lib/supabase-server';
+import { createServerAppClient, getRequestUser } from '@/lib/supabase-server';
 
 type ProductRow = {
   id: string;
@@ -88,34 +89,35 @@ export interface CatalogAccess {
   priceVisible: boolean;
 }
 
-export async function resolveCatalogAccess(client: Awaited<ReturnType<typeof createServerAppClient>>): Promise<CatalogAccess> {
-  const { data: auth } = await client.auth.getUser();
-  if (!auth.user) return { authenticated: false, priceVisible: false };
+export const resolveCatalogAccess = cache(async (
+  client: Awaited<ReturnType<typeof createServerAppClient>>,
+): Promise<CatalogAccess> => {
+  const user = await getRequestUser();
+  if (!user) return { authenticated: false, priceVisible: false };
+
+  // 예전에는 profiles → referral_relationships → referral_codes를 하나씩 순서대로 물었다.
+  // 셋 다 사용자 id만 있으면 되므로 같이 보낸다. 왕복 3회가 1회가 된다.
+  // 추천 코드는 관계 테이블을 통해 조인해 가져오므로 별도 조회가 필요 없다.
+  const [{ data: profile }, { data: relationship }] = await Promise.all([
+    client.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    client
+      .from('referral_relationships')
+      .select('referral_code_id, referral_codes!inner(code, status)')
+      .eq('referred_user_id', user.id)
+      .maybeSingle(),
+  ]);
 
   // 운영자·관리자는 추천 귀속이 없어도 가격을 봐야 한다.
   // 그렇지 않으면 대표님이 본인 쇼핑몰에서 자기 상품 가격을 못 본다.
-  const { data: profile } = await client.from('profiles').select('role').eq('id', auth.user.id).maybeSingle();
   if (profile?.role === 'operator' || profile?.role === 'admin') {
     return { authenticated: true, priceVisible: true };
   }
 
-  const { data: relationship } = await client
-    .from('referral_relationships')
-    .select('referral_code_id')
-    .eq('referred_user_id', auth.user.id)
-    .maybeSingle();
-  if (!relationship) return { authenticated: true, priceVisible: false };
-
-  const { data: code } = await client
-    .from('referral_codes')
-    .select('code')
-    .eq('id', relationship.referral_code_id)
-    .eq('status', 'active')
-    .maybeSingle();
+  const joined = relationship?.referral_codes as { code?: string; status?: string } | undefined;
   // 귀속은 되어 있으나 코드가 만료·정지된 경우까지 특판가를 보여주지는 않는다.
-  if (!code?.code) return { authenticated: true, priceVisible: false };
-  return { authenticated: true, validReferralCode: code.code, priceVisible: true };
-}
+  if (!joined?.code || joined.status !== 'active') return { authenticated: true, priceVisible: false };
+  return { authenticated: true, validReferralCode: joined.code, priceVisible: true };
+});
 
 /** 재고 조회. 호출 전에 열람 권한이 확정되어 있어야 한다. */
 async function loadAvailableStock(productIds: string[]): Promise<Map<string, number>> {

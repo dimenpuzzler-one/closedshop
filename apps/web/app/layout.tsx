@@ -14,6 +14,25 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="ko">
+    {/*
+      폰트를 globals.css의 @import로 걸었더니 두 페이지 모두 이게 가장 느린 리소스가 됐다
+      (실측 181~188ms). @import는 globals.css를 먼저 받아 파싱한 뒤에야 발견되므로
+      직렬로 이어붙는다. link로 올리면 HTML 파싱 중에 바로 발견돼 병렬로 나간다.
+      next/font/google은 빌드 시점에 폰트를 받아와서 네트워크가 막힌 빌드 환경에서
+      빌드 자체가 깨지므로 쓰지 않는다.
+
+      아래 eslint 규칙은 pages/_document.js 기준으로 만들어진 것이고,
+      App Router의 루트 layout에 넣은 link는 전 페이지에 적용된다. 여기서는 오탐이다.
+    */}
+    <head>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap"
+      />
+    </head>
     <body>
       <SiteHeader />
       <AttributionTracker />

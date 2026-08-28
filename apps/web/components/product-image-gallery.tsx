@@ -30,7 +30,8 @@ export function ProductImageGallery({ images, productName }: ProductImageGallery
           alt={activeImage.altText || `${productName} 이미지 ${safeIndex + 1}`}
           fill
           sizes="(max-width: 850px) 100vw, 60vw"
-          quality={95}
+          // 95는 파일만 커지고 눈으로는 차이가 없다. 대표 이미지는 최적화를 유지한다.
+          quality={82}
           priority={safeIndex === 0}
         />
 

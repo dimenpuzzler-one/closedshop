@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Container } from '@closed-commerce/ui';
 import { resolveRuntimeMode } from '@closed-commerce/db';
-import { createServerAppClient } from '@/lib/supabase-server';
+import { createServerAppClient, getRequestUser } from '@/lib/supabase-server';
 import { LogoutButton } from './logout-button';
 
 /**
@@ -12,11 +12,13 @@ import { LogoutButton } from './logout-button';
 async function getViewerName(): Promise<string | null> {
   if (resolveRuntimeMode({ requireServiceRole: false }) !== 'supabase') return null;
   try {
+    // getRequestUser는 같은 요청 안에서 캐시된다.
+    // 예전에는 헤더가 카탈로그와 따로 auth.getUser()를 불러 인증 서버 왕복이 한 번 더 늘었다.
+    const user = await getRequestUser();
+    if (!user) return null;
     const client = await createServerAppClient();
-    const { data } = await client.auth.getUser();
-    if (!data.user) return null;
-    const { data: profile } = await client.from('profiles').select('display_name').eq('id', data.user.id).maybeSingle();
-    return profile?.display_name ?? data.user.email ?? '회원';
+    const { data: profile } = await client.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
+    return profile?.display_name ?? '회원';
   } catch {
     return null;
   }
