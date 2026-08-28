@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { loadAdminProducts, loadCategories } from '@/lib/admin-data';
+import { loadAdminProducts, loadCategories, toCategoryGroups } from '@/lib/admin-data';
 import { ProductCreateForm } from '@/components/admin-create-forms';
 import { ProductTable } from '@/components/product-table';
 
 export default async function AdminProductsPage() {
   const [result, categoryResult] = await Promise.all([loadAdminProducts(), loadCategories()]);
-  const categories = categoryResult.categories.map((category) => category.name);
+  const categories = toCategoryGroups(categoryResult.categories);
   return (
     <>
       <div className="admin-heading">

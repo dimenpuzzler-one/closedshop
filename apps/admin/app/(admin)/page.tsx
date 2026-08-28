@@ -67,11 +67,14 @@ export default async function AdminDashboardPage() {
           {metrics.topReferrals.length ? (
             <div className="table-wrap">
               <table className="data-table">
-                <thead><tr><th>추천 코드</th><th>주문</th><th>매출</th></tr></thead>
+                <thead><tr><th>용도 / 코드</th><th>주문</th><th>매출</th></tr></thead>
                 <tbody>
                   {metrics.topReferrals.map((referral) => (
                     <tr key={referral.code}>
-                      <td><strong>{referral.code}</strong></td>
+                      <td>
+                        <strong>{referral.label ?? referral.code}</strong>
+                        {referral.label ? <><br /><span className="muted">{referral.code}</span></> : null}
+                      </td>
                       <td>{referral.orders}건</td>
                       <td><Price amount={referral.sales} /></td>
                     </tr>

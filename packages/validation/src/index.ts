@@ -99,6 +99,7 @@ export const productCreateSchema = z.object({
   basePrice: wonAmount('기본가'),
   supplyCost: wonAmount('공급가').optional(),
   shippingFee: wonAmount('배송비').default(0),
+  withdrawalRestriction: z.string().trim().max(500, '청약철회 제한 안내는 500자를 넘을 수 없습니다.').default(''),
   visibility: z.enum(['public', 'member', 'referral', 'hidden'], {
     errorMap: () => ({ message: '노출 대상은 공개/회원 전용/추천 회원 전용/비공개 중에서 골라 주세요.' }),
   }).default('referral'),
@@ -120,6 +121,7 @@ export const productUpdateSchema = z.object({
   basePrice: z.number().int().min(0).optional(),
   supplyCost: z.number().int().min(0).nullable().optional(),
   shippingFee: z.number().int().min(0).optional(),
+  withdrawalRestriction: z.string().trim().max(500, '청약철회 제한 안내는 500자를 넘을 수 없습니다.').optional(),
   visibility: z.enum(['public', 'member', 'referral', 'hidden']).optional(),
   status: z.enum(['draft', 'active', 'paused', 'archived']).optional(),
   optionName: z.string().trim().min(1, '옵션명을 입력해 주세요.').max(80, '옵션명은 80자를 넘을 수 없습니다.').optional(),
@@ -179,6 +181,8 @@ export const storeSettingsSchema = z.object({
 
 export const categoryCreateSchema = z.object({
   name: z.string().trim().min(1, '카테고리 이름을 입력해 주세요.').max(80, '카테고리 이름은 80자를 넘을 수 없습니다.'),
+  /** 비우면 대분류, 채우면 그 대분류의 소분류가 된다. 2단계까지만 허용된다. */
+  parentName: z.string().trim().max(80).optional(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
 
@@ -188,8 +192,10 @@ export const refundSchema = z.object({
 });
 
 export const referralCreateSchema = z.object({
-  code: z.string().trim().min(3).max(32).regex(/^[A-Z0-9_-]+$/i),
-  ownerUserId: z.string().uuid(),
+  code: z.string().trim().min(3).max(32).regex(/^[A-Z0-9_-]+$/i, '코드는 영문·숫자·하이픈·밑줄만 쓸 수 있습니다.'),
+  ownerUserId: z.string().uuid('소유자 User ID는 UUID 형식이어야 합니다.'),
+  /** 코드의 용도. 코드만 쌓이면 어느 게 릴스용이고 어느 게 지인용인지 알 수 없다. */
+  label: z.string().trim().max(80, '용도는 80자를 넘을 수 없습니다.').optional(),
   campaignId: z.string().uuid().optional(),
 });
 

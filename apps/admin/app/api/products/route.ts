@@ -174,6 +174,8 @@ export const POST = withAdmin(
           base_price: parsed.data.basePrice,
           supply_cost: parsed.data.supplyCost ?? null,
           shipping_fee: parsed.data.shippingFee,
+          // 비워두면 개봉한 식품도 환불해줘야 한다(전자상거래법 제17조 제2항 단서).
+          withdrawal_restriction: parsed.data.withdrawalRestriction,
           visibility: parsed.data.visibility,
           status: parsed.data.status,
         })

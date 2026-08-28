@@ -13,6 +13,7 @@ type ProductRow = {
   description: string;
   base_price: number;
   shipping_fee: number;
+  withdrawal_restriction: string;
   visibility: Product['visibility'];
   status: Product['status'];
 };
@@ -20,7 +21,8 @@ type ProductRow = {
 // 세션 클라이언트와 서비스 롤 클라이언트는 타입이 같다. 다른 건 붙는 권한뿐이다.
 type AnyClient = Awaited<ReturnType<typeof createServerAppClient>>;
 
-const PRODUCT_COLUMNS = 'id, slug, name, category, short_description, description, base_price, shipping_fee, visibility, status, created_at';
+const PRODUCT_COLUMNS =
+  'id, slug, name, category, short_description, description, base_price, shipping_fee, withdrawal_restriction, visibility, status, created_at';
 
 function isSupabaseMode() {
   return resolveRuntimeMode({ requireServiceRole: false }) === 'supabase';
@@ -46,6 +48,7 @@ function mapProduct(
     basePrice: row.base_price,
     price: options[0]?.price ?? row.base_price,
     shippingFee: row.shipping_fee,
+    withdrawalRestriction: row.withdrawal_restriction ?? '',
     visibility: row.visibility,
     status: row.status,
     imageUrl: images[0]?.url ?? '',
@@ -237,10 +240,43 @@ export async function loadProductBySlug(slug: string, referralCode?: string): Pr
   return { product: access.priceVisible ? product : stripPrices(product), ...access };
 }
 
-/** 관리자가 등록한 카테고리 목록. 홈과 목록 화면의 탐색 축이다. */
-export async function loadCategories(): Promise<string[]> {
-  if (!isSupabaseMode()) return [...new Set(DEMO_PRODUCTS.map((product) => product.category))];
+/** 대분류 하나와 그 아래 소분류들. 상품은 소분류에 붙는다. */
+export interface CategoryGroup {
+  name: string;
+  children: string[];
+}
+
+/**
+ * 관리자가 등록한 카테고리. 2단계까지다(대분류 > 소분류).
+ * 스마트스토어는 4단계지만 그건 네이버 검색 노출용 표준 분류이고,
+ * 딜키는 검색 노출을 막는 폐쇄몰이라 같은 깊이가 필요하지 않다.
+ */
+export async function loadCategoryTree(): Promise<CategoryGroup[]> {
+  if (!isSupabaseMode()) {
+    return [{ name: '전체', children: [...new Set(DEMO_PRODUCTS.map((product) => product.category))] }];
+  }
   const client = await createServerAppClient();
-  const { data } = await client.from('product_categories').select('name').eq('is_active', true).order('sort_order').order('name');
-  return (data ?? []).map((row) => row.name);
+  const { data } = await client
+    .from('product_categories')
+    .select('id, name, parent_id, sort_order')
+    .eq('is_active', true)
+    .order('sort_order')
+    .order('name');
+  const rows = data ?? [];
+  const parents = rows.filter((row) => !row.parent_id);
+  const groups: CategoryGroup[] = parents.map((parent) => ({
+    name: parent.name,
+    children: rows.filter((row) => row.parent_id === parent.id).map((row) => row.name),
+  }));
+  // 부모가 비활성이라 위 그룹에 못 들어간 소분류도 화면에서 사라지면 안 된다.
+  const claimed = new Set(groups.flatMap((group) => group.children));
+  const looseChildren = rows.filter((row) => row.parent_id && !claimed.has(row.name)).map((row) => row.name);
+  if (looseChildren.length > 0) groups.push({ name: '기타', children: looseChildren });
+  return groups;
+}
+
+/** 화면에서 상품 필터로 쓸 수 있는 모든 카테고리 이름(소분류 우선, 없으면 대분류). */
+export async function loadCategories(): Promise<string[]> {
+  const tree = await loadCategoryTree();
+  return tree.flatMap((group) => (group.children.length > 0 ? group.children : [group.name]));
 }

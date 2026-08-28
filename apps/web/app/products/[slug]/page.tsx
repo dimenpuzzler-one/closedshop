@@ -112,6 +112,16 @@ export default async function ProductDetailPage({
               ) : null}
               <hr className="divider" />
               <p className="muted">배송비 {shippingCopy}</p>
+              {/*
+                전자상거래법 제17조 제2항 단서: 청약철회 제한 사유를 "미리 명확하게 표시"하지
+                않으면 판매자는 제한을 주장할 수 없다. 결제 직전, 구매 버튼 바로 위에 둔다.
+              */}
+              {product.withdrawalRestriction ? (
+                <p className="withdrawal-notice" role="note">
+                  <strong>청약철회 제한</strong>
+                  <span>{product.withdrawalRestriction}</span>
+                </p>
+              ) : null}
               {priceVisible ? <AddToCartButton product={product} /> : <ReferralGate compact />}
             </div>
           </div>
@@ -169,7 +179,12 @@ export default async function ProductDetailPage({
               </div>
               <div>
                 <dt>교환·반품</dt>
-                <dd>식품 특성상 단순 변심에 의한 교환·반품이 제한될 수 있습니다. 고객센터로 문의해 주세요.</dd>
+                <dd>
+                  {product.withdrawalRestriction
+                    ? product.withdrawalRestriction
+                    : '상품 수령일부터 7일 이내에 청약철회를 요청하실 수 있습니다.'}
+                  {' '}자세한 내용은 <Link href="/legal/refund">환불·교환 안내</Link>를 확인해 주세요.
+                </dd>
               </div>
             </dl>
           </div>

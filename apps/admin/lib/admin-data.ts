@@ -26,7 +26,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const gate = await adminGate();
   if (gate.source !== 'supabase') return { source: gate.source, products: gate.source === 'demo' ? DEMO_PRODUCTS : [] };
   const client = gate.client;
-  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').order('created_at', { ascending: false });
+  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, withdrawal_restriction, visibility, status, created_at').order('created_at', { ascending: false });
   if (error || !rows) return { source: 'unavailable', products: [] };
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
@@ -71,6 +71,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
       price: productOptions[0]?.price ?? row.base_price,
       supplyCost: row.supply_cost ?? undefined,
       shippingFee: row.shipping_fee,
+      withdrawalRestriction: row.withdrawal_restriction ?? '',
       visibility: row.visibility,
       status: row.status,
       imageUrl: images[0]?.url ?? '',
@@ -144,6 +145,14 @@ export interface AdminCategory {
   name: string;
   sortOrder: number;
   productCount: number;
+  /** 대분류 이름. 비어 있으면 이 카테고리 자체가 대분류다. */
+  parentName: string | null;
+}
+
+/** 대분류 하나와 그 아래 소분류들. 상품은 소분류에 붙는다. */
+export interface CategoryGroup {
+  name: string;
+  children: string[];
 }
 
 /** 카테고리 목록과 각 카테고리에 붙은 상품 수. 상품 수는 삭제 가능 여부 판단에 쓴다. */
@@ -152,20 +161,35 @@ export async function loadCategories(): Promise<{ source: AdminDataSource; categ
   if (gate.source !== 'supabase') return { source: gate.source, categories: [] };
   const client = gate.client;
   const [{ data: rows, error }, { data: products }] = await Promise.all([
-    client.from('product_categories').select('name, sort_order').order('sort_order').order('name'),
+    client.from('product_categories').select('id, name, parent_id, sort_order').order('sort_order').order('name'),
     client.from('products').select('category'),
   ]);
   if (error) return { source: 'unavailable', categories: [] };
   const counts = new Map<string, number>();
   (products ?? []).forEach((product) => counts.set(product.category, (counts.get(product.category) ?? 0) + 1));
+  const nameById = new Map((rows ?? []).map((row) => [row.id, row.name]));
   return {
     source: 'supabase',
     categories: (rows ?? []).map((row) => ({
       name: row.name,
       sortOrder: row.sort_order,
       productCount: counts.get(row.name) ?? 0,
+      parentName: row.parent_id ? nameById.get(row.parent_id) ?? null : null,
     })),
   };
+}
+
+/** 상품 폼의 선택지. 대분류로 묶어서 내려준다. */
+export function toCategoryGroups(categories: AdminCategory[]): CategoryGroup[] {
+  const parents = categories.filter((category) => !category.parentName);
+  const groups: CategoryGroup[] = parents.map((parent) => ({
+    name: parent.name,
+    children: categories.filter((category) => category.parentName === parent.name).map((category) => category.name),
+  }));
+  const claimed = new Set(groups.flatMap((group) => group.children));
+  const loose = categories.filter((category) => category.parentName && !claimed.has(category.name)).map((c) => c.name);
+  if (loose.length > 0) groups.push({ name: '기타', children: loose });
+  return groups;
 }
 
 export interface AdminOrderRow {
@@ -377,7 +401,7 @@ export interface DashboardMetrics {
   /** 아직 확정 전(pending) 보상. 반품 가능성이 남아 있어 따로 본다. */
   pendingCommission: number;
   topProducts: { name: string; quantity: number; sales: number }[];
-  topReferrals: { code: string; orders: number; sales: number }[];
+  topReferrals: { code: string; label: string | null; orders: number; sales: number }[];
 }
 
 const EMPTY_METRICS = {
@@ -439,6 +463,10 @@ export async function loadDashboardMetrics(): Promise<DashboardMetrics> {
     productMap.set(item.product_name_snapshot, current);
   });
 
+  // 코드값만 보여주면 어느 게 릴스용인지 알 수 없다. 라벨을 함께 읽는다.
+  const { data: codeRows } = await client.from('referral_codes').select('code, label');
+  const labelByCode = new Map((codeRows ?? []).map((row) => [row.code, row.label as string | null]));
+
   const referralMap = new Map<string, { orders: number; sales: number }>();
   orderRows.forEach((order) => {
     const code = order.referral_code ?? '(추천 코드 없음)';
@@ -464,7 +492,7 @@ export async function loadDashboardMetrics(): Promise<DashboardMetrics> {
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 6),
     topReferrals: [...referralMap.entries()]
-      .map(([code, value]) => ({ code, ...value }))
+      .map(([code, value]) => ({ code, label: labelByCode.get(code) ?? null, ...value }))
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 6),
   };

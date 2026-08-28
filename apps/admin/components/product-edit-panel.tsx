@@ -6,6 +6,8 @@ import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@closed-commerce/types';
 import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
+import { CategorySelect, WithdrawalField } from './admin-create-forms';
+import type { CategoryGroup } from '@/lib/admin-data';
 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
 
@@ -13,6 +15,7 @@ const FIELD_LABELS: Record<string, string> = {
   name: '상품명', category: '카테고리', shortDescription: '짧은 소개', description: '상세 설명',
   basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비', visibility: '노출 대상',
   status: '판매 상태', optionName: '옵션명', optionValue: '옵션값', optionPrice: '옵션가', stock: '재고',
+  withdrawalRestriction: '청약철회 제한 안내',
 };
 
 async function readResponse(response: Response): Promise<ApiResult> {
@@ -44,7 +47,7 @@ function describeFailure(response: Response, result: ApiResult) {
   return `${parts.join(' ')} [${tags.join(' · ')}]`;
 }
 
-export function ProductEditPanel({ product, categories }: { product: Product; categories: string[] }) {
+export function ProductEditPanel({ product, categories }: { product: Product; categories: CategoryGroup[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -94,6 +97,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
       category: text('category'),
       shortDescription: text('shortDescription'),
       description: text('description'),
+      withdrawalRestriction: text('withdrawalRestriction'),
       basePrice: numberOrUndefined('basePrice'),
       supplyCost: numberOrUndefined('supplyCost') ?? null,
       optionName: text('optionName'),
@@ -145,12 +149,8 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" defaultValue={product.name} required /></label>
           <label className="field">
             <span className="field-label">카테고리</span>
-            {/* 등록 화면과 같은 목록을 쓴다. 두 화면이 다르면 대표님이 또 헷갈린다. */}
-            <select className="select" name="category" defaultValue={product.category} required>
-              {/* 지금 값이 목록에서 빠졌더라도 선택이 풀리면 안 된다. */}
-              {categories.includes(product.category) ? null : <option value={product.category}>{product.category} (목록에 없음)</option>}
-              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
-            </select>
+            {/* 등록 화면과 같은 컴포넌트를 쓴다. 두 화면이 다르면 대표님이 또 헷갈린다. */}
+            <CategorySelect categories={categories} defaultValue={product.category} />
             <span className="field-hint">목록은 “운영 설정 → 카테고리”에서 관리합니다.</span>
           </label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /></label>
@@ -180,6 +180,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
         </div>
         <label className="field"><span className="field-label">짧은 소개</span><input className="input" name="shortDescription" defaultValue={product.shortDescription} maxLength={300} /></label>
         <label className="field"><span className="field-label">상세페이지 설명</span><textarea className="textarea" name="description" defaultValue={product.description} maxLength={4000} /></label>
+        <WithdrawalField defaultValue={product.withdrawalRestriction ?? ''} />
         <div className="row" style={{ gap: '0.5rem' }}>
           <button className="button button-primary" disabled={busy}>{busy ? '저장 중…' : '수정 내용 저장'}</button>
           <span className="field-hint">상품 주소(/products/{product.slug})는 바뀌지 않습니다.</span>

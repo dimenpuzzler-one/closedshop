@@ -25,6 +25,7 @@ const FIELD_LABELS: Record<string, string> = {
   heroSubheadline: '메인 설명',
   heroYoutubeUrl: '유튜브 주소',
   name: '카테고리 이름',
+  parentName: '상위 대분류',
 };
 
 async function readResponse(response: Response): Promise<ApiResult> {
@@ -223,17 +224,30 @@ export function CategorySettingsForm({ categories }: { categories: AdminCategory
     const form = new FormData(formElement);
     const ok = await save.postJson(
       '/api/categories',
-      { name: textOf(form, 'name'), sortOrder: numberOrUndefined(form, 'sortOrder') },
+      { name: textOf(form, 'name'), parentName: textOf(form, 'parentName') || undefined, sortOrder: numberOrUndefined(form, 'sortOrder') },
       '카테고리를 추가했습니다.',
     );
     if (ok) formElement.reset();
   }
 
+  const parents = categories.filter((category) => !category.parentName);
+  // 대분류 바로 아래에 그 소분류가 오도록 정렬해서 보여준다.
+  const ordered = parents.flatMap((parent) => [
+    parent,
+    ...categories.filter((category) => category.parentName === parent.name),
+  ]);
+  const orphans = categories.filter(
+    (category) => category.parentName && !parents.some((parent) => parent.name === category.parentName),
+  );
+
   return (
     <section className="card admin-section stack">
       <div>
         <h2>카테고리</h2>
-        <p className="muted">여기에 등록한 카테고리가 상품 등록 화면의 선택지와 고객몰 홈의 분류가 됩니다.</p>
+        <p className="muted">
+          대분류 아래에 소분류를 두는 2단계 구조입니다. 예: 식품 &gt; 축산가공식품.
+          상품은 <strong>소분류에 붙습니다.</strong>
+        </p>
       </div>
 
       {categories.length ? (
@@ -243,9 +257,15 @@ export function CategorySettingsForm({ categories }: { categories: AdminCategory
               <tr><th>카테고리</th><th>정렬</th><th>상품 수</th><th>관리</th></tr>
             </thead>
             <tbody>
-              {categories.map((category) => (
+              {[...ordered, ...orphans].map((category) => (
                 <tr key={category.name}>
-                  <td><strong>{category.name}</strong></td>
+                  <td>
+                    {category.parentName ? (
+                      <span className="muted" style={{ marginRight: 6 }}>└</span>
+                    ) : null}
+                    <strong>{category.name}</strong>
+                    {category.parentName ? null : <span className="muted" style={{ marginLeft: 6 }}>대분류</span>}
+                  </td>
                   <td>{category.sortOrder}</td>
                   <td>{category.productCount}개</td>
                   <td>
@@ -280,7 +300,15 @@ export function CategorySettingsForm({ categories }: { categories: AdminCategory
       <form className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={add}>
         <label className="field">
           <span className="field-label">새 카테고리</span>
-          <input className="input" name="name" placeholder="예: 육포" maxLength={80} required />
+          <input className="input" name="name" placeholder="예: 축산가공식품" maxLength={80} required />
+        </label>
+        <label className="field">
+          <span className="field-label">상위 대분류</span>
+          <select className="select" name="parentName" defaultValue="">
+            <option value="">(없음 — 대분류로 만들기)</option>
+            {parents.map((parent) => <option key={parent.name} value={parent.name}>{parent.name}</option>)}
+          </select>
+          <span className="field-hint">비우면 대분류가 됩니다. 소분류 아래에는 더 만들 수 없습니다.</span>
         </label>
         <label className="field">
           <span className="field-label">정렬 순서(선택)</span>

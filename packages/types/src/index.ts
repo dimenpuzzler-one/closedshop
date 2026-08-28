@@ -35,6 +35,11 @@ export interface Product {
   price: number;
   supplyCost?: number;
   shippingFee: number;
+  /**
+   * 청약철회가 제한되는 사유. 상품 상세에 표시된다.
+   * 비어 있으면 제한을 주장할 수 없다(전자상거래법 제17조 제2항 단서).
+   */
+  withdrawalRestriction?: string;
   visibility: ProductVisibility;
   status: ProductStatus;
   imageUrl: string;

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { slugify } from '@closed-commerce/validation';
+import type { CategoryGroup } from '@/lib/admin-data';
 import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
 
 type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
@@ -20,7 +21,8 @@ const FIELD_LABELS: Record<string, string> = {
   description: '상세 설명', basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비',
   visibility: '노출 대상', status: '판매 상태', optionName: '옵션명', optionValue: '옵션값',
   optionPrice: '옵션가', stock: '초기재고', shippingCutoffTime: '배송 마감 시간',
-  code: '코드', ownerUserId: '소유자 User ID', discountRate: '할인율', discountAmount: '정액할인',
+  withdrawalRestriction: '청약철회 제한 안내',
+  code: '코드', ownerUserId: '소유자 User ID', label: '용도', discountRate: '할인율', discountAmount: '정액할인',
 };
 
 function formatValidationDetails(details?: ValidationDetails) {
@@ -187,7 +189,57 @@ function FormFeedback({ error, message }: { error: string; message: string }) {
   );
 }
 
-export function ProductCreateForm({ categories }: { categories: string[] }) {
+
+/** 대분류로 묶어 보여주는 카테고리 선택. 상품은 소분류에 붙는다. */
+export function CategorySelect({ categories, defaultValue }: { categories: CategoryGroup[]; defaultValue?: string }) {
+  const flat = categories.flatMap((group) => (group.children.length > 0 ? group.children : [group.name]));
+  const initial = defaultValue ?? flat[0] ?? '기타';
+  const known = flat.includes(initial);
+  return (
+    <select className="select" name="category" defaultValue={initial} required>
+      {/* 지금 값이 목록에서 빠졌더라도 선택이 풀리면 안 된다. */}
+      {known ? null : <option value={initial}>{initial} (목록에 없음)</option>}
+      {categories.map((group) =>
+        group.children.length > 0 ? (
+          <optgroup key={group.name} label={group.name}>
+            {group.children.map((child) => <option key={child} value={child}>{child}</option>)}
+          </optgroup>
+        ) : (
+          <option key={group.name} value={group.name}>{group.name}</option>
+        ),
+      )}
+    </select>
+  );
+}
+
+const WITHDRAWAL_PRESET = '개봉 후에는 식품 위생상 교환·환불이 불가합니다. 단순 변심에 의한 반품은 미개봉 상태에서만 가능합니다.';
+
+/**
+ * 청약철회 제한 안내.
+ * 전자상거래법 제17조 제2항 단서상 이 문구를 표시하지 않으면 제한을 주장할 수 없다.
+ * 즉 비워두면 개봉한 식품도 환불해줘야 한다. 그래서 기본 문구를 미리 채워둔다.
+ */
+export function WithdrawalField({ defaultValue }: { defaultValue?: string }) {
+  return (
+    <label className="field">
+      <span className="field-label">청약철회 제한 안내</span>
+      <textarea
+        className="textarea"
+        name="withdrawalRestriction"
+        maxLength={500}
+        rows={2}
+        defaultValue={defaultValue ?? WITHDRAWAL_PRESET}
+        placeholder={WITHDRAWAL_PRESET}
+      />
+      <span className="field-hint">
+        상품 상세의 구매 버튼 바로 위에 표시됩니다. <strong>비워두면 개봉한 상품도 환불해 주어야 합니다</strong> —
+        전자상거래법상 제한 사유를 미리 표시해야만 환불을 제한할 수 있습니다.
+      </span>
+    </label>
+  );
+}
+
+export function ProductCreateForm({ categories }: { categories: CategoryGroup[] }) {
   const form = useCreate('/api/products', { productImages: true });
   // 상품명에서 상품 주소를 자동으로 만든다. 운영자가 URL 규칙을 알 필요가 없다.
   // 직접 고치면 그때부터는 손댄 값을 존중한다.
@@ -225,9 +277,7 @@ export function ProductCreateForm({ categories }: { categories: string[] }) {
           <label className="field">
             <span className="field-label">제품 카테고리</span>
             {/* 자유 입력이면 오타 하나로 카테고리가 갈라진다. 목록은 운영 설정에서 관리한다. */}
-            <select className="select" name="category" defaultValue={categories[0] ?? '기타'} required>
-              {categories.length ? categories.map((category) => <option key={category} value={category}>{category}</option>) : <option value="기타">기타</option>}
-            </select>
+            <CategorySelect categories={categories} />
             <span className="field-hint">목록에 없으면 “운영 설정 → 카테고리”에서 먼저 추가해 주세요.</span>
           </label>
           <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">옵션가를 비워두면 이 금액이 판매가가 됩니다.</span></label>
@@ -241,6 +291,7 @@ export function ProductCreateForm({ categories }: { categories: string[] }) {
         </div>
         <label className="field"><span className="field-label">짧은 소개</span><input className="input" name="shortDescription" maxLength={300} placeholder="목록에 표시할 한 줄 소개" /></label>
         <label className="field"><span className="field-label">상세페이지 설명</span><textarea className="textarea" name="description" maxLength={4000} placeholder="고객이 상세 페이지에서 볼 상품 설명" /></label>
+        <WithdrawalField />
         <div className="form-grid">
           <ImagePicker label="썸네일 이미지(선택, 1장)" name="thumbnail" hint="JPG, PNG, WEBP / 원본 화질 / 한 장 최대 20MB" />
           <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="원본 화질 유지 / 전체 사진 최대 21장 / 한 번에 최대 200MB" />
@@ -260,6 +311,11 @@ export function ReferralCreateForm() {
       <form className="stack" onSubmit={form.submit}>
         <label className="field"><span className="field-label">Code</span><input className="input" name="code" placeholder="PARTNER001" required /></label>
         <label className="field"><span className="field-label">소유자 User ID(UUID)</span><input className="input" name="ownerUserId" required /></label>
+        <label className="field">
+          <span className="field-label">용도</span>
+          <input className="input" name="label" maxLength={80} placeholder="예: 릴스 광고 9월 / 이정복 대표 지인용" />
+          <span className="field-hint">대시보드와 정산 화면에 코드 대신 이 이름이 보입니다. 한 사람이 여러 코드를 가질 수 있습니다.</span>
+        </label>
         <button className="button button-primary" disabled={form.busy}>{form.busy ? '생성 중…' : '생성'}</button>
         <FormFeedback error={form.error} message={form.message} />
       </form>

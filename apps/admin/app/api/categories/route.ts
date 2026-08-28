@@ -9,12 +9,32 @@ export const POST = withAdmin(
     if (!parsed.success) {
       throw new ApiError(400, '카테고리 정보가 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
     }
-    const { name, sortOrder } = parsed.data;
+    const { name, parentName, sortOrder } = parsed.data;
 
-    const { error } = await client.from('product_categories').insert({ name, sort_order: sortOrder ?? 100 });
+    // 소분류로 만들려면 대분류가 실제로 있어야 한다.
+    let parentId: string | null = null;
+    if (parentName) {
+      const { data: parent, error: parentError } = await client
+        .from('product_categories')
+        .select('id, parent_id')
+        .eq('name', parentName)
+        .maybeSingle();
+      if (parentError) failFromSupabase('상위 카테고리를 확인하지 못했습니다.', parentError, 'category_parent_read_failed');
+      if (!parent) throw new ApiError(400, `"${parentName}" 대분류를 찾을 수 없습니다.`, 'category_parent_not_found');
+      if (parent.parent_id) {
+        throw new ApiError(400, '카테고리는 2단계까지만 만들 수 있습니다. 소분류 아래에는 더 만들 수 없습니다.', 'category_depth_exceeded');
+      }
+      parentId = parent.id;
+    }
+
+    const { error } = await client
+      .from('product_categories')
+      .insert({ name, sort_order: sortOrder ?? 100, parent_id: parentId });
     if (error) {
       // 23505 = unique_violation. 같은 이름을 두 번 만드는 건 사고가 아니라 흔한 실수다.
       if (error.code === '23505') throw new ApiError(409, `"${name}" 카테고리는 이미 있습니다.`, 'category_exists');
+      // 트리거가 3단계를 막으면 check_violation으로 온다.
+      if (error.code === '23514') throw new ApiError(400, error.message, 'category_depth_exceeded');
       failFromSupabase('카테고리를 추가하지 못했습니다.', error, 'category_insert_failed');
     }
 
@@ -22,7 +42,7 @@ export const POST = withAdmin(
       actor_user_id: userId,
       action: 'category_created',
       entity_type: 'product_category',
-      after_data: { name, sortOrder: sortOrder ?? 100, requestId },
+      after_data: { name, parentName: parentName ?? null, sortOrder: sortOrder ?? 100, requestId },
     });
     return NextResponse.json({ message: `"${name}" 카테고리를 추가했습니다.`, requestId });
   },
@@ -40,6 +60,22 @@ export const DELETE = withAdmin(
     const body = (await readJson(request)) as { name?: unknown };
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     if (!name) throw new ApiError(400, '삭제할 카테고리 이름이 없습니다.', 'category_name_required');
+
+    // 하위 카테고리가 붙어 있으면 먼저 정리해야 한다. FK가 restrict라 어차피 실패한다.
+    const { data: self } = await client.from('product_categories').select('id').eq('name', name).maybeSingle();
+    if (self) {
+      const { count: childCount } = await client
+        .from('product_categories')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_id', self.id);
+      if ((childCount ?? 0) > 0) {
+        throw new ApiError(
+          409,
+          `"${name}" 아래에 소분류 ${childCount}개가 있습니다. 소분류를 먼저 삭제해 주세요.`,
+          'category_has_children',
+        );
+      }
+    }
 
     const { count, error: countError } = await client
       .from('products')

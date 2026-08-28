@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { COMPANY, APP_NAME_KO } from '@closed-commerce/config';
-import { LegalLayout, NeedsReview } from '@/components/legal-layout';
+import { LegalLayout } from '@/components/legal-layout';
 import { loadStoreSettings } from '@/lib/store-settings';
 
 export const metadata: Metadata = {
@@ -45,10 +45,8 @@ export default async function RefundPage() {
         해당 상품은 상품 상세 화면에 제한 사실을 표시합니다.
       </p>
       <p>
-        <NeedsReview>
-          이 제한이 실제로 성립하려면 상품별로 청약철회 제한 사유를 상세 화면에 개별 표시해야 합니다.
-          현재 상품 등록 화면에는 해당 표시 항목이 없습니다. 법률 검토와 함께 항목 추가가 필요합니다.
-        </NeedsReview>
+        각 상품의 청약철회 제한 사유는 해당 상품 상세 화면의 구매 버튼 위에 표시됩니다.
+        표시가 없는 상품은 위 제한이 적용되지 않으며, 일반 규정에 따라 청약철회하실 수 있습니다.
       </p>
 
       <h2>3. 반품 배송비</h2>
@@ -88,16 +86,14 @@ export default async function RefundPage() {
         <li>상품 회수 및 확인 후 교환품을 발송해 드립니다. 재고가 없는 경우에는 환불로 처리됩니다.</li>
       </ol>
 
-      <h2>6. 추천 보상에 미치는 영향</h2>
+      <h2>6. 부분 환불과 추천 보상</h2>
       <p>
-        환불 또는 부분 환불이 이루어진 주문에 대해서는 해당 주문으로 산정된 추천 보상이 취소되거나 환불 금액에 비례하여 조정됩니다.
-        이미 지급된 보상이 있는 경우 회사는 이를 회수하거나 이후 지급될 보상에서 차감할 수 있습니다.
+        <strong>딜키는 부분 환불을 제공하지 않습니다.</strong> 환불은 주문 단위로 전액 처리됩니다.
+        여러 상품을 함께 주문하신 경우 일부 상품만 환불하는 것은 불가하며, 주문 전체를 취소한 뒤 다시 주문해 주셔야 합니다.
       </p>
       <p>
-        <NeedsReview>
-          부분 환불 시 추천 보상을 비례 차감할지, 전액 취소할지 아직 확정되지 않았습니다.
-          정산 분쟁을 막으려면 출시 전에 정해야 합니다.
-        </NeedsReview>
+        환불이 이루어진 주문에 대해서는 해당 주문으로 산정된 추천 보상 전액이 취소됩니다.
+        이미 지급된 보상이 있는 경우 회사는 이를 회수하거나 이후 지급될 보상에서 차감할 수 있습니다.
       </p>
 
       <h2>7. 문의</h2>

@@ -12,7 +12,14 @@ export const POST = withAdmin(
     const code = parsed.data.code.toUpperCase();
     const { data: created, error } = await client
       .from('referral_codes')
-      .insert({ code, owner_user_id: parsed.data.ownerUserId, campaign_id: parsed.data.campaignId ?? null, status: 'active' })
+      .insert({
+        code,
+        owner_user_id: parsed.data.ownerUserId,
+        // 코드만 쌓이면 어느 게 릴스 광고용이고 어느 게 지인용인지 알 수 없다.
+        label: parsed.data.label?.trim() || null,
+        campaign_id: parsed.data.campaignId ?? null,
+        status: 'active',
+      })
       .select('id, code')
       .single();
     if (error || !created) {

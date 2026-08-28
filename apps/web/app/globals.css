@@ -121,7 +121,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .form-message { margin-top: 14px; padding: 12px; border-radius: 10px; background: #f8f3e8; color: var(--gold-deep); font-size: 14px; }
 .form-error { background: #fff1ef; color: #9b3e36; }
 
-.page-header { padding: 62px 0 32px; background: linear-gradient(135deg, #f1f7f1, #f8faf7); border-bottom: 1px solid var(--line); }
+.page-header { padding: 62px 0 32px; background: linear-gradient(135deg, #f4efe3, #faf8f3); border-bottom: 1px solid var(--line); }
 .page-header h1 { font-size: clamp(36px, 5vw, 54px); margin-bottom: 12px; }
 .breadcrumb { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .two-column { display: grid; grid-template-columns: 1.2fr .8fr; gap: 24px; align-items: start; }
@@ -355,3 +355,23 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .legal-table { display: block; overflow-x: auto; white-space: nowrap; }
   .footer-legal { flex-wrap: wrap; gap: 8px; }
 }
+
+/*
+ * 청약철회 제한 안내.
+ * 전자상거래법 제17조 제2항 단서상 "미리 명확하게 표시"해야 제한을 주장할 수 있다.
+ * 흐린 회색 각주로 두면 표시한 것으로 보기 어려우므로 결제 버튼 바로 위에 또렷하게 둔다.
+ */
+.withdrawal-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 4px;
+  padding: 11px 13px;
+  border: 1px solid var(--gold-line);
+  border-radius: 10px;
+  background: #fdf6ec;
+  color: #7a4f1d;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.withdrawal-notice strong { font-size: 12px; letter-spacing: .04em; }
