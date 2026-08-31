@@ -388,3 +388,17 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 }
 
 .product-detail-toggle { justify-self: center; min-width: 220px; }
+
+/* 상세페이지 구매 버튼. 대표님 요청으로 장바구니 담기 / 바로구매를 나눴다. */
+.buy-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.buy-actions .button { width: 100%; padding: 14px 16px; }
+@media (max-width: 420px) {
+  .buy-actions { grid-template-columns: 1fr; }
+}
+
+/*
+ * 대표 사진이 따로 없어 긴 상세 이미지를 대표 자리에 쓰는 경우.
+ * contain으로 전체를 넣으면 세로 13,000px가 460px 칸에 눌려 아무것도 안 보인다.
+ * 윗부분만 잘라 보여준다. 근본 해결은 운영자가 대표 사진을 따로 올리는 것이다.
+ */
+.product-hero-image.is-cropped-top img { object-fit: cover; object-position: top center; padding: 0; }

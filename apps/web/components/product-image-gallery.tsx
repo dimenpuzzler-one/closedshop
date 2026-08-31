@@ -7,9 +7,14 @@ import type { ProductImage } from '@closed-commerce/types';
 interface ProductImageGalleryProps {
   images: ProductImage[];
   productName: string;
+  /**
+   * 대표로 쓸 만한 사진이 없어 세로로 긴 상세 이미지를 대표 자리에 쓰는 경우.
+   * 전체를 우겨넣으면(contain) 실오라기처럼 눌려 보이므로 윗부분만 잘라 보여준다.
+   */
+  croppedTop?: boolean;
 }
 
-export function ProductImageGallery({ images, productName }: ProductImageGalleryProps) {
+export function ProductImageGallery({ images, productName, croppedTop = false }: ProductImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const imageCount = images.length;
   const safeIndex = activeIndex < imageCount ? activeIndex : 0;
@@ -23,7 +28,7 @@ export function ProductImageGallery({ images, productName }: ProductImageGallery
 
   return (
     <div className="product-image-gallery">
-      <div className="product-hero-image product-gallery-stage">
+      <div className={`product-hero-image product-gallery-stage${croppedTop ? ' is-cropped-top' : ''}`}>
         <Image
           key={activeImage.id}
           src={activeImage.url}

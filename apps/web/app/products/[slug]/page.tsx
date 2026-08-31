@@ -37,9 +37,24 @@ export default async function ProductDetailPage({
   // 당근·QR·지인 공유 유입은 대부분 비로그인 상태로 이 링크를 받는다.
   const priceVisible = catalog.priceVisible;
   const images = product.images ?? [];
-  const heroImage = images[0];
-  // 상세 이미지는 상단 갤러리가 아니라 아래 상세 영역에 세로로 크게 쌓는다.
-  const detailImages = images.slice(1);
+  /*
+   * 대표 사진과 상세 이미지를 순서가 아니라 생김새로 가른다.
+   *
+   * 예전에는 첫 장을 무조건 대표로 썼다. 그런데 운영자가 세로로 긴 상세 이미지
+   * 한 장만 올리는 경우가 많고(실제로 850x13,304px), 그러면 그 긴 이미지가
+   * 대표 사진 자리에 들어가 목록 썸네일까지 뭉개지고 1.8MB를 화면 맨 위에서 받는다.
+   * 세로가 가로의 3배를 넘으면 상세 이미지로 본다.
+   */
+  const isDetailShaped = (image: (typeof images)[number]) =>
+    Boolean(image.width && image.height && image.height / image.width >= 3);
+  const galleryImages = images.filter((image) => !isDetailShaped(image));
+  const longImages = images.filter(isDetailShaped);
+  // 대표로 쓸 만한 사진이 하나도 없으면 긴 이미지의 윗부분을 잘라 대표로 쓴다.
+  // 같은 파일이라 추가 다운로드는 없고, 화면 맨 위가 비지 않는다.
+  const heroFallback = galleryImages.length === 0 && longImages[0] ? [longImages[0]] : [];
+  const gallery = galleryImages.length > 0 ? galleryImages : heroFallback;
+  const heroImage = gallery[0];
+  const detailImages = longImages;
   const stock = product.options[0]?.stock ?? 0;
   const price = product.options[0]?.price ?? product.price;
   const shippingPolicy = settings.shippingPolicy;
@@ -66,7 +81,7 @@ export default async function ProductDetailPage({
         <Container className="two-column">
           <div className="product-hero">
             {heroImage ? (
-              <ProductImageGallery key={product.id} images={images} productName={product.name} />
+              <ProductImageGallery key={product.id} images={gallery} productName={product.name} croppedTop={galleryImages.length === 0} />
             ) : (
               <div className="hero-art" style={{ minHeight: 460 }}>
                 <span className="hero-art-label">PRIVATE DROP</span>
