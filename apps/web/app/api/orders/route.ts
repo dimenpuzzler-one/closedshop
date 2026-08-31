@@ -8,7 +8,7 @@ import { calculateTwoDepthCommissions, findValidReferralCode } from '@closed-com
 import { orderCreateSchema } from '@closed-commerce/validation';
 import { createServerAppClient } from '@/lib/supabase-server';
 import { prepareOrder, OrderServiceError } from '@/lib/order-service';
-import { korpayConfigured } from '@/lib/korpay-config';
+import { korpayBaseUrl, korpayConfigured } from '@/lib/korpay-config';
 
 export async function POST(request: Request) {
   const requestId = newRequestId();
@@ -55,7 +55,8 @@ export async function POST(request: Request) {
         logServerEvent('web.orders.create', requestId, { stage: 'start', userId: data.user.id, itemCount: input.items.length });
         // 주문만 만들고 재고를 잡는다. 결제는 코페이 결제창을 거쳐 리턴 URL에서 확정된다.
         const result = await prepareOrder(input, data.user.id, requestId);
-        return NextResponse.json({ ...result, requestId });
+        // 결제창 주소는 서버가 알려준다. 클라이언트에 따로 적어두면 두 값이 어긋난다.
+        return NextResponse.json({ ...result, checkoutBaseUrl: korpayBaseUrl(), requestId });
       } catch (caught) {
         if (caught instanceof OrderServiceError) {
           logServerError('web.orders.create', requestId, caught, { stage: 'order_service', status: caught.status, userId: data.user.id });

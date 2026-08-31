@@ -14,10 +14,31 @@ type OrderResult = {
   requestId?: string;
   /** 서버가 만든 결제창 파라미터. hashKey는 서명이고 mkey는 서버에만 있다. */
   checkoutParams?: Omit<PaymentData, 'amount'> & { amount: string };
+  /** 서버가 알려주는 코페이 결제창 주소. 스킴 포함 절대 URL이어야 한다. */
+  checkoutBaseUrl?: string;
 };
 
-/** 가이드 2장: 샘플의 BASEURL을 실제 주소로 치환해야 한다. */
-const KORPAY_BASE_URL = 'payments.korpay.com/v1';
+/**
+ * 결제창 주소는 서버(/api/orders)가 내려준다. 여기 값은 응답에 없을 때만 쓰는 대비책이다.
+ *
+ * 반드시 스킴(https://)을 포함해야 한다. 스킴이 없으면 SDK가 만드는 form.action이
+ * 상대경로로 해석되어 결제 요청이 코페이가 아니라 우리 사이트로 POST되고,
+ * iframe이 우리 404를 띄운 채 PAYMENT_MODAL_READY를 못 받아
+ * 20초 뒤 "결제 페이지 요청 시간이 초과되었습니다"로 실패한다.
+ */
+const KORPAY_BASE_URL_FALLBACK = 'https://payments.korpay.com/v1';
+
+function normalizeBaseUrl(value: string | undefined): string {
+  const raw = (value ?? '').trim().replace(/\/$/, '');
+  if (!raw) return KORPAY_BASE_URL_FALLBACK;
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    new URL(withScheme);
+    return withScheme;
+  } catch {
+    return KORPAY_BASE_URL_FALLBACK;
+  }
+}
 
 /** FormData.get()은 string | File을 돌려준다. File이 String()에 들어가면 "[object File]"이 된다. */
 function text(form: FormData, key: string): string {
@@ -92,7 +113,7 @@ export function CheckoutForm() {
       const params = result.checkoutParams;
       setMessage('결제창을 여는 중입니다…');
       KorpaySdk.payment(
-        KORPAY_BASE_URL,
+        normalizeBaseUrl(result.checkoutBaseUrl),
         // amount만 숫자로 바꾼다. 해시는 문자열 기준으로 만들었고 값 자체는 같다.
         { ...params, amount: Number(params.amount) },
         {

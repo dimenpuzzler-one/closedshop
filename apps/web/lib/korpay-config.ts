@@ -8,6 +8,19 @@ export function korpayConfigured(): boolean {
   return Boolean(process.env.KORPAY_MERCHANT_ID && process.env.KORPAY_MKEY);
 }
 
+/**
+ * 결제창(SDK)과 서버 API가 함께 쓰는 코페이 주소.
+ * 스킴이 빠지면 브라우저가 이걸 상대경로로 해석해서 결제창 POST가 우리 사이트로 가버린다.
+ * (그러면 iframe이 우리 404를 띄우고, SDK는 20초 뒤 "결제 페이지 요청 시간이 초과되었습니다"를 낸다.)
+ */
+export function korpayBaseUrl(): string {
+  const raw = (process.env.KORPAY_BASE_URL ?? 'https://payments.korpay.com/v1').trim().replace(/\/$/, '');
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  // 잘못된 값이면 여기서 바로 터뜨린다. 결제창 앞에서 20초 기다린 뒤 실패하는 것보다 낫다.
+  new URL(withScheme);
+  return withScheme;
+}
+
 export function getKorpayProvider(): KorpayPaymentProvider {
   const merchantId = process.env.KORPAY_MERCHANT_ID;
   const mkey = process.env.KORPAY_MKEY;
@@ -17,7 +30,7 @@ export function getKorpayProvider(): KorpayPaymentProvider {
   return new KorpayPaymentProvider({
     merchantId,
     mkey,
-    baseUrl: process.env.KORPAY_BASE_URL ?? 'https://payments.korpay.com/v1',
+    baseUrl: korpayBaseUrl(),
   });
 }
 
