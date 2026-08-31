@@ -368,3 +368,23 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   line-height: 1.6;
 }
 .withdrawal-notice strong { font-size: 12px; letter-spacing: .04em; }
+
+/* ---------------------------------------------------------------------------
+   상세 이미지 접기/펼치기
+   세로로 아주 긴 상세 이미지를 그대로 두면 레이아웃이 1만 픽셀을 미리 잡는다.
+   접은 상태에서 잘라두면 아래쪽 이미지가 화면 밖에 남아 lazy 로딩이 실제로 먹는다.
+--------------------------------------------------------------------------- */
+.product-detail-images-wrap { display: grid; gap: 14px; }
+.product-detail-images { display: grid; gap: 10px; position: relative; }
+.product-detail-images.is-collapsed { max-height: 720px; overflow: hidden; }
+
+.product-detail-fade {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 160px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(246, 243, 236, 0) 0%, var(--paper) 92%);
+}
+
+.product-detail-toggle { justify-self: center; min-width: 220px; }
