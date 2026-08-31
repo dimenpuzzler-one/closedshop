@@ -134,7 +134,7 @@ async function hydrate(client: AnyClient, rows: ProductRow[]): Promise<Product[]
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
     client
       .from('product_images')
-      .select('id, product_id, storage_path, alt_text, sort_order, width, height, byte_size, mime_type, created_at')
+      .select('id, product_id, storage_path, alt_text, sort_order, role, width, height, byte_size, mime_type, created_at')
       .in('product_id', productIds)
       .order('sort_order'),
   ]);
@@ -150,6 +150,7 @@ async function hydrate(client: AnyClient, rows: ProductRow[]): Promise<Product[]
       url,
       altText: image.alt_text,
       sortOrder: image.sort_order,
+      role: image.role === 'thumbnail' ? 'thumbnail' : 'detail',
       width: image.width ?? undefined,
       height: image.height ?? undefined,
       byteSize: image.byte_size ?? undefined,

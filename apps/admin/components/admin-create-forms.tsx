@@ -107,10 +107,13 @@ function useCreate(endpoint: string, options?: { productImages?: boolean }) {
       }
       let successMessage = result.message ?? '저장되었습니다.';
       if (options?.productImages) {
-        const files = [
-          ...formData.getAll('thumbnail'),
-          ...formData.getAll('detailImages'),
-        ].filter((value): value is File => value instanceof File && value.size > 0);
+        // 어느 칸에 넣었는지를 그대로 들고 간다.
+        // 예전에는 두 목록을 합쳐 올려서 무엇이 대표 사진인지 알 수 없었다.
+        const pick = (name: string, role: 'thumbnail' | 'detail') =>
+          formData.getAll(name)
+            .filter((value): value is File => value instanceof File && value.size > 0)
+            .map((file) => ({ file, role }));
+        const files = [...pick('thumbnail', 'thumbnail'), ...pick('detailImages', 'detail')];
         if (files.length > 0) {
           if (!result.productId) throw new Error('상품은 등록됐지만 이미지 업로드에 필요한 상품 ID를 받지 못했습니다. 수정 화면에서 이미지를 다시 올려 주세요.');
           try {

@@ -32,7 +32,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
     productIds.length ? client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds) : Promise.resolve({ data: [] }),
     productIds.length ? client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds) : Promise.resolve({ data: [] }),
-    productIds.length ? client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, width, height, byte_size, mime_type, created_at').in('product_id', productIds).order('sort_order') : Promise.resolve({ data: [] }),
+    productIds.length ? client.from('product_images').select('id, product_id, storage_path, alt_text, sort_order, role, width, height, byte_size, mime_type, created_at').in('product_id', productIds).order('sort_order') : Promise.resolve({ data: [] }),
   ]);
   const stock = new Map((inventories ?? []).map((item) => [item.product_id, {
     quantity: item.quantity,
@@ -48,6 +48,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
       url,
       altText: image.alt_text,
       sortOrder: image.sort_order,
+      role: image.role === 'thumbnail' ? 'thumbnail' : 'detail',
       width: image.width ?? undefined,
       height: image.height ?? undefined,
       byteSize: image.byte_size ?? undefined,

@@ -19,6 +19,14 @@ type ApiPayload = {
 
 type ImageDimensions = { width: number; height: number };
 
+export type ImageRole = 'thumbnail' | 'detail';
+
+/** 올릴 파일과 그 용도. 용도는 운영자가 어느 칸에 넣었는지로 정해진다. */
+export interface UploadEntry {
+  file: File;
+  role: ImageRole;
+}
+
 type PreparedUpload = {
   path: string;
   token: string;
@@ -27,6 +35,7 @@ type PreparedUpload = {
   height: number;
   byteSize: number;
   mimeType: string;
+  role: ImageRole;
 };
 
 export function formatBytes(bytes: number) {
@@ -86,7 +95,8 @@ function validateFiles(files: File[]) {
  * Vercel Function을 거치지 않고 signed upload URL로 Storage에 직접 전송한다.
  * 원본 픽셀을 바꾸지 않으며, 완료된 객체만 DB 이미지 행으로 확정한다.
  */
-export async function uploadProductImages(productId: string, files: File[]): Promise<string> {
+export async function uploadProductImages(productId: string, entries: UploadEntry[]): Promise<string> {
+  const files = entries.map((entry) => entry.file);
   validateFiles(files);
   // Decoding twenty 20MB images at once can exhaust a mobile browser's memory.
   const dimensions: ImageDimensions[] = [];
@@ -95,10 +105,13 @@ export async function uploadProductImages(productId: string, files: File[]): Pro
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      files: files.map((file, index) => ({
-        name: file.name,
-        mimeType: file.type,
-        byteSize: file.size,
+      files: entries.map((entry, index) => ({
+        name: entry.file.name,
+        mimeType: entry.file.type,
+        byteSize: entry.file.size,
+        // 등록 화면의 "썸네일" 칸과 "상세페이지 이미지" 칸을 그대로 전달한다.
+        // 예전에는 두 목록을 합쳐 올려서 어느 것이 대표 사진인지 알 수 없었다.
+        role: entry.role,
         width: dimensions[index]?.width || undefined,
         height: dimensions[index]?.height || undefined,
       })),

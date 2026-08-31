@@ -38,23 +38,17 @@ export default async function ProductDetailPage({
   const priceVisible = catalog.priceVisible;
   const images = product.images ?? [];
   /*
-   * 대표 사진과 상세 이미지를 순서가 아니라 생김새로 가른다.
-   *
-   * 예전에는 첫 장을 무조건 대표로 썼다. 그런데 운영자가 세로로 긴 상세 이미지
-   * 한 장만 올리는 경우가 많고(실제로 850x13,304px), 그러면 그 긴 이미지가
-   * 대표 사진 자리에 들어가 목록 썸네일까지 뭉개지고 1.8MB를 화면 맨 위에서 받는다.
-   * 세로가 가로의 3배를 넘으면 상세 이미지로 본다.
+   * 대표 사진과 상세 이미지는 운영자가 등록 화면에서 정한 값(role)을 그대로 쓴다.
+   * 예전에는 첫 장을 대표로 삼거나 이미지 비율로 추측했는데, 운영자가 이미 두 칸에
+   * 나눠 넣은 정보를 업로드 과정에서 버리고 다시 알아맞히는 구조였다.
    */
-  const isDetailShaped = (image: (typeof images)[number]) =>
-    Boolean(image.width && image.height && image.height / image.width >= 3);
-  const galleryImages = images.filter((image) => !isDetailShaped(image));
-  const longImages = images.filter(isDetailShaped);
-  // 대표로 쓸 만한 사진이 하나도 없으면 긴 이미지의 윗부분을 잘라 대표로 쓴다.
-  // 같은 파일이라 추가 다운로드는 없고, 화면 맨 위가 비지 않는다.
-  const heroFallback = galleryImages.length === 0 && longImages[0] ? [longImages[0]] : [];
-  const gallery = galleryImages.length > 0 ? galleryImages : heroFallback;
+  const galleryImages = images.filter((image) => image.role === 'thumbnail');
+  const detailImages = images.filter((image) => image.role !== 'thumbnail');
+  // 대표 사진을 아직 안 올린 상품은 상세 이미지의 윗부분을 잘라 임시로 쓴다.
+  // 같은 파일이라 추가 다운로드는 없고 화면 맨 위가 비지 않는다.
+  const usingDetailAsHero = galleryImages.length === 0 && detailImages.length > 0;
+  const gallery = usingDetailAsHero && detailImages[0] ? [detailImages[0]] : galleryImages;
   const heroImage = gallery[0];
-  const detailImages = longImages;
   const stock = product.options[0]?.stock ?? 0;
   const price = product.options[0]?.price ?? product.price;
   const shippingPolicy = settings.shippingPolicy;
@@ -81,7 +75,7 @@ export default async function ProductDetailPage({
         <Container className="two-column">
           <div className="product-hero">
             {heroImage ? (
-              <ProductImageGallery key={product.id} images={gallery} productName={product.name} croppedTop={galleryImages.length === 0} />
+              <ProductImageGallery key={product.id} images={gallery} productName={product.name} croppedTop={usingDetailAsHero} />
             ) : (
               <div className="hero-art" style={{ minHeight: 460 }}>
                 <span className="hero-art-label">PRIVATE DROP</span>

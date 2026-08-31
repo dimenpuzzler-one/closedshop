@@ -11,11 +11,16 @@ export interface ProductOption {
   stock: number;
 }
 
+/** 사진의 용도. 운영자가 등록 화면의 어느 칸에 넣었는지로 정해진다. */
+export type ProductImageRole = 'thumbnail' | 'detail';
+
 export interface ProductImage {
   id: Id;
   url: string;
   altText: string;
   sortOrder: number;
+  /** thumbnail=목록 썸네일과 상세 상단, detail=상세페이지 본문. */
+  role: ProductImageRole;
   width?: number;
   height?: number;
   byteSize?: number;

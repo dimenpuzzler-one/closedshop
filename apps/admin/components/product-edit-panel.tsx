@@ -118,9 +118,14 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
   async function addImages(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    const picked = Array.from(new FormData(formElement).getAll('images')).filter(
-      (entry): entry is File => entry instanceof File && entry.size > 0,
-    );
+    const form = new FormData(formElement);
+    // 등록 화면과 같이 대표 사진과 상세 이미지를 나눠 올린다.
+    // 예전에는 이 화면에 칸이 하나뿐이라 무엇이 대표 사진인지 알 수 없었다.
+    const pick = (name: string, role: 'thumbnail' | 'detail') =>
+      form.getAll(name)
+        .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+        .map((file) => ({ file, role }));
+    const picked = [...pick('thumbnailImage', 'thumbnail'), ...pick('images', 'detail')];
     if (picked.length === 0) {
       setError('추가할 사진을 선택해 주세요.');
       return;
@@ -191,26 +196,29 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
 
       <div className="stack">
         <strong>사진 {images.length}장</strong>
-        <span className="field-hint">맨 앞(대표)이 목록 썸네일입니다. 원본 해상도를 유지하며 한 장 20MB, 상품당 21장까지 올릴 수 있습니다.</span>
+        <span className="field-hint">
+          <strong>대표 사진</strong>이 목록 썸네일과 상세 상단에 쓰이고, <strong>상세 이미지</strong>는 상세페이지 아래에 쌓입니다.
+          원본 해상도를 유지하며 한 장 20MB, 상품당 21장까지 올릴 수 있습니다.
+        </span>
         {images.length ? (
           <div className="image-preview-grid">
-            {images.map((image, index) => (
+            {images.map((image) => (
               <div className="image-preview stack" key={image.id} style={{ gap: '0.3rem' }}>
                 <Image src={image.url} alt={image.altText || product.name} width={160} height={100} unoptimized />
                 <span className="field-hint">
-                  {index === 0 ? '대표 사진' : `상세 ${index}`} · {image.width && image.height ? `${image.width}×${image.height}` : '크기 미기록'}{image.byteSize ? ` · ${formatBytes(image.byteSize)}` : ''}
+                  {image.role === 'thumbnail' ? '대표 사진' : '상세 이미지'} · {image.width && image.height ? `${image.width}×${image.height}` : '크기 미기록'}{image.byteSize ? ` · ${formatBytes(image.byteSize)}` : ''}
                 </span>
                 <div className="row" style={{ gap: '0.3rem' }}>
-                  {index !== 0 ? (
+                  {image.role === 'thumbnail' ? null : (
                     <button
                       className="button button-ghost"
                       type="button"
                       disabled={busy}
-                      onClick={() => void send(`/api/products/${product.id}/images/${image.id}`, { method: 'PATCH' }, '대표 사진을 변경했습니다.')}
+                      onClick={() => void send(`/api/products/${product.id}/images/${image.id}`, { method: 'PATCH' }, '대표 사진으로 바꿨습니다.')}
                     >
                       대표로
                     </button>
-                  ) : null}
+                  )}
                   <button
                     className="button button-ghost"
                     type="button"
@@ -227,12 +235,22 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
           <span className="field-hint">등록된 사진이 없습니다.</span>
         )}
 
-        <form className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }} onSubmit={addImages}>
-          <label className="field" htmlFor={`images-${product.id}`}>
-            <span className="field-label">추가할 상품 사진</span>
-            <input id={`images-${product.id}`} className="input" type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple />
-          </label>
-          <button className="button button-secondary" disabled={busy}>{busy ? '원본 올리는 중…' : '원본 화질로 사진 추가'}</button>
+        <form className="stack" onSubmit={addImages}>
+          <div className="form-grid">
+            <label className="field" htmlFor={`thumb-${product.id}`}>
+              <span className="field-label">대표 사진 (목록 썸네일)</span>
+              <input id={`thumb-${product.id}`} className="input" type="file" name="thumbnailImage" accept="image/jpeg,image/png,image/webp" />
+              <span className="field-hint">정사각형에 가까운 사진이 좋습니다. 1080×1080 정도를 권합니다.</span>
+            </label>
+            <label className="field" htmlFor={`images-${product.id}`}>
+              <span className="field-label">상세페이지 이미지 (여러 장)</span>
+              <input id={`images-${product.id}`} className="input" type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple />
+              <span className="field-hint">세로로 긴 상세 이미지를 여기에 올립니다. 상세페이지 아래에 쌓입니다.</span>
+            </label>
+          </div>
+          <div>
+            <button className="button button-secondary" disabled={busy}>{busy ? '원본 올리는 중…' : '원본 화질로 사진 추가'}</button>
+          </div>
         </form>
       </div>
 

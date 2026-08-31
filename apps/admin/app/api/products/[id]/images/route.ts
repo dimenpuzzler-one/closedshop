@@ -10,8 +10,14 @@ const MAX_UPLOAD_BATCH_BYTES = 200 * 1024 * 1024;
 const MAX_IMAGES_PER_PRODUCT = 21;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-type RequestedFile = { name?: unknown; mimeType?: unknown; byteSize?: unknown; width?: unknown; height?: unknown };
-type CompletedUpload = { path?: unknown; sortOrder?: unknown; mimeType?: unknown; byteSize?: unknown; width?: unknown; height?: unknown };
+type ImageRole = 'thumbnail' | 'detail';
+type RequestedFile = { name?: unknown; mimeType?: unknown; byteSize?: unknown; width?: unknown; height?: unknown; role?: unknown };
+type CompletedUpload = { path?: unknown; sortOrder?: unknown; mimeType?: unknown; byteSize?: unknown; width?: unknown; height?: unknown; role?: unknown };
+
+/** 운영자가 어느 칸에 넣었는지. 값이 없거나 이상하면 상세로 본다. */
+function toRole(value: unknown): ImageRole {
+  return value === 'thumbnail' ? 'thumbnail' : 'detail';
+}
 
 function extensionFor(type: string) {
   return type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
@@ -94,7 +100,7 @@ export const POST = withAdminParams<{ id: string }>(
         throw new ApiError(400, `"${displayName(file.name, '이미지')}"은 ${formatMb(byteSize)}입니다. 한 장은 ${formatMb(MAX_IMAGE_BYTES)} 이하여야 합니다.`, 'image_too_large');
       }
       totalBytes += byteSize;
-      return { mimeType, byteSize, width: positiveInteger(file.width), height: positiveInteger(file.height) };
+      return { mimeType, byteSize, role: toRole(file.role), width: positiveInteger(file.width), height: positiveInteger(file.height) };
     });
     if (totalBytes > MAX_UPLOAD_BATCH_BYTES) {
       throw new ApiError(400, `한 번에 올릴 수 있는 합계는 ${formatMb(MAX_UPLOAD_BATCH_BYTES)}입니다. 지금은 ${formatMb(totalBytes)}입니다.`, 'upload_batch_too_large');
@@ -134,7 +140,7 @@ export const PUT = withAdminParams<{ id: string }>(
       if (!ALLOWED_IMAGE_TYPES.has(mimeType) || !byteSize || byteSize > MAX_IMAGE_BYTES || sortOrder === undefined) {
         throw new ApiError(400, '업로드 완료 정보가 올바르지 않습니다.', 'invalid_upload_metadata');
       }
-      return { path: upload.path, sortOrder, mimeType, byteSize, width: positiveInteger(upload.width), height: positiveInteger(upload.height) };
+      return { path: upload.path, sortOrder, mimeType, byteSize, role: toRole(upload.role), width: positiveInteger(upload.width), height: positiveInteger(upload.height) };
     });
     if (new Set(uploads.map((upload) => upload.path)).size !== uploads.length) {
       throw new ApiError(400, '같은 이미지가 중복으로 포함되었습니다.', 'duplicate_upload');
@@ -160,6 +166,7 @@ export const PUT = withAdminParams<{ id: string }>(
       storage_path: upload.path,
       alt_text: product.name,
       sort_order: upload.sortOrder,
+      role: upload.role,
       width: upload.width ?? null,
       height: upload.height ?? null,
       byte_size: upload.byteSize,

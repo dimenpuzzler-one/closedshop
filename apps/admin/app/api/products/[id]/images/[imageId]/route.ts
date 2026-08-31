@@ -57,6 +57,11 @@ export const PATCH = withAdminParams<{ id: string; imageId: string }>(
       if (error) failFromSupabase('대표 사진을 변경하지 못했습니다.', error, 'image_sort_update_failed');
     }
 
+    // 순서만 바꾸면 화면은 그대로다. 고객몰은 role로 대표 사진을 고르므로 용도도 함께 바꾼다.
+    // 다른 대표 사진을 내리지는 않는다 - 상세 상단 갤러리는 여러 장을 지원한다.
+    const { error: roleError } = await client.from('product_images').update({ role: 'thumbnail' }).eq('id', imageId);
+    if (roleError) failFromSupabase('대표 사진으로 지정하지 못했습니다.', roleError, 'image_role_update_failed');
+
     await client.from('admin_audit_logs').insert({
       actor_user_id: userId,
       action: 'product_thumbnail_changed',
