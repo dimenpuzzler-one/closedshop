@@ -73,7 +73,6 @@ export default async function ProductsPage({
                     key={product.id}
                     product={product}
                     referralCode={catalog.validReferralCode}
-                    interactive={catalog.priceVisible}
                     showPrice={catalog.priceVisible}
                   />
                 ))}
