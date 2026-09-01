@@ -6,7 +6,7 @@ import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@closed-commerce/types';
 import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
-import { CategorySelect, WithdrawalField } from './admin-create-forms';
+import { CategorySelect, ImagePicker, WithdrawalField } from './admin-create-forms';
 import type { CategoryGroup } from '@/lib/admin-data';
 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
@@ -237,16 +237,18 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
 
         <form className="stack" onSubmit={addImages}>
           <div className="form-grid">
-            <label className="field" htmlFor={`thumb-${product.id}`}>
-              <span className="field-label">대표 사진 (목록 썸네일)</span>
-              <input id={`thumb-${product.id}`} className="input" type="file" name="thumbnailImage" accept="image/jpeg,image/png,image/webp" />
-              <span className="field-hint">정사각형에 가까운 사진이 좋습니다. 1080×1080 정도를 권합니다.</span>
-            </label>
-            <label className="field" htmlFor={`images-${product.id}`}>
-              <span className="field-label">상세페이지 이미지 (여러 장)</span>
-              <input id={`images-${product.id}`} className="input" type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple />
-              <span className="field-hint">세로로 긴 상세 이미지를 여기에 올립니다. 상세페이지 아래에 쌓입니다.</span>
-            </label>
+            <ImagePicker
+              label="대표 사진 (목록 썸네일, 여러 장)"
+              name="thumbnailImage"
+              multiple
+              hint="정사각형에 가까운 사진이 좋습니다. 1080×1080 정도를 권합니다. 여러 장 고르면 상세페이지 상단에 갤러리로 보입니다."
+            />
+            <ImagePicker
+              label="상세페이지 이미지 (여러 장)"
+              name="images"
+              multiple
+              hint="세로로 긴 상세 이미지를 여기에 올립니다. 상세페이지 아래에 쌓입니다."
+            />
           </div>
           <div>
             <button className="button button-secondary" disabled={busy}>{busy ? '원본 올리는 중…' : '원본 화질로 사진 추가'}</button>

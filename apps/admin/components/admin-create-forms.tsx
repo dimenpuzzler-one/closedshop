@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { slugify } from '@closed-commerce/validation';
@@ -138,14 +138,40 @@ function useCreate(endpoint: string, options?: { productImages?: boolean }) {
   return { submit, message, error, busy };
 }
 
-function ImagePicker({ label, name, multiple = false, hint }: { label: string; name: string; multiple?: boolean; hint: string }) {
+/**
+ * 등록 화면과 수정 화면이 함께 쓴다(product-edit-panel.tsx).
+ * 수정 화면은 상품 목록에서 여러 개가 동시에 렌더링될 수 있어 id를 이름으로
+ * 고정하면 페이지에 같은 id가 여러 번 생긴다. useId()로 인스턴스마다 고유하게 만든다.
+ */
+export function ImagePicker({ label, name, multiple = false, hint }: { label: string; name: string; multiple?: boolean; hint: string }) {
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [previews, setPreviews] = useState<{ url: string; name: string; size: number }[]>([]);
   const previewsRef = useRef(previews);
   previewsRef.current = previews;
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+  function syncPreviews(files: FileList | null) {
     previewsRef.current.forEach((preview) => URL.revokeObjectURL(preview.url));
-    setPreviews(Array.from(event.currentTarget.files ?? []).map((file) => ({ url: URL.createObjectURL(file), name: file.name, size: file.size })));
+    setPreviews(Array.from(files ?? []).map((file) => ({ url: URL.createObjectURL(file), name: file.name, size: file.size })));
+  }
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    syncPreviews(event.currentTarget.files);
+  }
+
+  /**
+   * <input type=file>의 FileList는 읽기 전용이라 항목 하나만 뺄 수 없다.
+   * DataTransfer로 나머지 파일을 다시 담아 input.files를 통째로 교체한다.
+   * (대표님 요청: 여러 장 고른 뒤 잘못 고른 한 장만 빼고 싶을 때가 있다.)
+   */
+  function removeAt(index: number) {
+    const input = inputRef.current;
+    if (!input) return;
+    const remaining = Array.from(input.files ?? []).filter((_, fileIndex) => fileIndex !== index);
+    const nextFiles = new DataTransfer();
+    remaining.forEach((file) => nextFiles.items.add(file));
+    input.files = nextFiles.files;
+    syncPreviews(input.files);
   }
 
   useEffect(() => () => previewsRef.current.forEach((preview) => URL.revokeObjectURL(preview.url)), []);
@@ -154,8 +180,8 @@ function ImagePicker({ label, name, multiple = false, hint }: { label: string; n
 
   return (
     <div className="field">
-      <label className="field-label" htmlFor={name}>{label}</label>
-      <input id={name} className="input" type="file" name={name} accept="image/jpeg,image/png,image/webp" multiple={multiple} onChange={handleChange} />
+      <label className="field-label" htmlFor={inputId}>{label}</label>
+      <input ref={inputRef} id={inputId} className="input" type="file" name={name} accept="image/jpeg,image/png,image/webp" multiple={multiple} onChange={handleChange} />
       <span className="field-hint">{hint}</span>
       {previews.length ? (
         <>
@@ -164,8 +190,16 @@ function ImagePicker({ label, name, multiple = false, hint }: { label: string; n
           </span>
           <div className="image-preview-grid" aria-label="이미지 미리보기">
             {previews.map((preview, index) => (
-              <div className="image-preview" key={preview.url}>
+              <div className="image-preview stack" key={preview.url} style={{ gap: '0.3rem' }}>
                 <Image src={preview.url} alt={`선택 이미지 ${index + 1}`} width={160} height={100} unoptimized />
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => removeAt(index)}
+                  aria-label={`${preview.name} 선택 취소`}
+                >
+                  빼기
+                </button>
               </div>
             ))}
           </div>
@@ -296,7 +330,7 @@ export function ProductCreateForm({ categories }: { categories: CategoryGroup[] 
         <label className="field"><span className="field-label">상세페이지 설명</span><textarea className="textarea" name="description" maxLength={4000} placeholder="고객이 상세 페이지에서 볼 상품 설명" /></label>
         <WithdrawalField />
         <div className="form-grid">
-          <ImagePicker label="썸네일 이미지(선택, 1장)" name="thumbnail" hint="JPG, PNG, WEBP / 원본 화질 / 한 장 최대 20MB" />
+          <ImagePicker label="썸네일 이미지(선택, 여러 장)" name="thumbnail" multiple hint="JPG, PNG, WEBP / 원본 화질 / 한 장 최대 20MB / 여러 장 고르면 상세페이지 상단에 갤러리로 보입니다" />
           <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="원본 화질 유지 / 전체 사진 최대 21장 / 한 번에 최대 200MB" />
         </div>
         <button className="button button-primary" disabled={form.busy}>{form.busy ? '등록 중…' : '상품 등록'}</button>
