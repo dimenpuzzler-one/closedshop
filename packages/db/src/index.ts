@@ -53,9 +53,9 @@ export type Database = {
         { quantity?: number; reserved_quantity?: number }
       >;
       product_images: Table<
-        { id: string; product_id: string; storage_path: string; alt_text: string; sort_order: number; width: number | null; height: number | null; byte_size: number | null; mime_type: string | null; created_at: string },
-        { product_id: string; storage_path: string; alt_text?: string; sort_order?: number; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null },
-        { storage_path?: string; alt_text?: string; sort_order?: number; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null }
+        { id: string; product_id: string; storage_path: string; alt_text: string; sort_order: number; role: 'thumbnail' | 'detail'; width: number | null; height: number | null; byte_size: number | null; mime_type: string | null; created_at: string },
+        { product_id: string; storage_path: string; alt_text?: string; sort_order?: number; role?: 'thumbnail' | 'detail'; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null },
+        { storage_path?: string; alt_text?: string; sort_order?: number; role?: 'thumbnail' | 'detail'; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null }
       >;
       store_settings: Table<
         { id: number; shipping_cutoff_time: string; updated_at: string },

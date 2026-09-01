@@ -142,7 +142,7 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
   const [{ data: products }, { data: options }, { data: images }] = await Promise.all([
     client.from('products').select('id, slug, name, base_price, shipping_fee, status, visibility').in('id', productIds).eq('status', 'active'),
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
-    client.from('product_images').select('product_id, storage_path, sort_order').in('product_id', productIds).order('sort_order'),
+    client.from('product_images').select('product_id, storage_path, sort_order').in('product_id', productIds).eq('role', 'thumbnail').order('sort_order'),
   ]);
 
   const productMap = new Map((products ?? []).map((product) => [product.id, product]));

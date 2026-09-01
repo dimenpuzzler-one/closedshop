@@ -127,16 +127,17 @@ async function loadAvailableStock(productIds: string[]): Promise<Map<string, num
   return new Map((data ?? []).map((row) => [row.product_id, Math.max(0, row.quantity - row.reserved_quantity)]));
 }
 
-async function hydrate(client: AnyClient, rows: ProductRow[]): Promise<Product[]> {
+async function hydrate(client: AnyClient, rows: ProductRow[], imageMode: 'thumbnail' | 'all'): Promise<Product[]> {
   if (rows.length === 0) return [];
   const productIds = rows.map((row) => row.id);
+  const imageQuery = client
+    .from('product_images')
+    .select('id, product_id, storage_path, alt_text, sort_order, role, width, height, byte_size, mime_type, created_at')
+    .in('product_id', productIds)
+    .order('sort_order');
   const [{ data: options }, { data: imageRows }] = await Promise.all([
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
-    client
-      .from('product_images')
-      .select('id, product_id, storage_path, alt_text, sort_order, role, width, height, byte_size, mime_type, created_at')
-      .in('product_id', productIds)
-      .order('sort_order'),
+    imageMode === 'thumbnail' ? imageQuery.eq('role', 'thumbnail') : imageQuery,
   ]);
   // inventory는 회원이 읽을 수 있는 RLS 정책이 없어 세션 클라이언트로는 항상 0행이다.
   // 인가는 호출부에서 이미 끝났으므로, 확정된 상품 id에 한해 서버 전용 클라이언트로 읽는다.
@@ -209,7 +210,7 @@ export async function loadVisibleCatalog(referralCode?: string, category?: strin
   const { data: rows, error } = await query.order('created_at', { ascending: false });
   if (error || !rows) return { products: [], ...access };
 
-  const products = await hydrate(client, rows);
+  const products = await hydrate(client, rows, 'thumbnail');
   return { products: access.priceVisible ? products : products.map(stripPrices), ...access };
 }
 
@@ -238,7 +239,7 @@ export async function loadProductBySlug(slug: string, referralCode?: string): Pr
   if (!access.priceVisible) query = query.neq('visibility', 'hidden');
   const { data: row } = await query.maybeSingle();
   if (!row) return access;
-  const [product] = await hydrate(client, [row]);
+  const [product] = await hydrate(client, [row], 'all');
   if (!product) return access;
   return { product: access.priceVisible ? product : stripPrices(product), ...access };
 }
