@@ -26,6 +26,8 @@ export type JusoSearchAddress = Omit<
   'addressLine1' | 'addressLine2'
 > & {
   roadAddress: string;
+  roadAddressPart1: string;
+  roadAddressPart2: string;
 };
 
 export const EMPTY_ADDRESS_FIELDS: AddressFieldsValue = {

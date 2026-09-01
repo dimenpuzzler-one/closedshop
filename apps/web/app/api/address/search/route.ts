@@ -8,6 +8,8 @@ const SQL_RESERVED_WORDS = /\b(?:OR|SELECT|INSERT|DELETE|UPDATE|CREATE|DROP|EXEC
 
 type JusoApiAddress = {
   roadAddr?: string;
+  roadAddrPart1?: string;
+  roadAddrPart2?: string;
   jibunAddr?: string;
   zipNo?: string;
   siNm?: string;
@@ -33,14 +35,17 @@ function clean(value: string | undefined): string {
 
 function mapAddress(address: JusoApiAddress): JusoSearchAddress | null {
   const roadAddress = clean(address.roadAddr);
+  const roadAddressPart1 = clean(address.roadAddrPart1) || roadAddress;
   const postalCode = clean(address.zipNo);
-  if (!roadAddress || !/^\d{5}$/.test(postalCode)) return null;
+  if (!roadAddressPart1 || !/^\d{5}$/.test(postalCode)) return null;
   const eupmyeondong = [clean(address.emdNm), clean(address.liNm)]
     .filter(Boolean)
     .join(' ');
   return {
     postalCode,
     roadAddress,
+    roadAddressPart1,
+    roadAddressPart2: clean(address.roadAddrPart2),
     jibunAddress: clean(address.jibunAddr),
     buildingName: clean(address.bdNm),
     sido: clean(address.siNm),
@@ -59,6 +64,12 @@ export async function GET(request: Request) {
       {
         error: `주소 검색어를 2자 이상 ${MAX_SEARCH_LENGTH}자 이하로 입력해 주세요.`,
       },
+      { status: 400 },
+    );
+  }
+  if ((query.match(/[가-힣]/g) ?? []).length > 40) {
+    return NextResponse.json(
+      { error: '한글 검색어는 40자 이하로 입력해 주세요.' },
       { status: 400 },
     );
   }

@@ -76,7 +76,7 @@ export function AddressSearchFields({
   function choose(address: JusoSearchAddress) {
     onChange({
       postalCode: address.postalCode,
-      addressLine1: address.roadAddress,
+      addressLine1: address.roadAddressPart1,
       addressLine2: '',
       jibunAddress: address.jibunAddress,
       buildingName: address.buildingName,
