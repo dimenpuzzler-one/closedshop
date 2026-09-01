@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Badge, Container, Price } from '@closed-commerce/ui';
 import { loadMyPageData, type MemberReferral } from '@/lib/account-data';
+import { LogoutButton } from '@/components/logout-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,8 +48,13 @@ export default async function AccountPage() {
     <>
       <section className="page-header">
         <Container>
-          <p className="breadcrumb">ACCOUNT / MY PAGE</p>
-          <h1>{data.profile.displayName}님의 마이페이지</h1>
+          <div className="page-header-row">
+            <div>
+              <p className="breadcrumb">ACCOUNT / MY PAGE</p>
+              <h1>{data.profile.displayName}님의 마이페이지</h1>
+            </div>
+            <LogoutButton />
+          </div>
           <p className="muted">주문, 장바구니, 배송지와 추천 활동을 한곳에서 관리하세요.</p>
         </Container>
       </section>

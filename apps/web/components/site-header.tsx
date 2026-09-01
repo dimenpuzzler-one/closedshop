@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { Container } from '@closed-commerce/ui';
 import { resolveRuntimeMode } from '@closed-commerce/db';
 import { createServerAppClient, getRequestUser } from '@/lib/supabase-server';
-import { LogoutButton } from './logout-button';
 
 /**
  * 헤더가 로그인 여부를 반영하지 않아서, 로그인한 회원에게도 계속 "로그인" 버튼이 보였다.
@@ -38,16 +37,19 @@ export async function SiteHeader() {
         <nav className="nav" aria-label="주요 메뉴">
           <Link href="/products">상품 둘러보기</Link>
           <Link href="/b2b">기업·단체 견적</Link>
-          <Link href="/account">마이페이지</Link>
         </nav>
         <div className="header-actions">
           <Link href="/cart" className="button button-ghost">장바구니</Link>
           {viewerName ? (
-            <>
-              <Link href="/account" className="muted header-viewer">{viewerName}님</Link>
-              <Link href="/account" className="button button-ghost header-account-link">마이페이지</Link>
-              <LogoutButton />
-            </>
+            <Link
+              href="/account"
+              className="header-viewer"
+              aria-label={`${viewerName}님 마이페이지`}
+              title="마이페이지"
+            >
+              <span>{viewerName}님</span>
+              <small>마이페이지</small>
+            </Link>
           ) : (
             <Link href="/login" className="button button-primary">로그인</Link>
           )}
