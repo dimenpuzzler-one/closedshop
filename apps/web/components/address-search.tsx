@@ -74,10 +74,9 @@ export function AddressSearchFields({
   }
 
   function choose(address: JusoSearchAddress) {
-    const building = address.buildingName ? ` (${address.buildingName})` : '';
     onChange({
       postalCode: address.postalCode,
-      addressLine1: `${address.roadAddress}${building}`,
+      addressLine1: address.roadAddress,
       addressLine2: '',
       jibunAddress: address.jibunAddress,
       buildingName: address.buildingName,
@@ -196,7 +195,7 @@ export function AddressSearchFields({
                   }
                 }}
                 placeholder="예: 반포대로 58, 독립기념관, 삼성동 25"
-                maxLength={100}
+                maxLength={80}
               />
               <button
                 className="button button-primary"

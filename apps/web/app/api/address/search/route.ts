@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import type { JusoSearchAddress } from '@/lib/shipping-addresses';
 
 const JUSO_SEARCH_URL = 'https://business.juso.go.kr/addrlink/addrLinkApi.do';
+const MAX_SEARCH_LENGTH = 80;
+const UNSAFE_SEARCH_CHARS = /[%=><[\]]/;
+const SQL_RESERVED_WORDS = /\b(?:OR|SELECT|INSERT|DELETE|UPDATE|CREATE|DROP|EXEC|UNION|FETCH|DECLARE|TRUNCATE)\b/i;
 
 type JusoApiAddress = {
   roadAddr?: string;
@@ -51,9 +54,23 @@ function mapAddress(address: JusoApiAddress): JusoSearchAddress | null {
 
 export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get('q')?.trim() ?? '';
-  if (query.length < 2 || query.length > 100) {
+  if (query.length < 2 || query.length > MAX_SEARCH_LENGTH) {
     return NextResponse.json(
-      { error: '주소 검색어를 2자 이상 100자 이하로 입력해 주세요.' },
+      {
+        error: `주소 검색어를 2자 이상 ${MAX_SEARCH_LENGTH}자 이하로 입력해 주세요.`,
+      },
+      { status: 400 },
+    );
+  }
+  if (UNSAFE_SEARCH_CHARS.test(query) || SQL_RESERVED_WORDS.test(query)) {
+    return NextResponse.json(
+      { error: '검색어에 사용할 수 없는 문자나 예약어가 포함되어 있습니다.' },
+      { status: 400 },
+    );
+  }
+  if (/^\d+$/.test(query)) {
+    return NextResponse.json(
+      { error: '주소명과 건물번호를 함께 입력해 주세요.' },
       { status: 400 },
     );
   }
