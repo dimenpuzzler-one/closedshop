@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Container, Badge, Price } from '@closed-commerce/ui';
 import { hasSupabaseEnv } from '@closed-commerce/db';
 import { getRequestUser } from '@/lib/supabase-server';
-import { loadMemberOrders } from '@/lib/account-data';
+import { loadMemberDisplayName, loadMemberOrders } from '@/lib/account-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,14 +22,19 @@ const statusLabel: Record<string, string> = {
 export default async function OrdersPage() {
   if (hasSupabaseEnv() && !(await getRequestUser())) redirect('/login');
 
-  const result = await loadMemberOrders();
+  const [result, displayName] = await Promise.all([loadMemberOrders(), loadMemberDisplayName()]);
   return (
     <>
       <section className="page-header">
         <Container>
-          <p className="breadcrumb">ACCOUNT / ORDERS</p>
-          <h1>주문 조회</h1>
-          <p className="muted">로그인한 회원의 주문·배송 상태를 확인합니다.</p>
+          <div className="page-header-row">
+            <div>
+              <p className="breadcrumb">ACCOUNT / ORDERS</p>
+              <h1>주문 조회</h1>
+              <p className="muted">{displayName ? `${displayName} 회원님의 주문 기록입니다.` : '회원님의 주문 기록입니다.'}</p>
+            </div>
+            <Link href="/cart" className="button button-ghost">장바구니 보기</Link>
+          </div>
         </Container>
       </section>
       <section className="section">

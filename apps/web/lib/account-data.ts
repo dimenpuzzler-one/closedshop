@@ -121,6 +121,16 @@ const DEMO_ACCOUNT_DATA: MyPageData = {
   commissions: { pending: 12000, approved: 0, payable: 0, paid: 0 },
 };
 
+/** 주문 조회 화면 제목에 사용할 현재 회원 이름. */
+export async function loadMemberDisplayName(): Promise<string | null> {
+  if (!hasSupabaseEnv()) return DEMO_ACCOUNT_DATA.profile.displayName;
+  const user = await getRequestUser();
+  if (!user) return null;
+  const client = await createServerAppClient();
+  const { data: profile } = await client.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
+  return profile?.display_name ?? '회원';
+}
+
 /**
  * 로그인한 회원의 주문을 공통으로 읽는다. 주문 페이지와 마이페이지가
  * 서로 다른 조회·정렬 규칙을 갖지 않도록 한 곳에서 snapshot을 만든다.
@@ -131,17 +141,26 @@ export async function loadMemberOrders(limit?: number): Promise<MemberOrdersResu
   if (!user) return EMPTY_ORDERS;
 
   const client = await createServerAppClient();
-  let query = client
+  const query = client
     .from('orders')
-    .select('id, order_number, status, paid_amount, created_at', { count: 'exact' })
+    .select('id, order_number, status, paid_amount, paid_at, created_at')
     .eq('buyer_user_id', user.id)
     .order('created_at', { ascending: false });
-  if (limit !== undefined) query = query.limit(limit);
 
-  const { data: orders, count, error } = await query;
+  const { data: orders, error } = await query;
   if (error || !orders) return EMPTY_ORDERS;
 
-  const orderIds = orders.map((order) => order.id);
+  // 결제창을 열었다가 취소·실패한 payment_pending 주문은 내부 재고 예약 기록이다.
+  // DB에는 감사·재고 정합성을 위해 보존하되, 고객 주문 내역에는 실제 주문만 노출한다.
+  // 결제 후 관리자가 취소한 주문은 paid_at이 있으므로 정상적인 취소/환불 이력으로 남긴다.
+  const customerOrders = orders.filter((order) => {
+    if (order.status === 'pending' || order.status === 'payment_pending') return false;
+    if (order.status === 'cancelled' && !order.paid_at) return false;
+    return true;
+  });
+  const visibleOrders = limit !== undefined ? customerOrders.slice(0, limit) : customerOrders;
+
+  const orderIds = visibleOrders.map((order) => order.id);
   const { data: items } = orderIds.length
     ? await client
         .from('order_items')
@@ -156,8 +175,8 @@ export async function loadMemberOrders(limit?: number): Promise<MemberOrdersResu
   });
 
   return {
-    totalCount: count ?? orders.length,
-    orders: orders.map((order) => ({
+    totalCount: customerOrders.length,
+    orders: visibleOrders.map((order) => ({
       id: order.id,
       orderNumber: order.order_number,
       status: order.status,
