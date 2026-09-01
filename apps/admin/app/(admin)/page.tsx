@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { formatWon } from '@closed-commerce/config';
 import { Badge, Card, Price, StatCard } from '@closed-commerce/ui';
 import { loadAdminOrders, loadAdminSummary, loadDashboardMetrics } from '@/lib/admin-data';
+import { isRealOrder } from '@/components/orders-table';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '대기', payment_pending: '결제대기', paid: '결제완료', preparing: '준비중',
@@ -15,6 +16,10 @@ export default async function AdminDashboardPage() {
     loadDashboardMetrics(),
     loadAdminOrders(),
   ]);
+
+  // 결제창만 열어보고 나간 주문과 취소된 주문은 여기 보여줄 이유가 없다.
+  // 대시보드는 "실제로 팔린 것"을 보는 화면이다.
+  const recentOrders = orderResult.orders.filter((order) => isRealOrder(order.status));
 
   return (
     <>
@@ -91,12 +96,12 @@ export default async function AdminDashboardPage() {
       <div className="admin-grid-2">
         <Card>
           <div className="toolbar"><h2>최근 주문</h2><Link className="button button-ghost" href="/orders">전체 보기</Link></div>
-          {orderResult.orders.length ? (
+          {recentOrders.length ? (
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr><th>주문번호</th><th>구매자</th><th>금액</th><th>상태</th></tr></thead>
                 <tbody>
-                  {orderResult.orders.slice(0, 6).map((order) => (
+                  {recentOrders.slice(0, 6).map((order) => (
                     <tr key={order.id}>
                       <td>{order.number}</td>
                       <td>{order.buyer}</td>
@@ -112,7 +117,7 @@ export default async function AdminDashboardPage() {
               </table>
             </div>
           ) : (
-            <p className="muted">아직 주문이 없습니다.</p>
+            <p className="muted">아직 결제까지 끝난 주문이 없습니다.</p>
           )}
         </Card>
 

@@ -193,6 +193,16 @@ export function toCategoryGroups(categories: AdminCategory[]): CategoryGroup[] {
   return groups;
 }
 
+/** 주문 당시 배송지. 주소는 주문 시점 값을 그대로 보관한다(회원이 나중에 바꿔도 변하지 않는다). */
+export interface AdminOrderAddress {
+  recipientName: string;
+  phone: string;
+  postalCode: string;
+  addressLine1: string;
+  addressLine2?: string;
+  deliveryMessage?: string;
+}
+
 export interface AdminOrderRow {
   id: string;
   number: string;
@@ -203,19 +213,49 @@ export interface AdminOrderRow {
   payment: string;
   ref: string;
   createdAt: string;
+  /** 주문 당시 배송지. 옛 주문이나 형식이 깨진 주문은 undefined일 수 있다. */
+  address?: AdminOrderAddress;
 }
 
+/** address_snapshot은 jsonb라 무엇이든 들어올 수 있다. 화면에 넘기기 전에 모양을 확인한다. */
+function toOrderAddress(value: unknown): AdminOrderAddress | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const raw = value as Record<string, unknown>;
+  const text = (key: string) => {
+    const value = raw[key];
+    return typeof value === 'string' ? value.trim() : '';
+  };
+  const recipientName = text('recipientName');
+  const addressLine1 = text('addressLine1');
+  if (!recipientName && !addressLine1) return undefined;
+  return {
+    recipientName,
+    phone: text('phone'),
+    postalCode: text('postalCode'),
+    addressLine1,
+    addressLine2: text('addressLine2') || undefined,
+    deliveryMessage: text('deliveryMessage') || undefined,
+  };
+}
+
+const demoAddress: AdminOrderAddress = {
+  recipientName: '김*현', phone: '010-0000-0000', postalCode: '10359',
+  addressLine1: '경기도 고양시 일산동구 일산로441번길 16-12', addressLine2: '3층',
+};
+
 const demoOrders: AdminOrderRow[] = [
-  { id: 'demo-1', number: 'CC-20260819-001', buyer: '김*현', item: '육포 420g × 2', amount: 104000, status: 'paid', payment: 'paid', ref: 'KGY001', createdAt: '2026-08-19' },
-  { id: 'demo-2', number: 'CC-20260818-014', buyer: '박*진', item: '육포 600g × 1', amount: 72000, status: 'preparing', payment: 'paid', ref: 'LEE001', createdAt: '2026-08-18' },
-  { id: 'demo-3', number: 'CC-20260818-011', buyer: '이*우', item: '육포 300g × 4', amount: 156000, status: 'shipped', payment: 'paid', ref: 'JIHYE01', createdAt: '2026-08-18' },
+  { id: 'demo-1', number: 'CC-20260819-001', buyer: '김*현', item: '육포 420g × 2', amount: 104000, status: 'paid', payment: 'paid', ref: 'KGY001', createdAt: '2026-08-19', address: demoAddress },
+  { id: 'demo-2', number: 'CC-20260818-014', buyer: '박*진', item: '육포 600g × 1', amount: 72000, status: 'preparing', payment: 'paid', ref: 'LEE001', createdAt: '2026-08-18', address: { ...demoAddress, recipientName: '박*진' } },
+  { id: 'demo-3', number: 'CC-20260818-011', buyer: '이*우', item: '육포 300g × 4', amount: 156000, status: 'shipped', payment: 'paid', ref: 'JIHYE01', createdAt: '2026-08-18', address: { ...demoAddress, recipientName: '이*우' } },
 ];
 
 export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orders: AdminOrderRow[] }> {
   const gate = await adminGate();
   if (gate.source !== 'supabase') return { source: gate.source, orders: gate.source === 'demo' ? demoOrders : [] };
   const client = gate.client;
-  const { data: orders, error } = await client.from('orders').select('id, order_number, buyer_user_id, referral_code, status, paid_amount, created_at').order('created_at', { ascending: false });
+  // address_snapshot을 빼먹어서 주문 관리 화면에 배송지가 아예 뜨지 않았다.
+  // 값은 처음부터 DB에 정상으로 들어 있었고, 가져오는 쪽에만 빠져 있었다.
+  const { data: orders, error } = await client.from('orders').select('id, order_number, buyer_user_id, referral_code, status, paid_amount, created_at, address_snapshot').order('created_at', { ascending: false });
   if (error || !orders) return { source: 'unavailable', orders: [] };
   const orderIds = orders.map((order) => order.id);
   const [{ data: items }, { data: payments }, { data: profiles }] = await Promise.all([
@@ -225,7 +265,21 @@ export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orde
   ]);
   const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.display_name ?? `${profile.id.slice(0, 6)}*`]));
   const paymentStatus = new Map((payments ?? []).map((payment) => [payment.order_id, payment.status]));
-  return { source: 'supabase', orders: orders.map((order) => ({ id: order.id, number: order.order_number, buyer: names.get(order.buyer_user_id) ?? '회원', item: (items ?? []).filter((item) => item.order_id === order.id).map((item) => `${item.product_name_snapshot} × ${item.quantity}`).join(', '), amount: order.paid_amount, status: order.status, payment: paymentStatus.get(order.id) ?? 'pending', ref: order.referral_code ?? '—', createdAt: order.created_at })) };
+  return {
+    source: 'supabase',
+    orders: orders.map((order) => ({
+      id: order.id,
+      number: order.order_number,
+      buyer: names.get(order.buyer_user_id) ?? '회원',
+      item: (items ?? []).filter((item) => item.order_id === order.id).map((item) => `${item.product_name_snapshot} × ${item.quantity}`).join(', '),
+      amount: order.paid_amount,
+      status: order.status,
+      payment: paymentStatus.get(order.id) ?? 'pending',
+      ref: order.referral_code ?? '—',
+      createdAt: order.created_at,
+      address: toOrderAddress(order.address_snapshot),
+    })),
+  };
 }
 
 export async function loadAdminReferralCodes(): Promise<{ source: AdminDataSource; codes: (ReferralCode & { members: number; l1Commission: number; l2Commission: number })[] }> {

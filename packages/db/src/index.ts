@@ -116,6 +116,8 @@ export type Database = {
       reserve_inventory: { Args: { p_product_id: string; p_quantity: number }; Returns: boolean };
       release_inventory: { Args: { p_product_id: string; p_quantity: number }; Returns: boolean };
       redeem_promotion_code: { Args: { p_promotion_code_id: string; p_user_id: string; p_order_id: string; p_discount_amount: number }; Returns: boolean };
+      /** 결제를 끝내지 않은 주문을 취소하고 잡아둔 재고를 되돌린다. 취소한 건수를 돌려준다. */
+      expire_stale_pending_orders: { Args: { p_minutes: number }; Returns: number };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

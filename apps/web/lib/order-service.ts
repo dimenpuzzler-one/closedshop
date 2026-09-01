@@ -215,6 +215,13 @@ export async function prepareOrder(
   requestId = 'no-request-id',
 ): Promise<PreparedOrderResult> {
   const client = createServiceRoleSupabaseClient();
+  // 재고를 세기 전에, 결제를 끝내지 않고 나간 주문이 붙잡고 있는 자리를 먼저 되돌린다.
+  // 정기 작업(pg_cron)이 5분마다 돌지만, 방금 결제창을 닫고 다시 들어온 고객이
+  // 자기 예약에 자기가 막혀 "재고가 부족합니다"를 보는 일을 그 사이에 겪게 된다.
+  // 쓸어내기가 실패해도 주문 자체는 계속 진행한다. 없어도 되는 보조 작업이다.
+  const { error: sweepError } = await client.rpc('expire_stale_pending_orders', { p_minutes: 20 });
+  if (sweepError) logServerError('order.prepare', requestId, sweepError, { stage: 'expire_stale' });
+
   const { referral } = await loadReferral(client, buyerUserId, input.referralCode);
   const { lines } = await loadCatalog(client, input);
   const promotion = await loadPromotion(client, input, buyerUserId, referral.id);

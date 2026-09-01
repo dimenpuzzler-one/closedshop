@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Price } from '@closed-commerce/ui';
 import KorpaySdk, { type PaymentData } from '@korpay/sdk';
 import { useCartQuote } from './use-cart-quote';
+import { AddressSearchFields } from './address-search';
 
 type OrderResult = {
   message?: string;
@@ -162,11 +163,19 @@ export function CheckoutForm() {
         <div className="form-grid">
           <label className="field"><span className="field-label">받는 분</span><input className="input" name="recipientName" required /></label>
           <label className="field"><span className="field-label">연락처</span><input className="input" name="phone" required /></label>
-          <label className="field"><span className="field-label">우편번호</span><input className="input" name="postalCode" required /></label>
           <label className="field"><span className="field-label">Promotion Code</span><input className="input" name="promotionCode" placeholder="선택 입력" /></label>
-          <label className="field full"><span className="field-label">주소</span><input className="input" name="addressLine1" required /></label>
-          <label className="field full"><span className="field-label">상세주소</span><input className="input" name="addressLine2" /></label>
-          <label className="field full"><span className="field-label">배송 메모</span><textarea className="textarea" name="deliveryMessage" /></label>
+          {/* 우편번호·주소·상세주소는 주소 검색과 묶여 있어 한 컴포넌트가 함께 관리한다. */}
+          <AddressSearchFields />
+          <label className="field full">
+            <span className="field-label">배송 요청사항</span>
+            <select className="select" name="deliveryMessage" defaultValue="">
+              <option value="">선택 안 함</option>
+              <option value="문 앞에 놓아 주세요">문 앞에 놓아 주세요</option>
+              <option value="직접 받겠습니다 (부재 시 문 앞)">직접 받겠습니다 (부재 시 문 앞)</option>
+              <option value="경비실에 맡겨 주세요">경비실에 맡겨 주세요</option>
+              <option value="택배함에 넣어 주세요">택배함에 넣어 주세요</option>
+            </select>
+          </label>
         </div>
         <div className="notice">결제 성공 후 Commission은 pending으로 생성되고, 구매확정 또는 환불가능기간이 지나면 approved/payable로 전환됩니다.</div>
         <div className="form-actions">
