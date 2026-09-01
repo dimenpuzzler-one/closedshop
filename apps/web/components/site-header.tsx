@@ -51,7 +51,10 @@ export async function SiteHeader() {
               <small>마이페이지</small>
             </Link>
           ) : (
-            <Link href="/login" className="button button-primary">로그인</Link>
+            <>
+              <Link href="/signup" className="button button-ghost">회원가입</Link>
+              <Link href="/login" className="button button-primary">로그인</Link>
+            </>
           )}
         </div>
       </Container>
