@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@closed-commerce/types';
@@ -51,13 +51,14 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const imageFormRef = useRef<HTMLFormElement | null>(null);
   const router = useRouter();
 
   const stock = product.inventoryQuantity ?? product.options.reduce((sum, option) => sum + option.stock, 0);
   const option = product.options[0];
   const optionPrice = option?.price ?? product.price;
 
-  async function send(url: string, init: RequestInit, successFallback: string) {
+  async function send(url: string, init: RequestInit, successFallback: string, options: { refresh?: boolean } = {}) {
     setBusy(true);
     setError('');
     setMessage('');
@@ -69,11 +70,38 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
         return false;
       }
       setMessage(result.message ?? successFallback);
-      router.refresh();
+      if (options.refresh ?? true) router.refresh();
       return true;
     } catch (caught) {
       setError(`요청을 보내지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
       return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function selectedImages(formElement: HTMLFormElement) {
+    const form = new FormData(formElement);
+    const pick = (name: string, role: 'thumbnail' | 'detail') =>
+      form.getAll(name)
+        .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+        .map((file) => ({ file, role }));
+    return [...pick('thumbnailImage', 'thumbnail'), ...pick('images', 'detail')];
+  }
+
+  async function uploadImagesFromForm(formElement: HTMLFormElement) {
+    const picked = selectedImages(formElement);
+    if (picked.length === 0) return null;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const resultMessage = await uploadProductImages(product.id, picked);
+      formElement.reset();
+      return resultMessage;
+    } catch (caught) {
+      setError(`사진을 올리지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
+      return null;
     } finally {
       setBusy(false);
     }
@@ -107,40 +135,33 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
       status: text('status') as Product['status'],
     };
 
-    await send(
+    const saved = await send(
       `/api/products/${product.id}`,
       { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
       '수정되었습니다.',
+      { refresh: false },
     );
+    if (!saved) return;
+
+    // 사진 입력은 별도 form이지만, 운영자가 상단의 저장 버튼을 눌러도
+    // 선택한 사진까지 함께 저장되도록 연결한다. 사진이 없으면 기존처럼
+    // 상품 정보만 저장한다.
+    const imageMessage = imageFormRef.current ? await uploadImagesFromForm(imageFormRef.current) : null;
+    setMessage(imageMessage ? `수정되었습니다. ${imageMessage}` : '수정되었습니다.');
+    router.refresh();
   }
 
   async function addImages(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    // 등록 화면과 같이 대표 사진과 상세 이미지를 나눠 올린다.
-    // 예전에는 이 화면에 칸이 하나뿐이라 무엇이 대표 사진인지 알 수 없었다.
-    const pick = (name: string, role: 'thumbnail' | 'detail') =>
-      form.getAll(name)
-        .filter((entry): entry is File => entry instanceof File && entry.size > 0)
-        .map((file) => ({ file, role }));
-    const picked = [...pick('thumbnailImage', 'thumbnail'), ...pick('images', 'detail')];
-    if (picked.length === 0) {
+    if (selectedImages(formElement).length === 0) {
       setError('추가할 사진을 선택해 주세요.');
       return;
     }
-    setBusy(true);
-    setError('');
-    setMessage('');
-    try {
-      const resultMessage = await uploadProductImages(product.id, picked);
+    const resultMessage = await uploadImagesFromForm(formElement);
+    if (resultMessage) {
       setMessage(resultMessage);
-      formElement.reset();
       router.refresh();
-    } catch (caught) {
-      setError(`사진을 올리지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -187,7 +208,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
         <WithdrawalField defaultValue={product.withdrawalRestriction ?? ''} />
         <div className="row" style={{ gap: '0.5rem' }}>
           <button className="button button-primary" disabled={busy}>{busy ? '저장 중…' : '수정 내용 저장'}</button>
-          <span className="field-hint">상품 주소(/products/{product.slug})는 바뀌지 않습니다.</span>
+          <span className="field-hint">선택한 사진도 함께 저장됩니다. 사진만 올릴 때는 아래 버튼을 눌러도 됩니다. 상품 주소(/products/{product.slug})는 바뀌지 않습니다.</span>
         </div>
       </form>
 
@@ -234,7 +255,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
           <span className="field-hint">등록된 사진이 없습니다.</span>
         )}
 
-        <form className="stack" onSubmit={addImages}>
+        <form ref={imageFormRef} className="stack" onSubmit={addImages}>
           <div className="form-grid">
             <ImagePicker
               label="대표 사진 (목록 썸네일, 여러 장)"
