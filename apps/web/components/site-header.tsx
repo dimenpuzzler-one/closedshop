@@ -39,6 +39,7 @@ export async function SiteHeader() {
           <Link href="/products">상품 둘러보기</Link>
           <Link href="/b2b">기업·단체 견적</Link>
           <Link href="/account/orders">주문 조회</Link>
+          <Link href="/account/addresses">배송지 관리</Link>
         </nav>
         <div className="header-actions">
           <Link href="/cart" className="button button-ghost">장바구니</Link>

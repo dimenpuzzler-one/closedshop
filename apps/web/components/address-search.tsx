@@ -1,119 +1,127 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import type {
+  AddressFieldsValue,
+  JusoSearchAddress,
+} from '@/lib/shipping-addresses';
 
-/**
- * 카카오(다음) 우편번호 서비스. 키가 필요 없고 무료다.
- */
-const POSTCODE_SCRIPT = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-
-type PostcodeResult = {
-  /** 도로명 주소. 도로명이 없는 지역이면 빈 문자열이다. */
-  roadAddress?: string;
-  /** 지번 주소. 도로명 주소가 없을 때 쓴다. */
-  jibunAddress?: string;
-  /** 사용자가 고른 주소 종류에 맞춰 채워지는 값. */
-  address?: string;
-  /** 참고 항목(건물명). */
-  buildingName?: string;
-  zonecode?: string;
-  userSelectedType?: 'R' | 'J';
+type AddressSearchResponse = {
+  addresses?: JusoSearchAddress[];
+  error?: string;
 };
 
-type PostcodeConstructor = new (options: {
-  oncomplete: (data: PostcodeResult) => void;
-  onclose?: () => void;
-}) => { open: () => void };
+type AddressSearchFieldsProps = {
+  value: AddressFieldsValue;
+  onChange: (value: AddressFieldsValue) => void;
+};
 
-declare global {
-  interface Window {
-    daum?: { Postcode?: PostcodeConstructor };
-  }
-}
-
-export function AddressSearchFields() {
-  const [postalCode, setPostalCode] = useState('');
-  const [addressLine1, setAddressLine1] = useState('');
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState('');
+export function AddressSearchFields({
+  value,
+  onChange,
+}: AddressSearchFieldsProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<JusoSearchAddress[]>([]);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [message, setMessage] = useState('');
   const detailRef = useRef<HTMLInputElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
-  /**
-   * 스크립트를 화면이 뜰 때 미리 받아둔다.
-   *
-   * 버튼을 누른 뒤에 받으면 안 된다. 스크립트를 기다리는 사이에 브라우저가 보는
-   * "사용자가 방금 클릭했다"는 표시가 풀려서, 정작 열려던 검색창이 팝업 차단에
-   * 걸린다. 결제 화면까지 온 고객에게 50KB는 그 위험보다 싸다.
-   */
-  useEffect(() => {
-    if (window.daum?.Postcode) {
-      setReady(true);
-      return;
-    }
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${POSTCODE_SCRIPT}"]`);
-    const script = existing ?? document.createElement('script');
-    const onLoad = () => setReady(Boolean(window.daum?.Postcode));
-    const onError = () => setError('주소 검색을 불러오지 못했습니다. 주소를 직접 입력하셔도 됩니다.');
-    script.addEventListener('load', onLoad);
-    script.addEventListener('error', onError);
-    if (!existing) {
-      script.src = POSTCODE_SCRIPT;
-      script.async = true;
-      document.head.appendChild(script);
-    }
-    return () => {
-      script.removeEventListener('load', onLoad);
-      script.removeEventListener('error', onError);
-    };
-  }, []);
+  function update(patch: Partial<AddressFieldsValue>) {
+    onChange({ ...value, ...patch });
+  }
 
   function openSearch() {
-    const Postcode = window.daum?.Postcode;
-    if (!Postcode) {
-      setError('주소 검색을 아직 불러오는 중입니다. 잠시 후 다시 누르거나 주소를 직접 입력해 주세요.');
+    setIsOpen(true);
+    setMessage('');
+    window.setTimeout(() => searchRef.current?.focus(), 0);
+  }
+
+  async function search() {
+    const keyword = query.trim();
+    if (keyword.length < 2) {
+      setStatus('error');
+      setMessage('도로명, 건물명, 지번을 2자 이상 입력해 주세요.');
       return;
     }
-    setError('');
-    new Postcode({
-      oncomplete: (data) => {
-        const base = data.userSelectedType === 'J'
-          ? (data.jibunAddress ?? data.address ?? '')
-          : (data.roadAddress ?? data.address ?? '');
-        // 건물명이 있으면 붙여준다. 기사님이 덜 헤맨다.
-        const extra = data.buildingName?.trim() ? ` (${data.buildingName.trim()})` : '';
-        setPostalCode(data.zonecode ?? '');
-        setAddressLine1(`${base}${extra}`.trim());
-        // 다음에 채울 칸은 상세주소다. 바로 커서를 옮겨준다.
-        window.setTimeout(() => detailRef.current?.focus(), 0);
-      },
-    }).open();
+    setStatus('loading');
+    setMessage('');
+    try {
+      const response = await fetch(
+        `/api/address/search?q=${encodeURIComponent(keyword)}`,
+      );
+      const payload = (await response.json()) as AddressSearchResponse;
+      if (!response.ok)
+        throw new Error(payload.error ?? '주소를 검색하지 못했습니다.');
+      const addresses = payload.addresses ?? [];
+      setResults(addresses);
+      setStatus('idle');
+      setMessage(
+        addresses.length
+          ? ''
+          : '검색 결과가 없습니다. 도로명과 건물번호를 확인해 보세요.',
+      );
+    } catch (caught) {
+      setResults([]);
+      setStatus('error');
+      setMessage(
+        caught instanceof Error
+          ? caught.message
+          : '주소를 검색하지 못했습니다.',
+      );
+    }
+  }
+
+  function choose(address: JusoSearchAddress) {
+    const building = address.buildingName ? ` (${address.buildingName})` : '';
+    onChange({
+      postalCode: address.postalCode,
+      addressLine1: `${address.roadAddress}${building}`,
+      addressLine2: '',
+      jibunAddress: address.jibunAddress,
+      buildingName: address.buildingName,
+      sido: address.sido,
+      sigungu: address.sigungu,
+      eupmyeondong: address.eupmyeondong,
+      admCd: address.admCd,
+      roadNameCode: address.roadNameCode,
+      buildingManagementNo: address.buildingManagementNo,
+    });
+    setIsOpen(false);
+    window.setTimeout(() => detailRef.current?.focus(), 0);
   }
 
   return (
     <>
       <label className="field" htmlFor="postalCode">
         <span className="field-label">우편번호</span>
-        <div className="row" style={{ gap: '0.5rem', alignItems: 'center' }}>
-          {/*
-            읽기 전용으로 두면 안 된다. readOnly 입력은 브라우저의 필수값 검사에서
-            아예 빠지기 때문에, 빈 채로 결제 버튼을 눌러도 화면에서는 걸리지 않고
-            서버 400으로만 튕긴다. 직접 입력도 열어두면 검색이 안 되는 주소도 살길이 있다.
-          */}
+        <div className="row address-postal-row">
           <input
             id="postalCode"
             className="input"
             name="postalCode"
-            value={postalCode}
-            onChange={(event) => setPostalCode(event.currentTarget.value)}
-            placeholder="주소 검색을 눌러 주세요"
+            value={value.postalCode}
+            onChange={(event) =>
+              update({
+                postalCode: event.currentTarget.value
+                  .replace(/\D/g, '')
+                  .slice(0, 5),
+              })
+            }
+            placeholder="5자리 우편번호"
             inputMode="numeric"
+            pattern="[0-9]{5}"
             required
           />
-          <button className="button button-secondary" type="button" onClick={openSearch} style={{ whiteSpace: 'nowrap' }}>
-            주소 검색
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={openSearch}
+          >
+            주소 찾기
           </button>
         </div>
-        {!ready && !error ? <span className="field-hint">주소 검색 준비 중…</span> : null}
       </label>
 
       <label className="field full" htmlFor="addressLine1">
@@ -122,19 +130,115 @@ export function AddressSearchFields() {
           id="addressLine1"
           className="input"
           name="addressLine1"
-          value={addressLine1}
-          onChange={(event) => setAddressLine1(event.currentTarget.value)}
-          placeholder="주소 검색을 눌러 주세요"
+          value={value.addressLine1}
+          onChange={(event) =>
+            update({ addressLine1: event.currentTarget.value })
+          }
+          placeholder="도로명 주소"
           required
         />
       </label>
 
       <label className="field full" htmlFor="addressLine2">
         <span className="field-label">상세주소</span>
-        <input id="addressLine2" className="input" name="addressLine2" ref={detailRef} placeholder="동·호수, 층 등" />
+        <input
+          id="addressLine2"
+          className="input"
+          name="addressLine2"
+          ref={detailRef}
+          value={value.addressLine2}
+          onChange={(event) =>
+            update({ addressLine2: event.currentTarget.value })
+          }
+          placeholder="동·호수, 층 등"
+          required
+        />
       </label>
 
-      {error ? <p className="form-message form-error field full" role="alert">{error}</p> : null}
+      {isOpen ? (
+        <div
+          className="address-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsOpen(false);
+          }}
+        >
+          <section
+            className="address-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="address-search-title"
+          >
+            <div className="row">
+              <div>
+                <p className="eyebrow">ADDRESS SEARCH</p>
+                <h2 id="address-search-title">도로명주소 검색</h2>
+              </div>
+              <button
+                className="button button-ghost"
+                type="button"
+                onClick={() => setIsOpen(false)}
+                aria-label="주소 검색 닫기"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="address-search-form" role="search">
+              <input
+                ref={searchRef}
+                className="input"
+                value={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void search();
+                  }
+                }}
+                placeholder="예: 반포대로 58, 독립기념관, 삼성동 25"
+                maxLength={100}
+              />
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={() => void search()}
+                disabled={status === 'loading'}
+              >
+                {status === 'loading' ? '검색 중…' : '검색'}
+              </button>
+            </div>
+            {message ? (
+              <p
+                className={`form-message${status === 'error' ? ' form-error' : ''}`}
+                role="status"
+              >
+                {message}
+              </p>
+            ) : null}
+            <div className="address-results">
+              {results.map((address) => (
+                <button
+                  className="address-result"
+                  type="button"
+                  key={`${address.buildingManagementNo}-${address.roadAddress}`}
+                  onClick={() => choose(address)}
+                >
+                  <strong>{address.roadAddress}</strong>
+                  {address.buildingName ? (
+                    <span>{address.buildingName}</span>
+                  ) : null}
+                  <span className="muted">
+                    [{address.postalCode}] {address.jibunAddress}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="field-hint">
+              행정안전부 주소기반산업지원서비스의 도로명주소 검색 결과입니다.
+            </p>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }

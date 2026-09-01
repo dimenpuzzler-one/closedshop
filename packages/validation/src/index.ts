@@ -25,6 +25,21 @@ export const addressSchema = z.object({
   deliveryMessage: z.string().trim().max(200).optional(),
 });
 
+export const savedAddressSchema = addressSchema.extend({
+  label: z.string().trim().min(1).max(40),
+  postalCode: z.string().trim().regex(/^\d{5}$/, '5자리 우편번호를 입력해 주세요.'),
+  addressLine2: z.string().trim().min(1).max(200),
+  isDefault: z.boolean().optional(),
+  jibunAddress: z.string().trim().max(200).optional(),
+  buildingName: z.string().trim().max(200).optional(),
+  sido: z.string().trim().max(80).optional(),
+  sigungu: z.string().trim().max(80).optional(),
+  eupmyeondong: z.string().trim().max(80).optional(),
+  admCd: z.string().trim().max(20).optional(),
+  roadNameCode: z.string().trim().max(30).optional(),
+  buildingManagementNo: z.string().trim().max(40).optional(),
+});
+
 export const cartQuoteSchema = z.object({
   items: z.array(cartItemSchema).max(100),
   promotionCode: z.string().trim().max(32).optional(),
@@ -210,6 +225,7 @@ export const promotionCreateSchema = z.object({
 }).refine((value) => (value.discountRate !== undefined) !== (value.discountAmount !== undefined), { message: '할인율 또는 정액 할인 중 하나만 입력해야 합니다.' });
 
 export type CreateOrderInput = z.infer<typeof orderCreateSchema>;
+export type SavedAddressInput = z.infer<typeof savedAddressSchema>;
 export type CartQuoteInput = z.infer<typeof cartQuoteSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CreateB2BLeadInput = z.infer<typeof b2bLeadSchema>;

@@ -14,6 +14,29 @@ export type Database = {
         { id: string; display_name?: string | null; role?: 'customer' | 'operator' | 'admin' },
         { display_name?: string | null; role?: 'customer' | 'operator' | 'admin' }
       >;
+      addresses: Table<
+        {
+          id: string; user_id: string; label: string; recipient_name: string; phone: string; postal_code: string;
+          address_line1: string; address_line2: string | null; delivery_message: string | null; is_default: boolean;
+          jibun_address: string | null; building_name: string | null; sido: string | null; sigungu: string | null;
+          eupmyeondong: string | null; adm_cd: string | null; road_name_code: string | null;
+          building_management_no: string | null; created_at: string; updated_at: string;
+        },
+        {
+          id?: string; user_id: string; label?: string; recipient_name: string; phone: string; postal_code: string;
+          address_line1: string; address_line2?: string | null; delivery_message?: string | null; is_default?: boolean;
+          jibun_address?: string | null; building_name?: string | null; sido?: string | null; sigungu?: string | null;
+          eupmyeondong?: string | null; adm_cd?: string | null; road_name_code?: string | null;
+          building_management_no?: string | null;
+        },
+        {
+          label?: string; recipient_name?: string; phone?: string; postal_code?: string; address_line1?: string;
+          address_line2?: string | null; delivery_message?: string | null; is_default?: boolean;
+          jibun_address?: string | null; building_name?: string | null; sido?: string | null; sigungu?: string | null;
+          eupmyeondong?: string | null; adm_cd?: string | null; road_name_code?: string | null;
+          building_management_no?: string | null; updated_at?: string;
+        }
+      >;
       products: Table<
         { id: string; slug: string; name: string; category: string; short_description: string; description: string; base_price: number; supply_cost: number | null; shipping_fee: number; visibility: 'public' | 'member' | 'referral' | 'hidden'; status: 'draft' | 'active' | 'paused' | 'archived'; created_at: string },
         { slug: string; name: string; category?: string; short_description?: string; description?: string; base_price: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' },

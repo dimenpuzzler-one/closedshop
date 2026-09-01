@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-01 (Asia/Seoul)** — 기능 기준 커밋 `b01c53b`
+> 마지막 갱신: **2026-09-01 (Asia/Seoul)** — 기능 기준 커밋 `6ad7af4` + 배송지 주소록 로컬 변경
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -19,6 +19,9 @@
 
 따라서 이제부터 주문/결제/재고 코드를 건드릴 때는 **운영 데이터가 이미 있다**는 전제로 작업해야 합니다.
 `orders`, `payments`, `commissions`에 실제 거래 기록이 있습니다. 주문 row를 지우면 매출·정산이 어긋납니다.
+
+배송지 주소록 DB 마이그레이션은 live 적용됐습니다. 고객몰 배포 전 `closed-commerce-web`에 서버 전용
+`JUSO_API_KEY`를 추가해야 행정안전부 도로명주소 검색이 동작합니다. 키가 없어도 직접 입력은 가능합니다.
 
 ---
 
@@ -100,6 +103,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 | `KORPAY_MERCHANT_ID` | 서버 전용 |
 | `KORPAY_MKEY` | **서버 전용 비밀키** |
 | `KORPAY_BASE_URL` | 미설정. 코드 기본값 `https://payments.korpay.com/v1` 사용 |
+| `JUSO_API_KEY` | **현재 미설정.** 행정안전부 도로명주소 검색 API 승인키, 서버 전용 |
 
 ### `closed-commerce-admin`
 
@@ -196,7 +200,9 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
     20260828090000_category_tree_code_labels_withdrawal
     20260828091000_admin_update_product_withdrawal
     20260831090000_product_image_role
-    20260901040000_expire_stale_pending_orders   ← 최신
+    20260901034111_shipping_address_book
+    20260901040000_expire_stale_pending_orders
+    20260901040407_revoke_stale_order_expiry_public_access   ← 최신
 
 **새 DB 변경은 반드시 새 timestamp 마이그레이션 파일로 만들고, live에 적용한 뒤 Git에 커밋합니다.**
 이미 적용된 마이그레이션을 다시 실행하지 마세요.
@@ -248,7 +254,11 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 - 상세페이지: 상단 갤러리 + 수량 선택 + `장바구니 담기` / `바로구매`, 하단에 상세 이미지(접기/`상세정보 더보기`, 전부 lazy)
 - `바로구매`도 장바구니를 거칩니다 — 금액 계산 경로를 하나로 유지하려고 일부러 그렇게 했습니다. 두 경로가 각자 계산하면 화면과 결제 금액이 어긋납니다.
 - 장바구니 금액은 전부 서버(`POST /api/cart/quote`)가 계산합니다.
-- 결제 페이지: **카카오(다음) 우편번호 검색**, 배송 요청사항 선택지(문 앞/직접 수령/경비실/택배함)
+- `/account/addresses`: 배송지 추가·삭제·기본 배송지 지정. `addresses`는 본인 행만 CRUD 가능하고 사용자의 기본 배송지는 DB에서 1개만 허용합니다.
+- 결제 페이지: 저장된 기본 배송지를 자동으로 채우고 다른 저장 배송지 선택/새 배송지 입력/주소록 저장이 됩니다.
+- 주소 찾기: 브라우저 → `/api/address/search` → 행정안전부 도로명주소 검색 API. 승인키는 서버에만 있고 우편번호·행정구역·행안부 식별값을 주소록에 함께 저장합니다.
+- 주문 배송지는 계속 `orders.address_snapshot`에 복사합니다. 주소록을 수정·삭제해도 이미 접수된 주문은 바뀌지 않습니다.
+- 배송 요청사항 선택지: 문 앞/직접 수령/경비실/택배함
 - 법적 페이지: `/legal/terms`, `/legal/privacy`, `/legal/refund`
 - 상품별 **청약철회 제한 안내**를 상세페이지 구매 버튼 위에 표시합니다(전자상거래법 제17조 제2항 단서 — 미리 명확히 표시하지 않으면 제한을 주장할 수 없습니다).
 
@@ -267,6 +277,10 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 ---
 
 ## 10. 남은 일
+
+### 운영 설정 필요
+
+- 행정안전부 도로명주소 **검색 API 운영 승인키**를 발급하고 Vercel `closed-commerce-web`의 `JUSO_API_KEY`에 넣은 뒤 재배포합니다. `NEXT_PUBLIC_` 접두사는 금지입니다.
 
 ### 대표님 요청 중 미구현
 
@@ -371,10 +385,14 @@ PostgreSQL은 결과에 쓰이지 않는 CTE를 아예 평가하지 않습니다
 `readonly` 컨트롤은 HTML5 제약 검증 대상이 아닙니다. `required`를 붙여도 빈 채로 제출됩니다.
 주소 검색으로 채우는 칸을 readOnly로 두면 안 됩니다.
 
-### 11.7 팝업은 클릭 직후에 열어야 합니다
+### 11.7 주소 검색 영역에 `<form>`을 중첩하면 hydration이 깨집니다
 
-버튼 클릭 후 스크립트를 비동기로 받아온 다음 팝업을 열면, 그 사이 "사용자 제스처" 표시가 풀려 **팝업 차단에 걸립니다.**
-우편번호 스크립트는 화면 마운트 시 미리 받아둡니다.
+`AddressSearchFields`는 배송지 추가 폼과 주문 폼 안에 들어갑니다. 검색 모달 내부를 다시 `<form>`으로 만들면
+브라우저가 중첩 form DOM을 고치면서 React 서버 HTML과 달라져 hydration 오류가 납니다. 검색 영역은
+`role="search"`인 일반 컨테이너로 두고 버튼 클릭/Enter 키에서 검색 함수를 호출합니다.
+
+행정안전부 API 호출은 반드시 `/api/address/search` 서버 경로를 거칩니다. `JUSO_API_KEY`를
+`NEXT_PUBLIC_` 환경변수로 만들거나 브라우저에서 직접 호출하지 마세요.
 
 ### 11.8 `<input type=file>`의 FileList는 읽기 전용입니다
 
