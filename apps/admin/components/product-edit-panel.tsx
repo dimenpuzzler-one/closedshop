@@ -51,7 +51,6 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const router = useRouter();
 
   const stock = product.inventoryQuantity ?? product.options.reduce((sum, option) => sum + option.stock, 0);
@@ -254,27 +253,6 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
             <button className="button button-secondary" disabled={busy}>{busy ? '원본 올리는 중…' : '원본 화질로 사진 추가'}</button>
           </div>
         </form>
-      </div>
-
-      <hr className="divider" />
-
-      <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
-        {confirmDelete ? (
-          <>
-            <button
-              className="button button-secondary"
-              type="button"
-              disabled={busy}
-              onClick={() => void send(`/api/products/${product.id}`, { method: 'DELETE' }, '상품을 삭제했습니다.')}
-            >
-              삭제 확정
-            </button>
-            <button className="button button-ghost" type="button" onClick={() => setConfirmDelete(false)}>취소</button>
-            <span className="field-hint">주문 이력이 있으면 삭제되지 않습니다. 그때는 판매 상태를 “판매 중지”로 바꾸세요.</span>
-          </>
-        ) : (
-          <button className="button button-ghost" type="button" disabled={busy} onClick={() => setConfirmDelete(true)}>상품 삭제</button>
-        )}
       </div>
 
       {error ? <p className="admin-note" role="alert" style={{ whiteSpace: 'pre-wrap' }}>{error}</p> : null}
