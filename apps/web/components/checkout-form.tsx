@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
+import { APP_NAME_KO } from '@closed-commerce/config';
 import { Price } from '@closed-commerce/ui';
 import KorpaySdk, { type PaymentData } from '@korpay/sdk';
 import {
@@ -84,9 +85,8 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
     defaultAddress?.recipientName ?? '',
   );
   const [phone, setPhone] = useState(defaultAddress?.phone ?? '');
-  const [senderName, setSenderName] = useState('');
+  const [senderName, setSenderName] = useState(APP_NAME_KO);
   const [senderPhone, setSenderPhone] = useState('');
-  const [isGift, setIsGift] = useState(false);
   const [addressFields, setAddressFields] = useState<AddressFieldsValue>(
     defaultAddress
       ? fieldsFromSavedAddress(defaultAddress)
@@ -174,8 +174,8 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         address: {
           recipientName: recipientName.trim(),
           phone: phone.trim(),
-          senderName: isGift ? senderName.trim() || undefined : undefined,
-          senderPhone: isGift ? senderPhone.trim() || undefined : undefined,
+          senderName: senderName.trim() || undefined,
+          senderPhone: senderPhone.trim() || undefined,
           postalCode: addressFields.postalCode.trim(),
           addressLine1: addressFields.addressLine1.trim(),
           addressLine2: addressFields.addressLine2.trim() || undefined,
@@ -380,39 +380,32 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
             />
           </label>
           <div className="full gift-sender-section">
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={isGift}
-                onChange={(event) => setIsGift(event.currentTarget.checked)}
-              />
-              <span>선물로 보내기 (보내는 사람 정보 입력)</span>
-            </label>
-            {isGift ? (
-              <div className="form-grid gift-sender-grid">
-                <label className="field">
-                  <span className="field-label">보내는 사람</span>
-                  <input
-                    className="input"
-                    value={senderName}
-                    onChange={(event) => setSenderName(event.currentTarget.value)}
-                    maxLength={80}
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-label">보내는 사람 연락처</span>
-                  <input
-                    className="input"
-                    value={senderPhone}
-                    onChange={(event) => setSenderPhone(event.currentTarget.value)}
-                    inputMode="tel"
-                    maxLength={30}
-                    required
-                  />
-                </label>
-              </div>
-            ) : null}
+            <div className="row">
+              <span className="field-label">보내는 사람</span>
+              <span className="field-hint">기본값 {APP_NAME_KO} · 수정 가능</span>
+            </div>
+            <div className="form-grid gift-sender-grid">
+              <label className="field">
+                <span className="field-label">보내는 사람 이름</span>
+                <input
+                  className="input"
+                  value={senderName}
+                  onChange={(event) => setSenderName(event.currentTarget.value)}
+                  maxLength={80}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">보내는 사람 연락처 <span className="field-hint">(선택)</span></span>
+                <input
+                  className="input"
+                  value={senderPhone}
+                  onChange={(event) => setSenderPhone(event.currentTarget.value)}
+                  inputMode="tel"
+                  maxLength={30}
+                />
+              </label>
+            </div>
           </div>
           <label className="field">
             <span className="field-label">Promotion Code</span>
