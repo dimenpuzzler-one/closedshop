@@ -94,7 +94,7 @@ export function SignupForm({ referralCode = '' }: { referralCode?: string }) {
       <label className="field"><span className="field-label">이름</span><input className="input" name="displayName" autoComplete="name" required /></label>
       <label className="field"><span className="field-label">이메일</span><input className="input" type="email" name="email" autoComplete="email" required /></label>
       <label className="field"><span className="field-label">비밀번호</span><input className="input" type="password" name="password" autoComplete="new-password" minLength={8} required /><span className="field-hint">8자 이상</span></label>
-      <label className="field"><span className="field-label">Referral Code</span><input className="input" name="referralCode" defaultValue={referralCode} placeholder="초대받은 코드" required /></label>
+      <label className="field"><span className="field-label">초대코드</span><input className="input" name="referralCode" defaultValue={referralCode} placeholder="초대받은 코드" readOnly required /><span className="field-hint">가입 승인 확인이 완료된 초대코드입니다.</span></label>
       <button className="button button-primary button-large" disabled={status !== 'idle'}>
         {status === 'submitting' ? '가입 중…' : status === 'done' ? '이동 중…' : '가입하기'}
       </button>

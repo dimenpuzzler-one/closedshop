@@ -51,6 +51,7 @@ export default async function HomePage() {
             <div className="hero-actions">
               <Link href="/products" className="button button-primary button-large">상품 전체 보기</Link>
               <Link href="/b2b" className="button button-ghost button-large">기업·단체 견적</Link>
+              {!catalog.priceVisible ? <Link href="#member-access" className="button button-secondary button-large">초대코드로 가입 승인 받기</Link> : null}
             </div>
             <p className="hero-note">상품 가격과 판매 조건은 추천 코드로 가입한 회원에게만 공개합니다.</p>
           </div>
@@ -145,12 +146,12 @@ export default async function HomePage() {
       </section>
 
       {catalog.priceVisible ? null : (
-        <section className="section">
+        <section className="section" id="member-access">
           <Container className="two-column">
             <div>
               <p className="eyebrow">MEMBER ACCESS</p>
-              <h2>초대 코드가 있나요?</h2>
-              <p className="muted">코드를 입력하면 회원가입 후 특판가를 확인하고 주문할 수 있습니다.</p>
+              <h2>초대코드로 가입 승인 받기</h2>
+              <p className="muted">초대코드를 입력하면 가입 승인 절차를 거쳐 특판가를 확인하고 주문할 수 있습니다.</p>
             </div>
             <ReferralGate compact />
           </Container>

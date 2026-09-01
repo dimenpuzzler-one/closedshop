@@ -52,7 +52,7 @@ export async function SiteHeader() {
             </Link>
           ) : (
             <>
-              <Link href="/signup" className="button button-ghost">회원가입</Link>
+              <Link href="/#member-access" className="button button-ghost">회원가입</Link>
               <Link href="/login" className="button button-primary">로그인</Link>
             </>
           )}

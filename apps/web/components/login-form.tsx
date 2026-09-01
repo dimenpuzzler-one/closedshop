@@ -68,7 +68,7 @@ export function LoginForm({ redirectTo = '/products' }: { redirectTo?: string })
       </button>
       {error ? <p className="form-message form-error" role="alert" style={{ whiteSpace: 'pre-wrap' }}>{error}</p> : null}
       <div className="auth-links">
-        <Link href="/signup">초대 코드로 가입하기</Link>
+        <Link href="/#member-access">초대코드로 가입 승인 받기</Link>
         <Link href="/products">상품 보기</Link>
       </div>
     </form>
