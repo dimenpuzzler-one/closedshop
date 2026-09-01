@@ -19,6 +19,8 @@ export const cartItemSchema = z.object({
 export const addressSchema = z.object({
   recipientName: z.string().trim().min(1).max(80),
   phone: z.string().trim().min(7).max(30),
+  senderName: z.string().trim().min(1).max(80).optional(),
+  senderPhone: z.string().trim().min(7).max(30).optional(),
   postalCode: z.string().trim().min(3).max(12),
   addressLine1: z.string().trim().min(1).max(200),
   addressLine2: z.string().trim().max(200).optional(),

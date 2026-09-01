@@ -101,13 +101,9 @@ export function AddressSearchFields({
             className="input"
             name="postalCode"
             value={value.postalCode}
-            onChange={(event) =>
-              update({
-                postalCode: event.currentTarget.value
-                  .replace(/\D/g, '')
-                  .slice(0, 5),
-              })
-            }
+            readOnly
+            onFocus={openSearch}
+            onClick={openSearch}
             placeholder="5자리 우편번호"
             inputMode="numeric"
             pattern="[0-9]{5}"
@@ -130,9 +126,9 @@ export function AddressSearchFields({
           className="input"
           name="addressLine1"
           value={value.addressLine1}
-          onChange={(event) =>
-            update({ addressLine1: event.currentTarget.value })
-          }
+          readOnly
+          onFocus={openSearch}
+          onClick={openSearch}
           placeholder="도로명 주소"
           required
         />

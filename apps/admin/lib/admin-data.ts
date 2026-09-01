@@ -197,6 +197,8 @@ export function toCategoryGroups(categories: AdminCategory[]): CategoryGroup[] {
 export interface AdminOrderAddress {
   recipientName: string;
   phone: string;
+  senderName?: string;
+  senderPhone?: string;
   postalCode: string;
   addressLine1: string;
   addressLine2?: string;
@@ -231,6 +233,8 @@ function toOrderAddress(value: unknown): AdminOrderAddress | undefined {
   return {
     recipientName,
     phone: text('phone'),
+    senderName: text('senderName') || undefined,
+    senderPhone: text('senderPhone') || undefined,
     postalCode: text('postalCode'),
     addressLine1,
     addressLine2: text('addressLine2') || undefined,

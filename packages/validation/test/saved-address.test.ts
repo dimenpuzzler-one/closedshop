@@ -29,4 +29,14 @@ describe('savedAddressSchema', () => {
         .success,
     ).toBe(false);
   });
+
+  it('accepts optional sender details for gift orders', () => {
+    expect(
+      savedAddressSchema.safeParse({
+        ...validAddress,
+        senderName: '선물 보내는 사람',
+        senderPhone: '010-9876-5432',
+      }).success,
+    ).toBe(true);
+  });
 });

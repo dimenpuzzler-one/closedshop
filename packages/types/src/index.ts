@@ -127,6 +127,8 @@ export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refun
 export interface AddressSnapshot {
   recipientName: string;
   phone: string;
+  senderName?: string;
+  senderPhone?: string;
   postalCode: string;
   addressLine1: string;
   addressLine2?: string;

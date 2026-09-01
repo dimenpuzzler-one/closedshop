@@ -164,6 +164,7 @@ export function OrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                     <>
                       <strong>{order.address.recipientName}</strong>
                       {order.address.phone ? <><br /><span className="muted">{order.address.phone}</span></> : null}
+                      {order.address.senderName ? <><br /><span className="muted">보내는 분: {order.address.senderName}{order.address.senderPhone ? ` · ${order.address.senderPhone}` : ''}</span></> : null}
                       <br />{addressText(order)}
                       {order.address.deliveryMessage ? <><br /><span className="muted">요청: {order.address.deliveryMessage}</span></> : null}
                     </>

@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { Price } from '@closed-commerce/ui';
 import KorpaySdk, { type PaymentData } from '@korpay/sdk';
-import { saveShippingAddress } from '@/app/account/addresses/actions';
+import {
+  saveShippingAddress,
+  setDefaultShippingAddress,
+} from '@/app/account/addresses/actions';
 import { AddressSearchFields } from '@/components/address-search';
 import {
   EMPTY_ADDRESS_FIELDS,
@@ -72,9 +75,8 @@ async function readResponse(response: Response): Promise<OrderResult> {
 
 export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
   const { quote, state } = useCartQuote();
-  const defaultAddress =
-    initialAddresses.find((address) => address.isDefault) ??
-    initialAddresses[0];
+  const [isRememberingAddress, startRememberingAddress] = useTransition();
+  const defaultAddress = initialAddresses.find((address) => address.isDefault);
   const [selectedAddressId, setSelectedAddressId] = useState(
     defaultAddress?.id ?? 'new',
   );
@@ -82,6 +84,9 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
     defaultAddress?.recipientName ?? '',
   );
   const [phone, setPhone] = useState(defaultAddress?.phone ?? '');
+  const [senderName, setSenderName] = useState('');
+  const [senderPhone, setSenderPhone] = useState('');
+  const [isGift, setIsGift] = useState(false);
   const [addressFields, setAddressFields] = useState<AddressFieldsValue>(
     defaultAddress
       ? fieldsFromSavedAddress(defaultAddress)
@@ -102,6 +107,12 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
     setAddressFields(fieldsFromSavedAddress(address));
     setDeliveryMessage(address.deliveryMessage);
     setSaveToBook(false);
+    setMessage('');
+    startRememberingAddress(() => {
+      void setDefaultShippingAddress(address.id).then((result) => {
+        if (!result.ok) setMessage(result.error);
+      });
+    });
   }
 
   function startNewAddress() {
@@ -110,6 +121,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
     setPhone('');
     setAddressFields({ ...EMPTY_ADDRESS_FIELDS });
     setDeliveryMessage('');
+    setSaveToBook(false);
   }
 
   function updateAddressFields(value: AddressFieldsValue) {
@@ -131,7 +143,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           phone,
           ...addressFields,
           deliveryMessage,
-          isDefault: initialAddresses.length === 0,
+          isDefault: true,
         });
         if (!saved.ok) {
           setStatus('error');
@@ -139,6 +151,15 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           return;
         }
         setSaveToBook(false);
+      }
+
+      if (selectedAddressId !== 'new') {
+        const remembered = await setDefaultShippingAddress(selectedAddressId);
+        if (!remembered.ok) {
+          setStatus('error');
+          setMessage(remembered.error);
+          return;
+        }
       }
 
       // 추천 코드와 구매자 id는 브라우저 값을 믿지 않는다. 서버가 세션과
@@ -153,6 +174,8 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         address: {
           recipientName: recipientName.trim(),
           phone: phone.trim(),
+          senderName: isGift ? senderName.trim() || undefined : undefined,
+          senderPhone: isGift ? senderPhone.trim() || undefined : undefined,
           postalCode: addressFields.postalCode.trim(),
           addressLine1: addressFields.addressLine1.trim(),
           addressLine2: addressFields.addressLine2.trim() || undefined,
@@ -238,7 +261,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
   }
 
   return (
-    <form className="two-column" onSubmit={submit}>
+    <form className="two-column" onSubmit={submit} autoComplete="off">
       <div className="card stack">
         <div className="row checkout-shipping-heading">
           <div>
@@ -252,6 +275,12 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
 
         {initialAddresses.length ? (
           <div className="checkout-address-list" aria-label="저장된 배송지">
+            <div className="checkout-address-list-heading">
+              <strong>배송지 선택</strong>
+              <span className="field-hint">
+                지난번에 선택한 배송지가 기본으로 표시됩니다.
+              </span>
+            </div>
             {initialAddresses.map((address) => (
               <label
                 className={`checkout-address-option${selectedAddressId === address.id ? ' selected' : ''}`}
@@ -282,6 +311,41 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
             >
               새 배송지 입력
             </button>
+            {isRememberingAddress ? (
+              <p className="field-hint" role="status">
+                선택한 배송지를 기본 배송지로 저장하는 중입니다.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="notice">
+            저장된 배송지가 없습니다. 아래에서 새 배송지를 입력하고 주소록 저장
+            여부를 먼저 선택해 주세요.
+          </div>
+        )}
+
+        {selectedAddressId === 'new' ? (
+          <div className="full save-address-option">
+            <label className="checkbox-field">
+              <input
+                type="checkbox"
+                checked={saveToBook}
+                onChange={(event) => setSaveToBook(event.currentTarget.checked)}
+              />
+              <span>이 배송지를 배송지 관리에 저장</span>
+            </label>
+            {saveToBook ? (
+              <label className="field">
+                <span className="field-label">배송지명</span>
+                <input
+                  className="input"
+                  value={saveLabel}
+                  onChange={(event) => setSaveLabel(event.currentTarget.value)}
+                  maxLength={40}
+                  required
+                />
+              </label>
+            ) : null}
           </div>
         ) : null}
 
@@ -301,7 +365,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
             />
           </label>
           <label className="field">
-            <span className="field-label">연락처</span>
+            <span className="field-label">연락처 (받는 분)</span>
             <input
               className="input"
               name="phone"
@@ -315,6 +379,41 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
               required
             />
           </label>
+          <div className="full gift-sender-section">
+            <label className="checkbox-field">
+              <input
+                type="checkbox"
+                checked={isGift}
+                onChange={(event) => setIsGift(event.currentTarget.checked)}
+              />
+              <span>선물로 보내기 (보내는 사람 정보 입력)</span>
+            </label>
+            {isGift ? (
+              <div className="form-grid gift-sender-grid">
+                <label className="field">
+                  <span className="field-label">보내는 사람</span>
+                  <input
+                    className="input"
+                    value={senderName}
+                    onChange={(event) => setSenderName(event.currentTarget.value)}
+                    maxLength={80}
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">보내는 사람 연락처</span>
+                  <input
+                    className="input"
+                    value={senderPhone}
+                    onChange={(event) => setSenderPhone(event.currentTarget.value)}
+                    inputMode="tel"
+                    maxLength={30}
+                    required
+                  />
+                </label>
+              </div>
+            ) : null}
+          </div>
           <label className="field">
             <span className="field-label">Promotion Code</span>
             <input
@@ -346,34 +445,6 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
               <option value="택배함에 넣어 주세요">택배함에 넣어 주세요</option>
             </select>
           </label>
-          {selectedAddressId === 'new' ? (
-            <div className="full save-address-option">
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={saveToBook}
-                  onChange={(event) =>
-                    setSaveToBook(event.currentTarget.checked)
-                  }
-                />
-                <span>이 배송지를 주소록에 저장</span>
-              </label>
-              {saveToBook ? (
-                <label className="field">
-                  <span className="field-label">배송지명</span>
-                  <input
-                    className="input"
-                    value={saveLabel}
-                    onChange={(event) =>
-                      setSaveLabel(event.currentTarget.value)
-                    }
-                    maxLength={40}
-                    required
-                  />
-                </label>
-              ) : null}
-            </div>
-          ) : null}
         </div>
         <div className="notice">
           주문이 접수되면 현재 배송지를 주문에 별도로 보존합니다. 나중에

@@ -296,8 +296,8 @@ export async function prepareOrder(
       productName,
       amount: totals.paidAmount,
       returnUrl: korpayReturnUrl(),
-      customerName: input.address.recipientName,
-      customerPhone: input.address.phone,
+      customerName: input.address.senderName || input.address.recipientName,
+      customerPhone: input.address.senderPhone || input.address.phone,
       customerAddress: `${input.address.addressLine1} ${input.address.addressLine2 ?? ''}`.trim(),
       customerPost: input.address.postalCode,
     });
