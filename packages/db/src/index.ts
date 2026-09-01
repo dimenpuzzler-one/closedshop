@@ -63,9 +63,9 @@ export type Database = {
         { shipping_cutoff_time?: string }
       >;
       referral_codes: Table<
-        { id: string; code: string; owner_user_id: string; campaign_id: string | null; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; created_at: string },
-        { code: string; owner_user_id: string; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null },
-        { code?: string; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null }
+        { id: string; code: string; owner_user_id: string; label: string | null; campaign_id: string | null; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; created_at: string },
+        { code: string; owner_user_id: string; label?: string | null; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null },
+        { code?: string; label?: string | null; campaign_id?: string | null; status?: 'active' | 'inactive' | 'expired'; starts_at?: string | null; expires_at?: string | null }
       >;
       referral_relationships: Table<
         { id: string; referred_user_id: string; referrer_user_id: string; referral_code_id: string; source: 'link' | 'manual' | 'admin'; campaign_id: string | null; created_at: string },

@@ -8,7 +8,7 @@ import { createServerAppClient } from '@/lib/supabase-server';
 export async function POST(request: Request) {
   const requestId = newRequestId();
   try {
-    const body = (await request.json()) as { email?: string; password?: string; displayName?: string; referralCode?: string };
+    const body = (await request.json()) as { email?: string; password?: string; displayName?: string; referralCode?: string; utmSource?: string; utmMedium?: string; utmCampaign?: string };
     const email = body.email?.trim();
     const password = body.password;
     const displayName = body.displayName?.trim();
@@ -92,6 +92,9 @@ export async function POST(request: Request) {
       event_name: 'signup',
       referral_code: normalizedCode,
       referrer_user_id: referral.owner_user_id,
+      utm_source: body.utmSource?.trim() || null,
+      utm_medium: body.utmMedium?.trim() || null,
+      utm_campaign: body.utmCampaign?.trim() || null,
       properties: { source: 'web' },
     });
     logServerEvent('web.auth.signup', requestId, { stage: 'done', userId: data.user.id, referralCode: normalizedCode });

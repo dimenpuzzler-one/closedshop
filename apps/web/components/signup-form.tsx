@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { readAttributionSnapshot } from './attribution-tracker';
 
 type SignupResult = { message?: string; error?: string; authenticated?: boolean; requestId?: string };
 
@@ -33,6 +34,7 @@ export function SignupForm({ referralCode = '' }: { referralCode?: string }) {
     setMessage('');
     setStatus('submitting');
     try {
+      const attribution = readAttributionSnapshot();
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,6 +43,9 @@ export function SignupForm({ referralCode = '' }: { referralCode?: string }) {
           password: form.get('password'),
           displayName: form.get('displayName'),
           referralCode: form.get('referralCode'),
+          utmSource: attribution?.utmSource,
+          utmMedium: attribution?.utmMedium,
+          utmCampaign: attribution?.utmCampaign,
         }),
       });
       const result = await readResponse(response);

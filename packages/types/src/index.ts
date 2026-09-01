@@ -66,6 +66,7 @@ export interface ReferralCode {
   code: string;
   ownerUserId: Id;
   ownerName: string;
+  label?: string;
   campaignId?: Id;
   status: 'active' | 'inactive' | 'expired';
   startsAt?: string;

@@ -194,6 +194,26 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .data-table th, .data-table td { text-align: left; padding: 14px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .data-table th { color: var(--muted); font-weight: 700; font-size: 12px; }
 
+/* 회원 마이페이지 */
+.account-page { gap: 24px; }
+.account-link-card { display: grid; gap: 8px; min-height: 170px; }
+.account-link-card h2 { margin: 0; font-size: 28px; }
+.account-link-card .field-hint:last-child { margin-top: auto; }
+.account-profile-list { display: grid; gap: 8px; margin: 0; }
+.account-profile-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.account-profile-list dt { color: var(--muted); }
+.account-profile-list dd { margin: 0; text-align: right; }
+.account-metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.account-metric { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: #faf7f0; }
+.account-metric strong { font-size: 18px; }
+.account-code-list { display: grid; gap: 8px; }
+.account-code-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.account-referral-table { margin-top: 4px; }
+@media (max-width: 580px) {
+  .account-metric-grid { grid-template-columns: 1fr 1fr; }
+  .account-code-row { flex-direction: column; }
+}
+
 @media (max-width: 850px) {
   .hero-grid, .two-column { grid-template-columns: 1fr; }
   .brand span:last-child { white-space: nowrap; }
@@ -273,6 +293,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-spec-list dd { margin: 0; line-height: 1.7; }
 
 .header-viewer { font-size: 13px; white-space: nowrap; }
+.header-account-link { display: none; }
 
 @media (max-width: 850px) {
   .product-hero-image { min-height: 320px; }
@@ -282,6 +303,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .product-gallery-counter { right: 10px; bottom: 10px; }
   .product-spec-list > div { grid-template-columns: 1fr; gap: 4px; }
   .header-viewer { display: none; }
+  .header-account-link { display: inline-flex; }
 }
 
 /* ---------------------------------------------------------------------------
