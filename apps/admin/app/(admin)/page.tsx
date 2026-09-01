@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { formatWon } from '@closed-commerce/config';
 import { Badge, Card, Price, StatCard } from '@closed-commerce/ui';
 import { loadAdminOrders, loadAdminSummary, loadDashboardMetrics } from '@/lib/admin-data';
-import { isRealOrder } from '@/components/orders-table';
+import { isRealOrder } from '@/lib/order-status';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '대기', payment_pending: '결제대기', paid: '결제완료', preparing: '준비중',

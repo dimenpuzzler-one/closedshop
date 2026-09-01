@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Price } from '@closed-commerce/ui';
 import type { AdminOrderRow } from '@/lib/admin-data';
+import { isRealOrder } from '@/lib/order-status';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: '대기', payment_pending: '결제대기', paid: '결제완료', preparing: '준비중',
@@ -15,15 +16,6 @@ const STATUS_LABEL: Record<string, string> = {
  * 결제까지 간 주문. 결제창을 열어만 보고 나간 주문(payment_pending)과
  * 취소된 주문은 여기 들어오지 않는다. 대표님이 "결제 완료된 것만" 보고 싶어 한 목록이다.
  */
-const REAL_ORDER_STATUSES = new Set([
-  'paid', 'preparing', 'shipped', 'delivered',
-  'cancel_requested', 'refund_requested', 'partially_refunded', 'refunded',
-]);
-
-export function isRealOrder(status: string): boolean {
-  return REAL_ORDER_STATUSES.has(status);
-}
-
 function statusTone(status: string): 'success' | 'warning' | 'neutral' {
   if (status === 'cancelled' || status === 'refunded' || status === 'payment_pending') return 'warning';
   if (status === 'paid' || status === 'delivered' || status === 'shipped' || status === 'preparing') return 'success';
