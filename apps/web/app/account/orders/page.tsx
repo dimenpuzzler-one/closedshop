@@ -31,7 +31,7 @@ export default async function OrdersPage() {
             <div>
               <p className="breadcrumb">ACCOUNT / ORDERS</p>
               <h1>주문 조회</h1>
-              <p className="muted">{displayName ? `${displayName} 회원님의 주문 기록입니다.` : '회원님의 주문 기록입니다.'}</p>
+              <p className="muted">{displayName ? `${displayName}님의 주문 기록입니다.` : '회원님의 주문 기록입니다.'}</p>
             </div>
             <Link href="/cart" className="button button-ghost">장바구니 보기</Link>
           </div>
