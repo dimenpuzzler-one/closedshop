@@ -120,6 +120,18 @@ pnpm dlx supabase@latest db reset
 - `store_settings`에 배송비 규칙(`shipping_carton_quantity`, `shipping_fee_per_carton`, `free_shipping_threshold`)과 홈 콘텐츠(`hero_headline`, `hero_subheadline`, `hero_youtube_url`, `hero_banner_path`) 추가
 - 카테고리 마스터 `product_categories` 신설(공개 읽기, 운영자만 쓰기)
 
+## 회원가입·이메일 인증
+
+딜키는 초대코드가 검증된 회원만 가입할 수 있는 폐쇄몰입니다.
+
+- 가입 폼에서 비밀번호와 비밀번호 확인을 모두 입력해야 합니다.
+- `apps/web/app/api/auth/signup/route.ts`는 공개 `auth.signUp` 대신 서버 전용 `auth.admin.createUser`를 사용합니다.
+- `email_confirm: true`로 사용자를 즉시 인증하고, 가입 직후 `signInWithPassword`로 세션을 만들어 상품 목록으로 이동합니다. 따라서 가입 확인 이메일을 기다리거나 메일함을 확인할 필요가 없습니다.
+- 이 흐름은 `SUPABASE_SERVICE_ROLE_KEY`가 서버 환경변수로 있을 때만 실행됩니다. 서비스 롤 키는 절대 `NEXT_PUBLIC_` 접두사를 붙이거나 브라우저에 노출하지 않습니다.
+- 로컬 Supabase는 `supabase/config.toml`의 `[auth.email] enable_confirmations = false`로 설정되어 있습니다. 호스티드 프로젝트의 다른 Auth 호출까지 전역으로 확인 메일을 끄려면 Supabase Dashboard → Authentication → Sign In / Providers → User Signups에서 `Confirm email`을 끕니다.
+
+확인 메일이 필요한 별도 가입 경로를 추가할 때는 이 정책과 분리해 설계하고, 공개 클라이언트에서 서비스 롤 키를 사용하지 않습니다.
+
 ## 폐쇄몰 가격 노출
 
 가격 노출은 상품 노출과 **다른 축**입니다. 하나로 묶으면 "상품은 보이되 가격만 숨김"을 표현할 수 없습니다.
