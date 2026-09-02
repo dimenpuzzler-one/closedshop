@@ -87,6 +87,8 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-body h3 { font-size: 19px; }
 .product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 18px; }
 .product-price { font-size: 20px; font-weight: 800; }
+.member-price { display: inline-flex; align-items: baseline; gap: 6px; }
+.member-price-label { color: var(--muted); font-size: .56em; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
 .product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .tag { color: var(--green); background: var(--mint); border-radius: 999px; padding: 5px 9px; font-size: 11px; }
 

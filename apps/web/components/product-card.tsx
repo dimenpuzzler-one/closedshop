@@ -28,8 +28,8 @@ export function ProductCard({ product, referralCode, showPrice = true, compact =
       {compact ? null : <div className="product-tags">{product.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div>}
       <div className="product-meta">
         {showPrice
-          ? <span className="product-price"><Price amount={product.options[0]?.price ?? product.price} /></span>
-          : <span className="product-price muted">회원 전용 가격</span>}
+          ? <span className="product-price member-price"><span className="member-price-label">회원가</span><Price amount={product.options[0]?.price ?? product.price} /></span>
+          : null}
         <Link href={href} className="button button-secondary">상세 보기</Link>
       </div>
     </div>

@@ -105,8 +105,8 @@ export default async function ProductDetailPage({
               <p className="muted">{product.shortDescription}</p>
               <div className="row">
                 {priceVisible
-                  ? <span className="product-price"><Price amount={price} /></span>
-                  : <span className="product-price muted">회원 전용 가격</span>}
+                  ? <span className="product-price member-price"><span className="member-price-label">회원가</span><Price amount={price} /></span>
+                  : null}
                 {product.weight ? <span className="muted">{product.weight}</span> : null}
               </div>
               {product.options.length > 0 ? (
@@ -114,7 +114,7 @@ export default async function ProductDetailPage({
                   {product.options.map((option) => (
                     <div className="row" key={option.id}>
                       <span>{option.name}: {option.value}</span>
-                      {priceVisible ? <strong><Price amount={option.price} /></strong> : <span className="muted">가격 비공개</span>}
+                      {priceVisible ? <strong className="member-price"><span className="member-price-label">회원가</span><Price amount={option.price} /></strong> : null}
                     </div>
                   ))}
                 </div>
