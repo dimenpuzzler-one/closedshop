@@ -86,8 +86,8 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-copy { display: block; min-width: 0; }
 .product-category { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .product-body h3 { font-size: 19px; }
-/* 상품명은 두 줄까지만 보여 카드 높이를 고정하고, 남는 공간은 하단 버튼으로 밀어낸다. */
-.product-title { display: -webkit-box; height: 2.7em; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+/* 상품명은 세 줄까지만 보여 중량·구성 정보까지 담고, 남는 공간은 하단 버튼으로 밀어낸다. */
+.product-title { display: -webkit-box; height: 4.05em; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: auto; padding-top: 18px; }
 .product-meta .button { min-height: 42px; }
 .product-price { font-size: 20px; font-weight: 800; }
