@@ -14,6 +14,7 @@ type ProductRow = {
   description: string;
   base_price: number;
   shipping_fee: number;
+  home_sort_order: number;
   withdrawal_restriction: string;
   visibility: Product['visibility'];
   status: Product['status'];
@@ -23,7 +24,7 @@ type ProductRow = {
 type AnyClient = Awaited<ReturnType<typeof createServerAppClient>>;
 
 const PRODUCT_COLUMNS =
-  'id, slug, name, category, short_description, description, base_price, shipping_fee, withdrawal_restriction, visibility, status, created_at';
+  'id, slug, name, category, short_description, description, base_price, shipping_fee, home_sort_order, withdrawal_restriction, visibility, status, created_at';
 
 function isSupabaseMode() {
   return resolveRuntimeMode({ requireServiceRole: false }) === 'supabase';
@@ -47,6 +48,7 @@ function mapProduct(
     description: row.description,
     weight: options[0]?.value ?? '',
     basePrice: row.base_price,
+    homeSortOrder: row.home_sort_order,
     price: options[0]?.price ?? row.base_price,
     shippingFee: row.shipping_fee,
     withdrawalRestriction: row.withdrawal_restriction ?? '',
@@ -207,7 +209,7 @@ export async function loadVisibleCatalog(referralCode?: string, category?: strin
   let query = client.from('products').select(PRODUCT_COLUMNS).eq('status', 'active');
   if (!access.priceVisible) query = query.neq('visibility', 'hidden');
   if (category) query = query.eq('category', category);
-  const { data: rows, error } = await query.order('created_at', { ascending: false });
+  const { data: rows, error } = await query.order('home_sort_order', { ascending: true }).order('created_at', { ascending: false });
   if (error || !rows) return { products: [], ...access };
 
   const products = await hydrate(client, rows, 'thumbnail');

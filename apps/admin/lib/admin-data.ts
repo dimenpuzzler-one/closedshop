@@ -26,7 +26,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const gate = await adminGate();
   if (gate.source !== 'supabase') return { source: gate.source, products: gate.source === 'demo' ? DEMO_PRODUCTS : [] };
   const client = gate.client;
-  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, withdrawal_restriction, visibility, status, created_at').order('created_at', { ascending: false });
+  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, home_sort_order, withdrawal_restriction, visibility, status, created_at').order('home_sort_order', { ascending: true }).order('created_at', { ascending: false });
   if (error || !rows) return { source: 'unavailable', products: [] };
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
@@ -69,6 +69,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
       description: row.description,
       weight: productOptions[0]?.value ?? '',
       basePrice: row.base_price,
+      homeSortOrder: row.home_sort_order,
       price: productOptions[0]?.price ?? row.base_price,
       supplyCost: row.supply_cost ?? undefined,
       shippingFee: row.shipping_fee,

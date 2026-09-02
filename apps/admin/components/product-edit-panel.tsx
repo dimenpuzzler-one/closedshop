@@ -15,7 +15,7 @@ const FIELD_LABELS: Record<string, string> = {
   name: '상품명', category: '카테고리', shortDescription: '짧은 소개', description: '상세 설명',
   basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비', visibility: '노출 대상',
   status: '판매 상태', optionName: '옵션명', optionValue: '옵션값', optionPrice: '옵션가', stock: '재고',
-  withdrawalRestriction: '청약철회 제한 안내',
+  withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
 };
 
 async function readResponse(response: Response): Promise<ApiResult> {
@@ -131,6 +131,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
       optionValue: text('optionValue'),
       optionPrice: numberOrUndefined('optionPrice'),
       stock: numberOrUndefined('stock'),
+      homeSortOrder: numberOrUndefined('homeSortOrder'),
       visibility: text('visibility') as Product['visibility'],
       status: text('status') as Product['status'],
     };
@@ -184,6 +185,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
           <label className="field"><span className="field-label">판매가(옵션가)</span><input className="input" type="number" min="0" name="optionPrice" defaultValue={optionPrice} /><span className="field-hint">고객이 실제로 결제하는 금액입니다.</span></label>
           <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" defaultValue={product.supplyCost ?? ''} /></label>
           <label className="field"><span className="field-label">총재고</span><input className="input" type="number" min="0" name="stock" defaultValue={stock} /><span className="field-hint">예약 {product.reservedQuantity ?? 0}개 · 판매 가능 {Math.max(0, stock - (product.reservedQuantity ?? 0))}개</span></label>
+          <label className="field"><span className="field-label">홈 진열 순서</span><input className="input" type="number" min="0" max="9999" name="homeSortOrder" defaultValue={product.homeSortOrder ?? 100} /><span className="field-hint">숫자가 작을수록 홈에서 먼저 보입니다. 같은 숫자는 최근 등록 상품이 먼저입니다.</span></label>
           <label className="field">
             <span className="field-label">노출 대상</span>
             <select className="select" name="visibility" defaultValue={product.visibility}>

@@ -37,6 +37,8 @@ export interface Product {
   weight: string;
   /** Catalog/list price. Kept separate from the option selling price. */
   basePrice?: number;
+  /** 홈 화면 진열 순서. 숫자가 작을수록 먼저 노출된다. */
+  homeSortOrder?: number;
   price: number;
   supplyCost?: number;
   shippingFee: number;

@@ -113,7 +113,7 @@ async function parseRequest(request: Request) {
   }
   const values: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) if (typeof value === 'string') values[key] = value;
-  for (const key of ['basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock']) {
+  for (const key of ['basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock', 'homeSortOrder']) {
     const raw = values[key];
     if (raw === '' || raw === undefined) {
       delete values[key];
@@ -174,6 +174,7 @@ export const POST = withAdmin(
           base_price: parsed.data.basePrice,
           supply_cost: parsed.data.supplyCost ?? null,
           shipping_fee: parsed.data.shippingFee,
+          home_sort_order: parsed.data.homeSortOrder ?? 100,
           // 비워두면 개봉한 식품도 환불해줘야 한다(전자상거래법 제17조 제2항 단서).
           withdrawal_restriction: parsed.data.withdrawalRestriction,
           visibility: parsed.data.visibility,

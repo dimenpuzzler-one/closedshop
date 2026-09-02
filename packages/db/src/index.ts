@@ -38,9 +38,9 @@ export type Database = {
         }
       >;
       products: Table<
-        { id: string; slug: string; name: string; category: string; short_description: string; description: string; base_price: number; supply_cost: number | null; shipping_fee: number; visibility: 'public' | 'member' | 'referral' | 'hidden'; status: 'draft' | 'active' | 'paused' | 'archived'; created_at: string },
-        { slug: string; name: string; category?: string; short_description?: string; description?: string; base_price: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' },
-        { slug?: string; name?: string; category?: string; short_description?: string; description?: string; base_price?: number; supply_cost?: number | null; shipping_fee?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' }
+        { id: string; slug: string; name: string; category: string; short_description: string; description: string; base_price: number; supply_cost: number | null; shipping_fee: number; home_sort_order: number; visibility: 'public' | 'member' | 'referral' | 'hidden'; status: 'draft' | 'active' | 'paused' | 'archived'; created_at: string },
+        { slug: string; name: string; category?: string; short_description?: string; description?: string; base_price: number; supply_cost?: number | null; shipping_fee?: number; home_sort_order?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' },
+        { slug?: string; name?: string; category?: string; short_description?: string; description?: string; base_price?: number; supply_cost?: number | null; shipping_fee?: number; home_sort_order?: number; visibility?: 'public' | 'member' | 'referral' | 'hidden'; status?: 'draft' | 'active' | 'paused' | 'archived' }
       >;
       product_options: Table<
         { id: string; product_id: string; name: string; value: string; price: number },

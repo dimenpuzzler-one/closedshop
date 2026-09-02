@@ -12,7 +12,7 @@ export default async function AdminProductsPage() {
         <div>
           <p className="eyebrow">CATALOG</p>
           <h1>상품 관리</h1>
-          <p className="muted">등록한 상품은 “수정”에서 내용을 바꾸고, 목록의 “삭제”에서 정리할 수 있습니다.</p>
+          <p className="muted">등록한 상품은 “수정”에서 내용을 바꾸고, 홈 진열 순서와 목록의 “삭제”에서 정리할 수 있습니다.</p>
         </div>
         <span className={`badge ${result.source === 'supabase' ? 'badge-success' : 'badge-warning'}`}>{result.source}</span>
       </div>

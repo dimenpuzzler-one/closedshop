@@ -108,6 +108,12 @@ const wonAmount = (label: string) =>
     .int(`${label}은(는) 소수점 없이 입력해 주세요.`)
     .min(0, `${label}은(는) 0 이상이어야 합니다.`);
 
+const homeSortOrder = z
+  .number({ invalid_type_error: '홈 진열 순서는 숫자로 입력해 주세요.' })
+  .int('홈 진열 순서는 정수로 입력해 주세요.')
+  .min(0, '홈 진열 순서는 0 이상이어야 합니다.')
+  .max(9999, '홈 진열 순서는 9999 이하로 입력해 주세요.');
+
 export const productSlugSchema = z
   .string()
   .trim()
@@ -139,6 +145,7 @@ export const productCreateSchema = z.object({
   optionValue: z.string().trim().min(1, '옵션값을 입력해 주세요. (예: 300g)').max(80, '옵션값은 80자를 넘을 수 없습니다.'),
   optionPrice: wonAmount('옵션가').optional(),
   stock: wonAmount('초기재고'),
+  homeSortOrder: homeSortOrder.optional(),
 });
 
 /** 등록 후 고칠 수 있어야 하는 항목들. 보낸 필드만 반영한다(부분 수정). */
@@ -157,6 +164,7 @@ export const productUpdateSchema = z.object({
   optionValue: z.string().trim().min(1, '옵션값을 입력해 주세요.').max(80, '옵션값은 80자를 넘을 수 없습니다.').optional(),
   optionPrice: z.number().int().min(0).optional(),
   stock: z.number().int().min(0).optional(),
+  homeSortOrder: homeSortOrder.optional(),
 }).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
   message: '변경할 항목이 없습니다.',
 });

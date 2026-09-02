@@ -24,7 +24,7 @@ export const PATCH = withAdminParams<{ id: string }>(
 
     const { data: before, error: readError } = await client
       .from('products')
-      .select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status')
+      .select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, home_sort_order, visibility, status')
       .eq('id', id)
       .maybeSingle();
     if (readError) failFromSupabase('상품을 조회하지 못했습니다.', readError, 'product_read_failed');

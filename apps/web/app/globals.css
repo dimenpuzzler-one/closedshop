@@ -242,6 +242,11 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .grid-4 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .product-card .product-body { padding: 12px; }
   .product-card h3 { font-size: 15px; }
+  .home-product-section .product-visual { min-height: 142px; padding: 12px; }
+  .home-product-section .product-weight { font-size: 21px; }
+  .home-product-section .product-body { padding: 12px; }
+  .home-product-section .product-body h3 { line-height: 1.35; }
+  .home-product-section .product-meta { margin-top: 10px; gap: 6px; }
   /* 2열 카드에서는 가격과 버튼을 나란히 두면 버튼 글자가 잘린다("상세 보 "). */
   .product-meta { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 12px; }
   .product-meta .button { width: 100%; }

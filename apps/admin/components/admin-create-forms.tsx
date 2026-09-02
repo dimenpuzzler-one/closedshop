@@ -12,7 +12,7 @@ type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; productId?: string; details?: ValidationDetails };
 
 const NUMERIC_KEYS = [
-  'basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock',
+  'basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock', 'homeSortOrder',
   'discountRate', 'discountAmount', 'minimumOrderAmount', 'minimumQuantity', 'totalUsageLimit', 'perMemberUsageLimit',
 ];
 
@@ -21,7 +21,7 @@ const FIELD_LABELS: Record<string, string> = {
   description: '상세 설명', basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비',
   visibility: '노출 대상', status: '판매 상태', optionName: '옵션명', optionValue: '옵션값',
   optionPrice: '옵션가', stock: '초기재고', shippingCutoffTime: '배송 마감 시간',
-  withdrawalRestriction: '청약철회 제한 안내',
+  withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
   code: '코드', ownerUserId: '소유자 User ID', label: '용도', discountRate: '할인율', discountAmount: '정액할인',
 };
 
@@ -325,6 +325,7 @@ export function ProductCreateForm({ categories }: { categories: CategoryGroup[] 
           <label className="field"><span className="field-label">옵션값</span><input className="input" name="optionValue" placeholder="예: 300g / 기본 구성" required /></label>
           <label className="field"><span className="field-label">옵션가(선택)</span><input className="input" type="number" min="0" name="optionPrice" /><span className="field-hint">옵션별 최종 판매가입니다. 비워두면 기본가를 사용합니다.</span></label>
           <label className="field"><span className="field-label">초기재고</span><input className="input" type="number" min="0" name="stock" required /></label>
+          <label className="field"><span className="field-label">홈 진열 순서</span><input className="input" type="number" min="0" max="9999" name="homeSortOrder" defaultValue="100" /><span className="field-hint">숫자가 작을수록 홈에서 먼저 보입니다.</span></label>
         </div>
         <label className="field"><span className="field-label">짧은 소개</span><input className="input" name="shortDescription" maxLength={300} placeholder="목록에 표시할 한 줄 소개" /></label>
         <label className="field"><span className="field-label">상세페이지 설명</span><textarea className="textarea" name="description" maxLength={4000} placeholder="고객이 상세 페이지에서 볼 상품 설명" /></label>

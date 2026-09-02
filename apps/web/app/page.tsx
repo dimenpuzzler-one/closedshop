@@ -130,7 +130,7 @@ export default async function HomePage() {
             </div>
             <div className="grid-4">
               {group.products.slice(0, 4).map((product) => (
-                <ProductCard key={product.id} product={product} showPrice={catalog.priceVisible} />
+                <ProductCard key={product.id} product={product} showPrice={catalog.priceVisible} compact />
               ))}
             </div>
           </Container>
