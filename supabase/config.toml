@@ -11,3 +11,6 @@ major_version = 15
 enabled = true
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["http://localhost:3000/**"]
+
+[auth.email]
+enable_confirmations = false

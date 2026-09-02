@@ -46,7 +46,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '가입 처리를 완료할 수 없습니다. 잠시 후 다시 시도해 주세요.', requestId }, { status: 503 });
     }
 
-    const supabase = await createServerAppClient();
     const adminClient = createServiceRoleSupabaseClient();
 
     // 추천 코드 조회는 서버 전용 클라이언트로 한다.
@@ -68,7 +67,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '현재 사용할 수 없는 Referral Code입니다.', requestId }, { status: 400 });
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
+    // 호스티드 Supabase의 Confirm email 설정과 무관하게 폐쇄몰 가입자는
+    // 초대코드 검증 직후 바로 로그인할 수 있어야 한다. 서비스 롤 전용
+    // admin.createUser + email_confirm=true는 확인 메일을 발송하지 않는다.
+    const { data, error } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: displayName },
+    });
     if (error || !data.user) {
       return NextResponse.json({ error: error?.message ?? '회원가입에 실패했습니다.', requestId }, { status: 400 });
     }
@@ -94,6 +101,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // admin.createUser는 세션을 만들지 않으므로, 쿠키를 쓰는 서버 클라이언트로
+    // 즉시 비밀번호 로그인을 수행해 기존 가입 UX(가입 후 상품 목록 이동)를 유지한다.
+    const sessionClient = await createServerAppClient();
+    const { data: sessionData, error: sessionError } = await sessionClient.auth.signInWithPassword({ email, password });
+    if (sessionError || !sessionData.session) {
+      logServerError('web.auth.signup', requestId, sessionError ?? new Error('signup session missing'), {
+        stage: 'session',
+        userId: data.user.id,
+      });
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(data.user.id);
+      if (deleteError) logServerError('web.auth.signup', requestId, deleteError, { stage: 'rollback_delete_user', userId: data.user.id });
+      return NextResponse.json({ error: '가입 후 로그인 세션을 만들지 못했습니다. 다시 시도해 주세요.', requestId }, { status: 503 });
+    }
+
     await adminClient.from('analytics_events').insert({
       user_id: data.user.id,
       event_name: 'signup',
@@ -107,10 +128,8 @@ export async function POST(request: Request) {
     logServerEvent('web.auth.signup', requestId, { stage: 'done', userId: data.user.id, referralCode: normalizedCode });
 
     return NextResponse.json({
-      message: data.session ? '회원가입과 로그인이 완료되었습니다.' : '가입이 완료되었습니다. 이메일 인증 후 로그인해 주세요.',
-      // 세션이 바로 생겼는지에 따라 화면이 갈린다.
-      // 생겼으면 상품 목록으로 보내고, 아니면 "메일 확인" 안내를 남긴다.
-      authenticated: Boolean(data.session),
+      message: '회원가입과 로그인이 완료되었습니다.',
+      authenticated: true,
       requestId,
     });
   } catch (error) {
