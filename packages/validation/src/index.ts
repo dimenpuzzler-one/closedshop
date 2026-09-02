@@ -6,6 +6,18 @@ export const referralCodeSchema = z.object({
   code: z.string().trim().min(3).max(32).regex(/^[A-Z0-9_-]+$/i),
 });
 
+export const signupSchema = z
+  .object({
+    email: z.string().trim().email('올바른 이메일 주소를 입력해 주세요.'),
+    password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.'),
+    confirmPassword: z.string().min(1, '비밀번호 확인을 입력해 주세요.'),
+    displayName: z.string().trim().min(1, '이름을 입력해 주세요.').max(80, '이름은 80자를 넘을 수 없습니다.'),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ['confirmPassword'],
+    message: '비밀번호가 일치하지 않습니다.',
+  });
+
 export const promotionCodeSchema = z.object({
   code: z.string().trim().min(3).max(32).regex(/^[A-Z0-9_-]+$/i),
 });

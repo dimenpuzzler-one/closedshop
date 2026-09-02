@@ -2,20 +2,27 @@ import { NextResponse } from 'next/server';
 import { DEMO_REFERRAL_CODES } from '@closed-commerce/commerce';
 import { createServiceRoleSupabaseClient, hasServiceRoleEnv, resolveRuntimeMode } from '@closed-commerce/db';
 import { logServerError, logServerEvent, newRequestId } from '@closed-commerce/observability';
-import { referralCodeSchema } from '@closed-commerce/validation';
+import { referralCodeSchema, signupSchema } from '@closed-commerce/validation';
 import { createServerAppClient } from '@/lib/supabase-server';
 
 export async function POST(request: Request) {
   const requestId = newRequestId();
   try {
-    const body = (await request.json()) as { email?: string; password?: string; displayName?: string; referralCode?: string; utmSource?: string; utmMedium?: string; utmCampaign?: string };
-    const email = body.email?.trim();
-    const password = body.password;
-    const displayName = body.displayName?.trim();
+    const body = (await request.json()) as { email?: string; password?: string; confirmPassword?: string; displayName?: string; referralCode?: string; utmSource?: string; utmMedium?: string; utmCampaign?: string };
+    const parsedSignup = signupSchema.safeParse({
+      email: body.email ?? '',
+      password: body.password ?? '',
+      confirmPassword: body.confirmPassword ?? '',
+      displayName: body.displayName ?? '',
+    });
     const parsedCode = referralCodeSchema.safeParse({ code: body.referralCode ?? '' });
-    if (!email || !password || !displayName || !parsedCode.success) {
-      return NextResponse.json({ error: '이름, 이메일, 비밀번호, 유효한 Referral Code를 입력해 주세요.', requestId }, { status: 400 });
+    if (!parsedSignup.success || !parsedCode.success) {
+      const error = !parsedSignup.success
+        ? parsedSignup.error.issues[0]?.message ?? '이름, 이메일, 비밀번호를 확인해 주세요.'
+        : '유효한 Referral Code를 입력해 주세요.';
+      return NextResponse.json({ error, requestId }, { status: 400 });
     }
+    const { email, password, displayName } = parsedSignup.data;
     const normalizedCode = parsedCode.data.code.toUpperCase();
 
     const mode = resolveRuntimeMode({ requireServiceRole: false });
