@@ -3,7 +3,6 @@ import { Container, SectionHeading } from '@closed-commerce/ui';
 import { ProductCard } from '@/components/product-card';
 import { ReferralGate } from '@/components/referral-gate';
 import { HomeHeroCarousel, type HomeHeroSlide } from '@/components/home-hero-carousel';
-import { ShippingCutoffNotice } from '@/components/shipping-cutoff-notice';
 import { loadCategories, loadVisibleCatalog } from '@/lib/catalog-data';
 import { loadStoreSettings } from '@/lib/store-settings';
 
@@ -96,10 +95,6 @@ export default async function HomePage() {
           </div>
           {!catalog.priceVisible ? <ReferralGate compact /> : <Link href="/products" className="button button-secondary button-large">상품 전체 보기</Link>}
         </Container>
-      </section>
-
-      <section className="section-tight home-shipping-section">
-        <Container><ShippingCutoffNotice time={settings.shippingCutoffTime} /></Container>
       </section>
 
       {categories.length > 1 ? (
