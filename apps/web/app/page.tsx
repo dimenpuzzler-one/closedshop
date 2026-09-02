@@ -82,21 +82,6 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      <section className="section-tight home-access-section" id="member-access">
-        <Container className="home-access-grid">
-          <div>
-            <p className="eyebrow">PRIVATE ACCESS</p>
-            <h2>{catalog.priceVisible ? '딜키 회원 전용 상품을 보고 있어요.' : '초대코드가 있다면 바로 입장하세요.'}</h2>
-            <p className="muted">
-              {catalog.priceVisible
-                ? '카테고리를 골라 상품을 둘러보고, 마음에 드는 상품의 상세 페이지에서 주문할 수 있습니다.'
-                : '초대코드를 확인하면 가입 승인 후 특판가와 주문 기능이 열립니다.'}
-            </p>
-          </div>
-          {!catalog.priceVisible ? <ReferralGate compact /> : <Link href="/products" className="button button-secondary button-large">상품 전체 보기</Link>}
-        </Container>
-      </section>
-
       {categories.length > 1 ? (
         <section className="section-tight">
           <Container>
@@ -154,6 +139,21 @@ export default async function HomePage() {
           <Container><p className="muted">아직 등록된 상품이 없습니다.</p></Container>
         </section>
       ) : null}
+
+      <section className="section-tight home-access-section" id="member-access">
+        <Container className="home-access-grid">
+          <div>
+            <p className="eyebrow">PRIVATE ACCESS</p>
+            <h2>{catalog.priceVisible ? '딜키 회원 전용 상품을 보고 있어요.' : '초대코드가 있다면 바로 입장하세요.'}</h2>
+            <p className="muted">
+              {catalog.priceVisible
+                ? '카테고리를 골라 상품을 둘러보고, 마음에 드는 상품의 상세 페이지에서 주문할 수 있습니다.'
+                : '초대코드를 확인하면 가입 승인 후 특판가와 주문 기능이 열립니다.'}
+            </p>
+          </div>
+          {!catalog.priceVisible ? <ReferralGate compact /> : <Link href="/products" className="button button-secondary button-large">상품 전체 보기</Link>}
+        </Container>
+      </section>
 
     </>
   );
