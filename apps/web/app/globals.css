@@ -77,15 +77,19 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .feature-number { color: var(--orange); font-weight: 800; font-size: 12px; }
 
 .card { border: 1px solid var(--line); background: var(--card); border-radius: 18px; padding: 22px; box-shadow: 0 8px 24px rgba(22, 44, 33, 0.03); }
-.product-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+.product-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; height: 100%; }
 .product-visual { min-height: 190px; padding: 18px; display: flex; align-items: flex-end; background: linear-gradient(140deg, #f2ead9, #ddcdb0); position: relative; }
 .product-image { object-fit: cover; z-index: 0; }
 .product-visual:before { content: 'PREMIUM\A JERKY'; white-space: pre; display: block; color: rgba(90, 70, 40, .45); font-size: 12px; letter-spacing: .12em; line-height: 1.4; }
 .product-weight { margin-left: auto; font-weight: 800; color: var(--green-dark); font-size: 28px; letter-spacing: -.06em; position: relative; z-index: 1; text-shadow: 0 1px 8px rgba(255,255,255,.7); }
-.product-body { padding: 22px; }
+.product-body { padding: 22px; display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.product-copy { display: block; min-width: 0; }
 .product-category { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .product-body h3 { font-size: 19px; }
-.product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: 18px; }
+/* 상품명은 두 줄까지만 보여 카드 높이를 고정하고, 남는 공간은 하단 버튼으로 밀어낸다. */
+.product-title { display: -webkit-box; height: 2.7em; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: auto; padding-top: 18px; }
+.product-meta .button { min-height: 42px; }
 .product-price { font-size: 20px; font-weight: 800; }
 .member-price { display: inline-flex; align-items: baseline; gap: 6px; }
 .member-price-label { color: var(--muted); font-size: .56em; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
@@ -248,7 +252,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .home-product-section .product-weight { font-size: 21px; }
   .home-product-section .product-body { padding: 12px; }
   .home-product-section .product-body h3 { line-height: 1.35; }
-  .home-product-section .product-meta { margin-top: 10px; gap: 6px; }
+  .home-product-section .product-meta { margin-top: auto; padding-top: 10px; gap: 6px; }
   /* 2열 카드에서는 가격과 버튼을 나란히 두면 버튼 글자가 잘린다("상세 보 "). */
   .product-meta { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 12px; }
   .product-meta .button { width: 100%; }

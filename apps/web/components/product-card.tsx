@@ -23,7 +23,10 @@ export function ProductCard({ product, referralCode, showPrice = true, compact =
       <span className="product-weight">{product.weight}</span>
     </Link>
     <div className="product-body">
-      <Link href={href}><span className="product-category">{product.category}</span><h3>{product.name}</h3></Link>
+      <Link href={href} className="product-copy" title={product.name}>
+        <span className="product-category">{product.category}</span>
+        <h3 className="product-title">{product.name}</h3>
+      </Link>
       {compact ? null : <p className="muted">{product.shortDescription}</p>}
       {compact ? null : <div className="product-tags">{product.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div>}
       <div className="product-meta">
