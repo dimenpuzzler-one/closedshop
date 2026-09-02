@@ -305,7 +305,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 6. PG사(코페이) 상호를 위탁 표에 기입
 7. 개인정보 **국외이전** 고지 — Vercel 실제 처리 지역 확인 필요(개인정보 보호법 제28조의8)
 8. 코페이 **취소/환불 API 규격** 요청 — 현재 환불은 관리자 화면에서 상태만 바꿉니다. 실제 PG 취소 연동이 없습니다
-9. 이메일 인증(Confirm email) 설정 및 SMTP 확인
+9. 이메일 인증(Confirm email) — 가입 API는 `admin.createUser(email_confirm=true)`로 확인 메일을 사용하지 않음. 호스티드 Supabase 프로젝트 전역 토글은 대시보드 로그인 후 필요 시 별도 확인
 10. `tester@dealkey.co.kr` 오픈 전 삭제
 
 ### 기술 부채 (2026-09-01 코드 점검에서 확인)
