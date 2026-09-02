@@ -228,6 +228,12 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 }
 @media (max-width: 580px) {
   .container { width: min(100% - 28px, 1120px); }
+  .header-inner { gap: 10px; }
+  .brand { gap: 6px; }
+  .brand-mark { width: 30px; height: 30px; }
+  .brand-word { font-size: 18px; letter-spacing: .1em; }
+  .header-actions { gap: 4px; }
+  .header-actions .button { padding: 8px 9px; font-size: 12px; }
   .hero { padding: 62px 0; }
   .section { padding: 58px 0; }
   .grid-3, .form-grid { grid-template-columns: 1fr; }
@@ -317,6 +323,82 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
    상품이 늘면 홈이 카테고리로 갈라져야 한다. 칩은 모바일에서 가로 스크롤되게 둔다 —
    유입의 대부분이 모바일이라 줄바꿈으로 화면을 밀어내면 안 된다.
 --------------------------------------------------------------------------- */
+.home-hero-section {
+  padding: 22px 0 0;
+  background: linear-gradient(180deg, #f4efe3 0%, #faf8f3 100%);
+}
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #201b17;
+  box-shadow: 0 18px 48px rgba(37, 31, 24, .16);
+}
+
+.home-hero-track { position: relative; min-height: 600px; }
+
+.home-hero-slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.015);
+  transition: opacity .45s ease, transform .6s ease, visibility .45s ease;
+  color: #fffdf9;
+}
+
+.home-hero-slide.active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+}
+
+.home-hero-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(34px, 5vw, 74px);
+  background: linear-gradient(135deg, #28221d 0%, #17130f 100%);
+}
+
+.home-hero-copy .eyebrow { color: var(--gold-line); }
+.home-hero-copy h1 { margin-bottom: 20px; font-size: clamp(38px, 4.8vw, 60px); white-space: pre-line; }
+.home-hero-copy .hero-copy { max-width: 480px; color: rgba(255, 253, 249, .72); }
+.home-hero-copy .button { margin-top: 20px; }
+
+.home-hero-media { position: relative; min-height: 100%; overflow: hidden; background: #e9dfcf; }
+.home-hero-media img { object-fit: cover; transition: transform 1.2s ease; }
+.home-hero-slide.active .home-hero-media img { transform: scale(1.03); }
+.home-hero-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(24, 19, 15, .3), transparent 42%); pointer-events: none; }
+.home-hero-media.abstract { display: flex; flex-direction: column; justify-content: space-between; padding: 36px; color: #fffdf9; background: radial-gradient(circle at 78% 22%, rgba(255,255,255,.12) 0 18%, transparent 18.5%), linear-gradient(145deg, #3b3129, #16120f); }
+.home-hero-media.abstract::before { content: ''; position: absolute; width: 300px; height: 300px; right: -100px; top: -120px; border-radius: 50%; background: rgba(255,255,255,.06); }
+.home-hero-media-label, .home-hero-media-title, .home-hero-media-foot { position: relative; z-index: 1; }
+.home-hero-media-label { color: var(--gold-line); font-size: 12px; letter-spacing: .14em; }
+.home-hero-media-title { margin-top: auto; margin-bottom: auto; font-family: var(--serif); font-size: clamp(36px, 4vw, 58px); line-height: .95; letter-spacing: -.06em; }
+.home-hero-media-foot { color: var(--gold-line); font-size: 13px; }
+
+.home-hero-controls { position: absolute; z-index: 3; right: clamp(28px, 4vw, 58px); bottom: 24px; display: flex; align-items: center; gap: 12px; }
+.home-hero-arrow { width: 30px; height: 30px; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; background: rgba(20,16,13,.38); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+.home-hero-arrow:hover { background: rgba(20,16,13,.72); }
+.home-hero-dots { display: flex; gap: 6px; }
+.home-hero-dot { width: 28px; height: 3px; padding: 0; border: 0; border-radius: 999px; background: rgba(255,255,255,.35); cursor: pointer; }
+.home-hero-dot.active { background: var(--gold-line); }
+
+.home-access-section { background: #fffdf9; border-bottom: 1px solid var(--line); }
+.home-access-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr); gap: 28px; align-items: center; }
+.home-access-grid h2 { margin-bottom: 8px; font-size: clamp(26px, 3vw, 38px); }
+.home-access-grid .gate { width: 100%; }
+.home-shipping-section { padding-top: 22px; }
+.home-product-section { padding-top: 34px; }
+.home-product-section + .home-product-section { padding-top: 12px; }
+.home-video-section { background: #f4efe3; }
+
 .category-nav {
   display: flex;
   gap: 0.5rem;
@@ -374,6 +456,27 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 
 @media (max-width: 850px) {
   .section-heading.row { flex-wrap: wrap; gap: 0.75rem; }
+  .home-hero-track { min-height: 650px; }
+  .home-hero-slide { grid-template-columns: 1fr; grid-template-rows: minmax(330px, 1fr) 260px; }
+  .home-hero-copy { padding: 34px 30px 52px; }
+  .home-hero-copy h1 { font-size: clamp(38px, 10vw, 56px); }
+  .home-hero-media { min-height: 260px; }
+  .home-hero-media.abstract { padding: 26px 30px; }
+  .home-hero-controls { right: 30px; bottom: 20px; }
+  .home-access-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 580px) {
+  .home-hero-section { padding-top: 12px; }
+  .home-hero { border-radius: 18px; }
+  .home-hero-track { min-height: 610px; }
+  .home-hero-slide { grid-template-rows: minmax(350px, 1fr) 220px; }
+  .home-hero-copy { padding: 28px 22px 48px; }
+  .home-hero-copy h1 { font-size: clamp(34px, 10vw, 48px); }
+  .home-hero-copy .hero-copy { font-size: 15px; }
+  .home-hero-media { min-height: 220px; }
+  .home-hero-controls { right: 22px; }
+  .home-access-grid { gap: 16px; }
 }
 
 /* ---------------------------------------------------------------------------

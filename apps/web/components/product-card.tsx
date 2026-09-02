@@ -14,9 +14,12 @@ import { Price } from '@closed-commerce/ui';
 export function ProductCard({ product, referralCode, showPrice = true }: { product: Product; referralCode?: string; showPrice?: boolean }) {
   // 추천 코드는 링크에 붙이지 않아도 된다. 귀속은 가입 시 고정되고 서버가 세션에서 읽는다.
   const href = referralCode ? `/products/${product.slug}?ref=${encodeURIComponent(referralCode)}` : `/products/${product.slug}`;
+  // 데모 카탈로그의 예시 경로는 실제 파일을 포함하지 않을 수 있다. 깨진 이미지 요청 대신
+  // 카드의 브랜드 배경과 중량 표시를 폴백으로 보여주고, 운영 Storage URL은 그대로 사용한다.
+  const imageUrl = /^https?:\/\//.test(product.imageUrl) || product.imageUrl.startsWith('/brand/') ? product.imageUrl : '';
   return <article className="card product-card">
     <Link href={href} className="product-visual" aria-label={`${product.name} 상세 보기`}>
-      {product.imageUrl ? <Image className="product-image" src={product.imageUrl} alt={product.name} fill sizes="(max-width: 850px) 50vw, 25vw" /> : null}
+      {imageUrl ? <Image className="product-image" src={imageUrl} alt={product.name} fill sizes="(max-width: 850px) 50vw, 25vw" /> : null}
       <span className="product-weight">{product.weight}</span>
     </Link>
     <div className="product-body">

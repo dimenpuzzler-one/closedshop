@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { Container, SectionHeading } from '@closed-commerce/ui';
 import { ProductCard } from '@/components/product-card';
 import { ReferralGate } from '@/components/referral-gate';
+import { HomeHeroCarousel, type HomeHeroSlide } from '@/components/home-hero-carousel';
 import { ShippingCutoffNotice } from '@/components/shipping-cutoff-notice';
 import { loadCategories, loadVisibleCatalog } from '@/lib/catalog-data';
 import { loadStoreSettings } from '@/lib/store-settings';
@@ -19,6 +19,11 @@ function toYoutubeEmbed(raw: string): string | undefined {
   return match?.[1] ? `https://www.youtube.com/embed/${match[1]}` : undefined;
 }
 
+/** 데모 카탈로그의 예시 경로가 실제 파일이 없을 때 빈 배너가 되지 않게 한다. */
+function usableImageUrl(url?: string): string | undefined {
+  return url && /^https?:\/\//.test(url) ? url : undefined;
+}
+
 export default async function HomePage() {
   // 예전에는 이 화면이 상품 4개를 고정 진열했다. 카테고리가 늘면 홈이 못 따라간다.
   const [settings, catalog, categories] = await Promise.all([
@@ -27,11 +32,41 @@ export default async function HomePage() {
     loadCategories(),
   ]);
 
-  const headline = settings.heroHeadline || '초대받은 분께만 열리는 특판몰.';
+  const headline = settings.heroHeadline || '초대받은 분께만\n열리는 특판몰.';
   const subheadline =
     settings.heroSubheadline ||
     '좋은 상품을 아는 사람이, 믿을 수 있는 사람에게 소개하는 비공개 특판 플랫폼입니다.';
   const embed = toYoutubeEmbed(settings.heroYoutubeUrl);
+
+  const heroSlides: HomeHeroSlide[] = [
+    {
+      eyebrow: 'PRIVATE SPECIALTY MARKET',
+      title: headline,
+      description: subheadline,
+      imageUrl: settings.heroBannerUrl || usableImageUrl(catalog.products[0]?.imageUrl),
+      imageAlt: headline.replace(/\n/g, ' '),
+      href: '/products',
+      ctaLabel: '상품 둘러보기',
+    },
+    {
+      eyebrow: 'MEMBERS ONLY',
+      title: '코드가 있는 분만\n입장할 수 있어요.',
+      description: '딜키는 누구나를 위한 오픈몰이 아닙니다. 초대코드로 연결된 회원에게만 특판가와 주문을 공개합니다.',
+      imageUrl: usableImageUrl(catalog.products[1]?.imageUrl),
+      imageAlt: catalog.products[1]?.name,
+      href: catalog.priceVisible ? '/products' : '#member-access',
+      ctaLabel: catalog.priceVisible ? '상품 보러 가기' : '초대코드 확인하기',
+    },
+    {
+      eyebrow: 'DEALKEY COLLECTION',
+      title: '카테고리별로\n새로운 딜을 만나보세요.',
+      description: '식품부터 생활용품까지, 믿을 수 있는 제휴 상품을 카테고리별로 모아 소개합니다.',
+      imageUrl: usableImageUrl(catalog.products[2]?.imageUrl),
+      imageAlt: catalog.products[2]?.name,
+      href: '/products',
+      ctaLabel: '전체 상품 보기',
+    },
+  ];
 
   // 카테고리 순서를 그대로 따르되, 상품이 하나도 없는 카테고리는 홈에 그리지 않는다.
   const byCategory = categories
@@ -42,34 +77,28 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="hero">
-        <Container className="hero-grid">
-          <div>
-            <p className="eyebrow">PRIVATE SPECIALTY MARKET</p>
-            <h1>{headline}</h1>
-            <p className="hero-copy">{subheadline}</p>
-            <div className="hero-actions">
-              <Link href="/products" className="button button-primary button-large">상품 전체 보기</Link>
-              <Link href="/b2b" className="button button-ghost button-large">기업·단체 견적</Link>
-              {!catalog.priceVisible ? <Link href="#member-access" className="button button-secondary button-large">초대코드로 가입 승인 받기</Link> : null}
-            </div>
-            <p className="hero-note">상품 가격과 판매 조건은 추천 코드로 가입한 회원에게만 공개합니다.</p>
-          </div>
-          {settings.heroBannerUrl ? (
-            <div className="hero-banner">
-              <Image src={settings.heroBannerUrl} alt={headline} width={860} height={620} sizes="(max-width: 850px) 100vw, 50vw" priority unoptimized />
-            </div>
-          ) : (
-            <div className="hero-art">
-              <span className="hero-art-label">PRIVATE DROP</span>
-              <span className="hero-art-title">A thoughtful<br />deal, shared.</span>
-              <span className="hero-art-foot"><span>Dealkey</span><span>Members only</span></span>
-            </div>
-          )}
+      <section className="home-hero-section">
+        <Container>
+          <HomeHeroCarousel slides={heroSlides} />
         </Container>
       </section>
 
-      <section className="section-tight">
+      <section className="section-tight home-access-section" id="member-access">
+        <Container className="home-access-grid">
+          <div>
+            <p className="eyebrow">PRIVATE ACCESS</p>
+            <h2>{catalog.priceVisible ? '딜키 회원 전용 상품을 보고 있어요.' : '초대코드가 있다면 바로 입장하세요.'}</h2>
+            <p className="muted">
+              {catalog.priceVisible
+                ? '카테고리를 골라 상품을 둘러보고, 마음에 드는 상품의 상세 페이지에서 주문할 수 있습니다.'
+                : '초대코드를 확인하면 가입 승인 후 특판가와 주문 기능이 열립니다.'}
+            </p>
+          </div>
+          {!catalog.priceVisible ? <ReferralGate compact /> : <Link href="/products" className="button button-secondary button-large">상품 전체 보기</Link>}
+        </Container>
+      </section>
+
+      <section className="section-tight home-shipping-section">
         <Container><ShippingCutoffNotice time={settings.shippingCutoffTime} /></Container>
       </section>
 
@@ -87,24 +116,8 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {embed ? (
-        <section className="section-tight">
-          <Container>
-            <div className="hero-video">
-              <iframe
-                src={embed}
-                title="소개 영상"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-          </Container>
-        </section>
-      ) : null}
-
       {byCategory.map((group) => (
-        <section className="section-tight" key={group.category}>
+        <section className="section home-product-section" key={group.category}>
           <Container>
             <div className="section-heading row">
               <div>
@@ -124,39 +137,29 @@ export default async function HomePage() {
         </section>
       ))}
 
+      {embed ? (
+        <section className="section home-video-section">
+          <Container>
+            <SectionHeading eyebrow="DEALKEY STORY" title="딜키가 고른 상품 이야기" description="상품의 쓰임과 제휴 소식을 영상으로 만나보세요." />
+            <div className="hero-video">
+              <iframe
+                src={embed}
+                title="소개 영상"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
+          </Container>
+        </section>
+      ) : null}
+
       {catalog.products.length === 0 ? (
         <section className="section-tight">
           <Container><p className="muted">아직 등록된 상품이 없습니다.</p></Container>
         </section>
       ) : null}
 
-      <section className="section">
-        <Container>
-          <SectionHeading
-            eyebrow="HOW IT WORKS"
-            title="추천에서 주문까지, 흐름을 투명하게."
-            description="Referral Code는 누가 고객을 소개했는지 기록하고, Promotion Code는 어떤 판매조건을 적용할지 결정합니다. 두 데이터를 섞지 않습니다."
-          />
-          <div className="grid-3">
-            <div className="card feature-card"><span className="feature-number">01</span><h3>코드로 입장</h3><p className="muted">초대받은 Referral Code로 가입하면 최초 추천인 귀속이 고정됩니다.</p></div>
-            <div className="card feature-card"><span className="feature-number">02</span><h3>가격 확인</h3><p className="muted">추천 코드로 가입한 회원에게만 특판가와 판매 조건이 공개됩니다.</p></div>
-            <div className="card feature-card"><span className="feature-number">03</span><h3>안전한 정산</h3><p className="muted">주문 당시 금액과 수수료율을 snapshot해 주문·추천·정산을 연결합니다.</p></div>
-          </div>
-        </Container>
-      </section>
-
-      {catalog.priceVisible ? null : (
-        <section className="section" id="member-access">
-          <Container className="two-column">
-            <div>
-              <p className="eyebrow">MEMBER ACCESS</p>
-              <h2>초대코드로 가입 승인 받기</h2>
-              <p className="muted">초대코드를 입력하면 가입 승인 절차를 거쳐 특판가를 확인하고 주문할 수 있습니다.</p>
-            </div>
-            <ReferralGate compact />
-          </Container>
-        </section>
-      )}
     </>
   );
 }
