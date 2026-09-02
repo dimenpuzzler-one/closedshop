@@ -139,7 +139,7 @@ async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): 
     description: product.description,
     weight: '',
     price: product.base_price,
-    supplyCost: product.supply_cost ?? undefined,
+    onlinePrice: product.supply_cost ?? undefined,
     shippingFee: product.shipping_fee,
     visibility: product.visibility,
     status: product.status,

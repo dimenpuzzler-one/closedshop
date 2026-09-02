@@ -30,7 +30,15 @@ export const PATCH = withAdminParams<{ id: string }>(
     if (readError) failFromSupabase('상품을 조회하지 못했습니다.', readError, 'product_read_failed');
     if (!before) throw new ApiError(404, `상품을 찾을 수 없습니다: ${id}`, 'product_not_found');
 
-    const patch = parsed.data;
+    // DB의 기존 supply_cost 컬럼은 온라인가로 유지한다. RPC의 옛 키를 여기서
+    // 변환해 live migration 없이도 기존 상품과 호환한다.
+    const patch: Record<string, unknown> = { ...parsed.data };
+    if ('onlinePrice' in patch) {
+      patch.supplyCost = patch.onlinePrice;
+      delete patch.onlinePrice;
+    }
+    // 회원가를 바꾸면 주문에 사용되는 첫 옵션 가격도 함께 맞춘다.
+    if (parsed.data.basePrice !== undefined) patch.optionPrice = parsed.data.basePrice;
     const { data: updated, error: updateError } = await client.rpc('admin_update_product', {
       p_product_id: id,
       p_patch: patch as Json,

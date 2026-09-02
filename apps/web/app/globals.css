@@ -89,10 +89,14 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 /* 상품명은 세 줄까지만 보여 중량·구성 정보까지 담고, 남는 공간은 하단 버튼으로 밀어낸다. */
 .product-title { display: -webkit-box; height: 4.05em; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .product-meta { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-top: auto; padding-top: 18px; }
-.product-meta .button { min-height: 42px; }
-.product-price { font-size: 20px; font-weight: 800; }
-.member-price { display: inline-flex; align-items: baseline; gap: 6px; }
-.member-price-label { color: var(--muted); font-size: .56em; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.product-meta .button { flex: 0 0 auto; min-height: 42px; }
+.product-pricing { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 2px; }
+.product-price { font-size: 20px; font-weight: 800; white-space: nowrap; }
+.price-label { color: var(--muted); font-size: .56em; font-weight: 700; letter-spacing: .02em; margin-right: 6px; }
+.online-price { color: var(--muted); font-size: 14px; font-weight: 600; }
+.online-price.discounted .price { text-decoration: line-through; text-decoration-thickness: 1px; }
+.price-member-hint { color: var(--muted); font-size: 11px; line-height: 1.3; white-space: nowrap; }
+.member-price { display: inline-flex; align-items: baseline; }
 .product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .tag { color: var(--green); background: var(--mint); border-radius: 999px; padding: 5px 9px; font-size: 11px; }
 
@@ -255,6 +259,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .home-product-section .product-meta { margin-top: auto; padding-top: 10px; gap: 6px; }
   /* 2열 카드에서는 가격과 버튼을 나란히 두면 버튼 글자가 잘린다("상세 보 "). */
   .product-meta { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 12px; }
+  .product-pricing { align-items: flex-start; }
   .product-meta .button { width: 100%; }
   .form-grid .full { grid-column: auto; }
   .gate-form, .footer-inner { flex-direction: column; align-items: stretch; }

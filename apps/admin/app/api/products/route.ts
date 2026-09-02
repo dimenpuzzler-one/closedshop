@@ -113,7 +113,7 @@ async function parseRequest(request: Request) {
   }
   const values: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) if (typeof value === 'string') values[key] = value;
-  for (const key of ['basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock', 'homeSortOrder']) {
+  for (const key of ['basePrice', 'onlinePrice', 'shippingFee', 'stock', 'homeSortOrder']) {
     const raw = values[key];
     if (raw === '' || raw === undefined) {
       delete values[key];
@@ -172,7 +172,8 @@ export const POST = withAdmin(
           short_description: parsed.data.shortDescription,
           description: parsed.data.description,
           base_price: parsed.data.basePrice,
-          supply_cost: parsed.data.supplyCost ?? null,
+          // 기존 DB 컬럼(supply_cost)은 공개 온라인가를 저장하는 호환 필드로 사용한다.
+          supply_cost: parsed.data.onlinePrice ?? null,
           shipping_fee: parsed.data.shippingFee,
           home_sort_order: parsed.data.homeSortOrder ?? 100,
           // 비워두면 개봉한 식품도 환불해줘야 한다(전자상거래법 제17조 제2항 단서).
@@ -214,7 +215,8 @@ export const POST = withAdmin(
       product_id: product.id,
       name: parsed.data.optionName,
       value: parsed.data.optionValue,
-      price: parsed.data.optionPrice ?? parsed.data.basePrice,
+      // 옵션별 가격 입력은 제거하고 회원가(basePrice)를 옵션 판매가로 사용한다.
+      price: parsed.data.basePrice,
     });
     if (optionError) {
       await cleanup();

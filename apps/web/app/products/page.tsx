@@ -35,7 +35,7 @@ export default async function ProductsPage({
             {catalog.priceVisible ? (
               <>추천 코드 <strong>{catalog.validReferralCode}</strong>로 연결된 회원 특판가입니다.</>
             ) : (
-              '가격은 추천 코드로 가입한 회원에게만 공개됩니다. 상품 구성과 상세 내용은 지금 보실 수 있습니다.'
+              '온라인가는 지금 확인할 수 있고, 회원가는 추천 코드로 가입한 회원에게만 공개됩니다.'
             )}
           </p>
         </Container>

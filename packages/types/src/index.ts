@@ -35,12 +35,13 @@ export interface Product {
   shortDescription: string;
   description: string;
   weight: string;
-  /** Catalog/list price. Kept separate from the option selling price. */
+  /** 회원에게 공개하는 특판가. */
   basePrice?: number;
+  /** 비로그인 방문자에게 공개하는 온라인 기준가. */
+  onlinePrice?: number;
   /** 홈 화면 진열 순서. 숫자가 작을수록 먼저 노출된다. */
   homeSortOrder?: number;
   price: number;
-  supplyCost?: number;
   shippingFee: number;
   /**
    * 청약철회가 제한되는 사유. 상품 상세에 표시된다.

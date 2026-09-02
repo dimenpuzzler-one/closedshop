@@ -12,15 +12,15 @@ type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; productId?: string; details?: ValidationDetails };
 
 const NUMERIC_KEYS = [
-  'basePrice', 'supplyCost', 'shippingFee', 'optionPrice', 'stock', 'homeSortOrder',
+  'basePrice', 'onlinePrice', 'shippingFee', 'stock', 'homeSortOrder',
   'discountRate', 'discountAmount', 'minimumOrderAmount', 'minimumQuantity', 'totalUsageLimit', 'perMemberUsageLimit',
 ];
 
 const FIELD_LABELS: Record<string, string> = {
   slug: '상품 주소', name: '상품명', category: '카테고리', shortDescription: '짧은 소개',
-  description: '상세 설명', basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비',
+  description: '상세 설명', basePrice: '회원가', onlinePrice: '온라인가', shippingFee: '배송비',
   visibility: '노출 대상', status: '판매 상태', optionName: '옵션명', optionValue: '옵션값',
-  optionPrice: '옵션가', stock: '초기재고', shippingCutoffTime: '배송 마감 시간',
+  stock: '초기재고', shippingCutoffTime: '배송 마감 시간',
   withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
   code: '코드', ownerUserId: '소유자 User ID', label: '용도', discountRate: '할인율', discountAmount: '정액할인',
 };
@@ -293,7 +293,7 @@ export function ProductCreateForm({ categories }: { categories: CategoryGroup[] 
         onSubmit={form.submit}
         onReset={() => { setName(''); setSlug(''); setSlugTouched(false); }}
       >
-        <p className="field-hint">옵션은 고객이 선택하는 구성·중량입니다. 단일 구성 상품이면 기본값을 그대로 쓰고 옵션가는 비워두세요.</p>
+        <p className="field-hint">옵션은 고객이 선택하는 구성·중량입니다. 단일 구성 상품이면 기본값을 그대로 사용하세요. 실제 결제 가격은 회원가로 입력합니다.</p>
         <div className="form-grid">
           <label className="field"><span className="field-label">상품명</span><input className="input" name="name" value={name} onChange={(event) => setName(event.currentTarget.value)} required /></label>
           <label className="field">
@@ -317,13 +317,12 @@ export function ProductCreateForm({ categories }: { categories: CategoryGroup[] 
             <CategorySelect categories={categories} />
             <span className="field-hint">목록에 없으면 “운영 설정 → 카테고리”에서 먼저 추가해 주세요.</span>
           </label>
-          <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">옵션가를 비워두면 이 금액이 판매가가 됩니다.</span></label>
-          <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" /></label>
+          <label className="field"><span className="field-label">회원가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">추천 코드로 가입한 회원에게 공개되는 실제 결제 가격입니다.</span></label>
+          <label className="field"><span className="field-label">온라인가(선택)</span><input className="input" type="number" min="0" name="onlinePrice" /><span className="field-hint">비로그인 방문자에게 보여주는 기준 가격입니다. 회원가보다 높게 입력하면 할인 전 가격으로 표시됩니다.</span></label>
           <label className="field"><span className="field-label">노출 대상</span><select className="select" name="visibility" defaultValue="referral"><option value="referral">추천 회원 전용</option><option value="member">회원 전용</option><option value="public">공개</option><option value="hidden">비공개</option></select></label>
           <label className="field"><span className="field-label">판매 상태</span><select className="select" name="status" defaultValue="active"><option value="active">즉시 판매</option><option value="draft">초안</option><option value="paused">판매 중지</option></select></label>
           <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue="구성" required /></label>
           <label className="field"><span className="field-label">옵션값</span><input className="input" name="optionValue" placeholder="예: 300g / 기본 구성" required /></label>
-          <label className="field"><span className="field-label">옵션가(선택)</span><input className="input" type="number" min="0" name="optionPrice" /><span className="field-hint">옵션별 최종 판매가입니다. 비워두면 기본가를 사용합니다.</span></label>
           <label className="field"><span className="field-label">초기재고</span><input className="input" type="number" min="0" name="stock" required /></label>
           <label className="field"><span className="field-label">홈 진열 순서</span><input className="input" type="number" min="0" max="9999" name="homeSortOrder" defaultValue="100" /><span className="field-hint">숫자가 작을수록 홈에서 먼저 보입니다.</span></label>
         </div>

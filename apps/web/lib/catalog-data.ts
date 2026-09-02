@@ -13,6 +13,7 @@ type ProductRow = {
   short_description: string;
   description: string;
   base_price: number;
+  supply_cost: number | null;
   shipping_fee: number;
   home_sort_order: number;
   withdrawal_restriction: string;
@@ -24,7 +25,7 @@ type ProductRow = {
 type AnyClient = Awaited<ReturnType<typeof createServerAppClient>>;
 
 const PRODUCT_COLUMNS =
-  'id, slug, name, category, short_description, description, base_price, shipping_fee, home_sort_order, withdrawal_restriction, visibility, status, created_at';
+  'id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, home_sort_order, withdrawal_restriction, visibility, status, created_at';
 
 function isSupabaseMode() {
   return resolveRuntimeMode({ requireServiceRole: false }) === 'supabase';
@@ -48,6 +49,7 @@ function mapProduct(
     description: row.description,
     weight: options[0]?.value ?? '',
     basePrice: row.base_price,
+    onlinePrice: row.supply_cost ?? undefined,
     homeSortOrder: row.home_sort_order,
     price: options[0]?.price ?? row.base_price,
     shippingFee: row.shipping_fee,
@@ -62,8 +64,8 @@ function mapProduct(
 }
 
 /**
- * 가격을 볼 자격이 없는 방문자에게는 금액을 화면에서 감추는 것으로 끝내면 안 된다.
- * HTML 소스에 숫자가 그대로 남으면 감춘 게 아니다. 페이로드에서 아예 지운다.
+ * 가격을 볼 자격이 없는 방문자에게 회원가를 보내지 않는다.
+ * 온라인가는 공개 가격이므로 유지하고, 실제 결제 가격만 페이로드에서 지운다.
  */
 function stripPrices(product: Product): Product {
   return {
@@ -80,9 +82,9 @@ export interface CatalogAccess {
   /** 회원에게 귀속된 유효한 추천 코드. */
   validReferralCode?: string;
   /**
-   * 가격 노출 여부. 폐쇄몰 3단계의 1~2단계를 가르는 축이다.
-   *   비회원 / 추천코드 없는 회원 → false (상품은 보이되 가격 비노출)
-   *   추천코드로 귀속된 회원       → true  (특판가 노출, 구매 가능)
+   * 회원가 노출 여부. 폐쇄몰 3단계의 1~2단계를 가르는 축이다.
+   *   비회원 / 추천코드 없는 회원 → false (상품·온라인가만 보임)
+   *   추천코드로 귀속된 회원       → true  (회원가 노출, 구매 가능)
    * 3단계(프로모션 코드 추가 할인)는 주문서에서 적용된다.
    *
    * products.visibility는 이것과 다른 축이다. 그건 "상품 자체를 감출지"를 정하고,
@@ -172,11 +174,11 @@ async function hydrate(client: AnyClient, rows: ProductRow[], imageMode: 'thumbn
 /**
  * 목록/상세를 읽을 클라이언트를 고른다.
  *
- * 가격을 볼 자격이 있는 회원은 세션 클라이언트를 쓴다 = RLS가 인가를 담당한다.
+ * 회원가를 볼 자격이 있는 회원은 세션 클라이언트를 쓴다 = RLS가 인가를 담당한다.
  * 자격이 없는 방문자에게도 "무엇이 있는지"는 보여줘야 하는데(당근·QR 유입은
  * 대부분 비로그인 상태로 상세 링크를 받는다) 세션 클라이언트로는 referral 상품이
  * 0행이라 화면이 통째로 벽이 된다. 그래서 서버 전용 클라이언트로 읽되
- * visibility='hidden'을 제외하고 가격은 페이로드에서 지운다.
+ * visibility='hidden'을 제외하고 회원 가격은 페이로드에서 지운다.
  */
 function pickClient(sessionClient: Awaited<ReturnType<typeof createServerAppClient>>, access: CatalogAccess): AnyClient | undefined {
   if (access.priceVisible) return sessionClient;
@@ -189,7 +191,7 @@ export interface CatalogResult extends CatalogAccess {
 
 export async function loadVisibleCatalog(referralCode?: string, category?: string): Promise<CatalogResult> {
   if (!isSupabaseMode()) {
-    // 데모에서도 운영과 같은 규칙을 따른다: 상품은 보이고, 가격만 추천 코드로 갈린다.
+    // 데모에서도 운영과 같은 규칙을 따른다: 상품·온라인가는 보이고, 회원가만 추천 코드로 갈린다.
     // 예전에는 코드가 없으면 referral 상품이 통째로 걸러져 홈이 "상품 없음"으로 보였다.
     const valid = referralCode ? findValidReferralCode(DEMO_REFERRAL_CODES, referralCode) : undefined;
     const priceVisible = Boolean(valid);

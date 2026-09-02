@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@closed-commerce/types';
-import { Price } from '@closed-commerce/ui';
+import { ProductPrice } from '@/components/product-price';
 
 /*
  * 목록·홈의 상품 카드에는 "담기"를 두지 않는다.
@@ -30,9 +30,7 @@ export function ProductCard({ product, referralCode, showPrice = true, compact =
       {compact ? null : <p className="muted">{product.shortDescription}</p>}
       {compact ? null : <div className="product-tags">{product.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div>}
       <div className="product-meta">
-        {showPrice
-          ? <span className="product-price member-price"><span className="member-price-label">회원가</span><Price amount={product.options[0]?.price ?? product.price} /></span>
-          : null}
+        <ProductPrice product={product} showMemberPrice={showPrice} />
         <Link href={href} className="button button-secondary">상세 보기</Link>
       </div>
     </div>

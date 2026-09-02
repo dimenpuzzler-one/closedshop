@@ -73,7 +73,8 @@ export function ProductTable({ products, editable, categories }: { products: Pro
             <th>상품</th>
             <th>홈 순서</th>
             <th>카테고리</th>
-            <th>판매가</th>
+            <th>온라인가</th>
+            <th>회원가</th>
             <th>노출</th>
             <th>재고</th>
             <th>사진</th>
@@ -96,7 +97,8 @@ export function ProductTable({ products, editable, categories }: { products: Pro
                   </td>
                   <td>{product.homeSortOrder ?? 100}</td>
                   <td><Badge tone="neutral">{product.category}</Badge></td>
-                  <td><Price amount={product.options[0]?.price ?? product.price} /></td>
+                  <td>{product.onlinePrice ? <Price amount={product.onlinePrice} /> : <span className="muted">미설정</span>}</td>
+                  <td><Price amount={product.basePrice ?? product.options[0]?.price ?? product.price} /></td>
                   <td><Badge tone="accent">{VISIBILITY_LABEL[product.visibility] ?? product.visibility}</Badge></td>
                   <td>{stock}개</td>
                   <td>{imageCount ? `${imageCount}장` : <span className="muted">없음</span>}</td>
@@ -129,7 +131,7 @@ export function ProductTable({ products, editable, categories }: { products: Pro
                 </tr>
                 {editable && isOpen ? (
                   <tr>
-                    <td colSpan={9} style={{ background: 'rgba(0,0,0,0.02)' }}>
+                    <td colSpan={10} style={{ background: 'rgba(0,0,0,0.02)' }}>
                       <ProductEditPanel product={product} categories={categories} />
                     </td>
                   </tr>

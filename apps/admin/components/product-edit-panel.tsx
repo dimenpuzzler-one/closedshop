@@ -13,8 +13,8 @@ type ApiResult = { message?: string; error?: string; code?: string; requestId?: 
 
 const FIELD_LABELS: Record<string, string> = {
   name: '상품명', category: '카테고리', shortDescription: '짧은 소개', description: '상세 설명',
-  basePrice: '기본가', supplyCost: '공급가', shippingFee: '배송비', visibility: '노출 대상',
-  status: '판매 상태', optionName: '옵션명', optionValue: '옵션값', optionPrice: '옵션가', stock: '재고',
+  basePrice: '회원가', onlinePrice: '온라인가', shippingFee: '배송비', visibility: '노출 대상',
+  status: '판매 상태', optionName: '옵션명', optionValue: '옵션값', stock: '재고',
   withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
 };
 
@@ -56,7 +56,6 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
 
   const stock = product.inventoryQuantity ?? product.options.reduce((sum, option) => sum + option.stock, 0);
   const option = product.options[0];
-  const optionPrice = option?.price ?? product.price;
 
   async function send(url: string, init: RequestInit, successFallback: string, options: { refresh?: boolean } = {}) {
     setBusy(true);
@@ -118,6 +117,10 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
       const raw = text(key);
       return raw === '' ? undefined : Number(raw);
     };
+    const numberOrNull = (key: string) => {
+      const raw = text(key);
+      return raw === '' ? null : Number(raw);
+    };
 
     const payload = {
       name: text('name'),
@@ -126,10 +129,9 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
       description: text('description'),
       withdrawalRestriction: text('withdrawalRestriction'),
       basePrice: numberOrUndefined('basePrice'),
-      supplyCost: numberOrUndefined('supplyCost') ?? null,
+      onlinePrice: numberOrNull('onlinePrice'),
       optionName: text('optionName'),
       optionValue: text('optionValue'),
-      optionPrice: numberOrUndefined('optionPrice'),
       stock: numberOrUndefined('stock'),
       homeSortOrder: numberOrUndefined('homeSortOrder'),
       visibility: text('visibility') as Product['visibility'],
@@ -179,11 +181,10 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
             <CategorySelect categories={categories} defaultValue={product.category} />
             <span className="field-hint">목록은 “운영 설정 → 카테고리”에서 관리합니다.</span>
           </label>
-          <label className="field"><span className="field-label">기본가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /></label>
+          <label className="field"><span className="field-label">회원가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /><span className="field-hint">추천 코드로 가입한 회원에게 공개되는 실제 결제 가격입니다.</span></label>
+          <label className="field"><span className="field-label">온라인가(선택)</span><input className="input" type="number" min="0" name="onlinePrice" defaultValue={product.onlinePrice ?? ''} /><span className="field-hint">비로그인 방문자에게 보여주는 기준 가격입니다. 회원가보다 높게 입력하면 할인 전 가격으로 표시됩니다.</span></label>
           <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue={option?.name ?? '구성'} required /><span className="field-hint">고객이 보는 구성 항목 이름입니다. 예: 구성</span></label>
           <label className="field"><span className="field-label">옵션값</span><input className="input" name="optionValue" defaultValue={option?.value ?? ''} placeholder="예: 300g / 기본 구성" required /><span className="field-hint">중량이나 구성 내용입니다. 예: 420g</span></label>
-          <label className="field"><span className="field-label">판매가(옵션가)</span><input className="input" type="number" min="0" name="optionPrice" defaultValue={optionPrice} /><span className="field-hint">고객이 실제로 결제하는 금액입니다.</span></label>
-          <label className="field"><span className="field-label">공급가(선택)</span><input className="input" type="number" min="0" name="supplyCost" defaultValue={product.supplyCost ?? ''} /></label>
           <label className="field"><span className="field-label">총재고</span><input className="input" type="number" min="0" name="stock" defaultValue={stock} /><span className="field-hint">예약 {product.reservedQuantity ?? 0}개 · 판매 가능 {Math.max(0, stock - (product.reservedQuantity ?? 0))}개</span></label>
           <label className="field"><span className="field-label">홈 진열 순서</span><input className="input" type="number" min="0" max="9999" name="homeSortOrder" defaultValue={product.homeSortOrder ?? 100} /><span className="field-hint">숫자가 작을수록 홈에서 먼저 보입니다. 같은 숫자는 최근 등록 상품이 먼저입니다.</span></label>
           <label className="field">

@@ -4,6 +4,7 @@ import { Container, Price, Badge } from '@closed-commerce/ui';
 import { AddToCartButton } from '@/components/add-to-cart-button';
 import { ProductImageGallery } from '@/components/product-image-gallery';
 import { ProductDetailImages } from '@/components/product-detail-images';
+import { ProductPrice } from '@/components/product-price';
 import { ReferralGate } from '@/components/referral-gate';
 import { ShippingCutoffNotice } from '@/components/shipping-cutoff-notice';
 import { loadProductBySlug } from '@/lib/catalog-data';
@@ -32,7 +33,7 @@ export default async function ProductDetailPage({
 
   if (!product) notFound();
 
-  // 가격을 볼 자격이 있을 때만 금액과 장바구니를 노출한다.
+  // 회원가를 볼 자격이 있을 때만 회원가와 장바구니를 노출한다. 온라인가는 비회원에게도 보인다.
   // 자격이 없어도 상품 사진·구성·상세 설명은 그대로 보여준다 —
   // 당근·QR·지인 공유 유입은 대부분 비로그인 상태로 이 링크를 받는다.
   const priceVisible = catalog.priceVisible;
@@ -50,7 +51,6 @@ export default async function ProductDetailPage({
   const gallery = usingDetailAsHero && detailImages[0] ? [detailImages[0]] : galleryImages;
   const heroImage = gallery[0];
   const stock = product.options[0]?.stock ?? 0;
-  const price = product.options[0]?.price ?? product.price;
   const shippingPolicy = settings.shippingPolicy;
   const shippingCopy = `${shippingPolicy.cartonQuantity}개까지 ${shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원, 초과 시 ${shippingPolicy.cartonQuantity}개 단위로 추가${
     shippingPolicy.freeShippingThreshold !== undefined
@@ -104,9 +104,7 @@ export default async function ProductDetailPage({
               <h2>{product.name}</h2>
               <p className="muted">{product.shortDescription}</p>
               <div className="row">
-                {priceVisible
-                  ? <span className="product-price member-price"><span className="member-price-label">회원가</span><Price amount={price} /></span>
-                  : null}
+                <ProductPrice product={product} showMemberPrice={priceVisible} />
                 {product.weight ? <span className="muted">{product.weight}</span> : null}
               </div>
               {product.options.length > 0 ? (
@@ -114,7 +112,7 @@ export default async function ProductDetailPage({
                   {product.options.map((option) => (
                     <div className="row" key={option.id}>
                       <span>{option.name}: {option.value}</span>
-                      {priceVisible ? <strong className="member-price"><span className="member-price-label">회원가</span><Price amount={option.price} /></strong> : null}
+                      {priceVisible ? <strong className="member-price"><span className="price-label">회원가</span><Price amount={option.price} /></strong> : null}
                     </div>
                   ))}
                 </div>
