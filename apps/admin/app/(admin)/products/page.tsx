@@ -26,7 +26,7 @@ export default async function AdminProductsPage() {
       <div className="admin-section admin-note">
         목록의 “삭제” 버튼으로 상품을 정리할 수 있습니다. 주문 이력이 있는 상품은 삭제되지 않으니 판매 상태를 “판매 중지”로 바꾸세요.
         공개 검색을 막아야 하는 상품은 노출 대상을 “추천 회원 전용” 또는 “비공개”로 두면 됩니다.
-        배송비와 카테고리, 홈 화면 문구는 <Link href="/settings">운영 설정</Link>에서 바꿉니다.
+        배송비와 카테고리는 <Link href="/settings">운영 설정</Link>, 홈 배너는 <Link href="/homepage">홈페이지 꾸미기</Link>에서 바꿉니다.
       </div>
     </>
   );

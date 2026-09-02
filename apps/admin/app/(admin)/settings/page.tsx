@@ -1,4 +1,4 @@
-import { CategorySettingsForm, HomeContentForm, ShippingSettingsForm } from '@/components/settings-forms';
+import { CategorySettingsForm, ShippingSettingsForm } from '@/components/settings-forms';
 import { loadCategories, loadStoreSettings } from '@/lib/admin-data';
 
 export default async function AdminSettingsPage() {
@@ -10,7 +10,7 @@ export default async function AdminSettingsPage() {
         <div>
           <p className="eyebrow">SETTINGS</p>
           <h1>운영 설정</h1>
-          <p className="muted">배송비·카테고리·홈 화면은 여기서 바꿉니다. 개발자에게 요청하지 않아도 됩니다.</p>
+          <p className="muted">배송비와 상품 카테고리를 관리합니다. 홈 배너는 “홈페이지 꾸미기”에서 바꿉니다.</p>
         </div>
         <span className={`badge ${settings.source === 'supabase' ? 'badge-success' : 'badge-warning'}`}>{settings.source}</span>
       </div>
@@ -21,7 +21,6 @@ export default async function AdminSettingsPage() {
 
       <ShippingSettingsForm settings={settings} />
       <CategorySettingsForm categories={categoryResult.categories} />
-      <HomeContentForm settings={settings} />
     </>
   );
 }

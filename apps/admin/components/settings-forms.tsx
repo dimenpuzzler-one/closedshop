@@ -1,10 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserSupabaseClient } from '@closed-commerce/db';
 import type { AdminCategory, AdminStoreSettings } from '@/lib/admin-data';
 
 type ApiResult = {
@@ -21,9 +19,6 @@ const FIELD_LABELS: Record<string, string> = {
   shippingFeePerCarton: '묶음당 배송비',
   shippingCartonQuantity: '묶음 수량',
   freeShippingThreshold: '무료배송 기준액',
-  heroHeadline: '메인 문구',
-  heroSubheadline: '메인 설명',
-  heroYoutubeUrl: '유튜브 주소',
   name: '카테고리 이름',
   parentName: '상위 대분류',
 };
@@ -318,169 +313,6 @@ export function CategorySettingsForm({ categories }: { categories: AdminCategory
         <button className="button button-secondary" disabled={save.busy}>{save.busy ? '추가 중…' : '카테고리 추가'}</button>
       </form>
       <Feedback error={save.error} message={save.message} />
-    </section>
-  );
-}
-
-const ALLOWED_BANNER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const MAX_BANNER_BYTES = 20 * 1024 * 1024;
-
-export function HomeContentForm({ settings }: { settings: AdminStoreSettings }) {
-  const save = useSave();
-  const [bannerBusy, setBannerBusy] = useState(false);
-  const [bannerError, setBannerError] = useState('');
-  const [bannerMessage, setBannerMessage] = useState('');
-  const router = useRouter();
-
-  async function submitCopy(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await save.postJson(
-      '/api/settings',
-      {
-        heroHeadline: textOf(form, 'heroHeadline'),
-        heroSubheadline: textOf(form, 'heroSubheadline'),
-        heroYoutubeUrl: textOf(form, 'heroYoutubeUrl'),
-      },
-      '홈 화면 내용을 저장했습니다.',
-    );
-  }
-
-  /** 배너도 상품 사진과 같은 방식으로 Storage에 직접 올린다. */
-  async function uploadBanner(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const picked = new FormData(formElement).get('banner');
-    if (!(picked instanceof File) || picked.size === 0) {
-      setBannerError('배너 이미지를 선택해 주세요.');
-      return;
-    }
-    if (!ALLOWED_BANNER_TYPES.has(picked.type)) {
-      setBannerError('JPG, PNG, WEBP 이미지만 올릴 수 있습니다.');
-      return;
-    }
-    if (picked.size > MAX_BANNER_BYTES) {
-      setBannerError(`배너는 20MB 이하여야 합니다. 선택한 파일은 ${(picked.size / 1024 / 1024).toFixed(1)}MB입니다.`);
-      return;
-    }
-
-    setBannerBusy(true);
-    setBannerError('');
-    setBannerMessage('');
-    try {
-      const prepareResponse = await fetch('/api/settings/banner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mimeType: picked.type, byteSize: picked.size }),
-      });
-      const prepared = await readResponse(prepareResponse);
-      if (!prepareResponse.ok || !prepared.upload) {
-        setBannerError(describeFailure(prepareResponse, prepared));
-        return;
-      }
-
-      const storage = createBrowserSupabaseClient().storage.from('product-images');
-      const { error: uploadError } = await storage.uploadToSignedUrl(prepared.upload.path, prepared.upload.token, picked, {
-        contentType: picked.type,
-        cacheControl: '31536000',
-        upsert: false,
-      });
-      if (uploadError) {
-        setBannerError(`배너를 올리지 못했습니다: ${uploadError.message}`);
-        return;
-      }
-
-      const commitResponse = await fetch('/api/settings/banner', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: prepared.upload.path }),
-      });
-      const committed = await readResponse(commitResponse);
-      if (!commitResponse.ok) {
-        setBannerError(describeFailure(commitResponse, committed));
-        return;
-      }
-      setBannerMessage(committed.message ?? '메인 배너를 바꿨습니다.');
-      formElement.reset();
-      router.refresh();
-    } catch (caught) {
-      setBannerError(`배너를 올리지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
-    } finally {
-      setBannerBusy(false);
-    }
-  }
-
-  async function removeBanner() {
-    setBannerBusy(true);
-    setBannerError('');
-    setBannerMessage('');
-    try {
-      const response = await fetch('/api/settings/banner', { method: 'DELETE' });
-      const result = await readResponse(response);
-      if (!response.ok) {
-        setBannerError(describeFailure(response, result));
-        return;
-      }
-      setBannerMessage(result.message ?? '메인 배너를 지웠습니다.');
-      router.refresh();
-    } catch (caught) {
-      setBannerError(`배너를 지우지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
-    } finally {
-      setBannerBusy(false);
-    }
-  }
-
-  return (
-    <section className="card admin-section stack">
-      <div>
-        <h2>홈 화면</h2>
-        <p className="muted">고객이 처음 보는 화면의 문구, 배너, 소개 영상입니다. 비워두면 기본값이 나옵니다.</p>
-      </div>
-
-      <form className="stack" onSubmit={submitCopy}>
-        <label className="field">
-          <span className="field-label">메인 문구</span>
-          <input className="input" name="heroHeadline" defaultValue={settings.heroHeadline} maxLength={120} placeholder="초대받은 분께만 열리는 특판몰." />
-        </label>
-        <label className="field">
-          <span className="field-label">메인 설명</span>
-          <textarea className="textarea" name="heroSubheadline" defaultValue={settings.heroSubheadline} maxLength={300} rows={2} />
-        </label>
-        <label className="field">
-          <span className="field-label">유튜브 주소(선택)</span>
-          <input className="input" name="heroYoutubeUrl" defaultValue={settings.heroYoutubeUrl} placeholder="https://www.youtube.com/watch?v=..." />
-          <span className="field-hint">주소를 넣으면 홈에 영상이 함께 나옵니다. 비우면 영상이 사라집니다.</span>
-        </label>
-        <button className="button button-primary" disabled={save.busy}>{save.busy ? '저장 중…' : '홈 화면 내용 저장'}</button>
-        <Feedback error={save.error} message={save.message} />
-      </form>
-
-      <hr className="divider" />
-
-      <div className="stack">
-        <strong>메인 배너 이미지</strong>
-        {settings.heroBannerUrl ? (
-          <div className="stack" style={{ gap: '0.4rem' }}>
-            <Image src={settings.heroBannerUrl} alt="현재 메인 배너" width={320} height={200} unoptimized />
-            <div>
-              <button className="button button-ghost" type="button" disabled={bannerBusy} onClick={() => void removeBanner()}>
-                배너 지우기
-              </button>
-            </div>
-          </div>
-        ) : (
-          <span className="field-hint">배너가 없으면 기본 그래픽이 나옵니다.</span>
-        )}
-        <form className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={uploadBanner}>
-          <label className="field" htmlFor="banner-file">
-            <span className="field-label">새 배너 파일</span>
-            <input id="banner-file" className="input" type="file" name="banner" accept="image/jpeg,image/png,image/webp" />
-            <span className="field-hint">가로로 긴 이미지가 잘 어울립니다. 한 장 20MB까지.</span>
-          </label>
-          <button className="button button-secondary" disabled={bannerBusy}>{bannerBusy ? '올리는 중…' : '배너 올리기'}</button>
-        </form>
-        <Feedback error={bannerError} message={bannerMessage} />
-      </div>
     </section>
   );
 }

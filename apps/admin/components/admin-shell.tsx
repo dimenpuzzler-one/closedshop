@@ -5,7 +5,7 @@ import { canAccessAdmin, getProfileRole, getVerifiedUser } from '@closed-commerc
 import { createServerAppClient } from '@/lib/supabase-server';
 
 const links: Array<[string, string]> = [
-  ['/','대시보드'], ['/members','회원 관리'], ['/products','상품 관리'], ['/orders','주문 관리'], ['/referrals','Referral'], ['/promotions','Promotion'], ['/analytics','통계'], ['/settlements','정산'], ['/leads','B2B Leads'], ['/settings','운영 설정'],
+  ['/','대시보드'], ['/homepage','홈페이지 꾸미기'], ['/members','회원 관리'], ['/products','상품 관리'], ['/orders','주문 관리'], ['/referrals','Referral'], ['/promotions','Promotion'], ['/analytics','통계'], ['/settlements','정산'], ['/leads','B2B Leads'], ['/settings','운영 설정'],
 ];
 
 async function canRenderAdmin() {

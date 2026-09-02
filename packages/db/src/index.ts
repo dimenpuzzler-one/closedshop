@@ -58,9 +58,38 @@ export type Database = {
         { storage_path?: string; alt_text?: string; sort_order?: number; role?: 'thumbnail' | 'detail'; width?: number | null; height?: number | null; byte_size?: number | null; mime_type?: string | null }
       >;
       store_settings: Table<
-        { id: number; shipping_cutoff_time: string; updated_at: string },
-        { id?: number; shipping_cutoff_time?: string },
-        { shipping_cutoff_time?: string }
+        {
+          id: number; shipping_cutoff_time: string; shipping_fee_per_carton: number;
+          shipping_carton_quantity: number; free_shipping_threshold: number | null;
+          hero_headline: string; hero_subheadline: string; hero_youtube_url: string;
+          hero_banner_path: string | null; hero_slide_interval_seconds: number; updated_at: string;
+        },
+        {
+          id?: number; shipping_cutoff_time?: string; shipping_fee_per_carton?: number;
+          shipping_carton_quantity?: number; free_shipping_threshold?: number | null;
+          hero_headline?: string; hero_subheadline?: string; hero_youtube_url?: string;
+          hero_banner_path?: string | null; hero_slide_interval_seconds?: number; updated_at?: string;
+        },
+        {
+          shipping_cutoff_time?: string; shipping_fee_per_carton?: number;
+          shipping_carton_quantity?: number; free_shipping_threshold?: number | null;
+          hero_headline?: string; hero_subheadline?: string; hero_youtube_url?: string;
+          hero_banner_path?: string | null; hero_slide_interval_seconds?: number; updated_at?: string;
+        }
+      >;
+      home_banners: Table<
+        {
+          id: string; image_path: string; alt_text: string; sort_order: number; is_active: boolean;
+          width: number | null; height: number | null; created_at: string;
+        },
+        {
+          id?: string; image_path: string; alt_text?: string; sort_order?: number; is_active?: boolean;
+          width?: number | null; height?: number | null; created_at?: string;
+        },
+        {
+          image_path?: string; alt_text?: string; sort_order?: number; is_active?: boolean;
+          width?: number | null; height?: number | null;
+        }
       >;
       referral_codes: Table<
         { id: string; code: string; owner_user_id: string; label: string | null; campaign_id: string | null; status: 'active' | 'inactive' | 'expired'; starts_at: string | null; expires_at: string | null; created_at: string },

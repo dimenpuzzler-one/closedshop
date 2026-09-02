@@ -37,35 +37,39 @@ export default async function HomePage() {
     '좋은 상품을 아는 사람이, 믿을 수 있는 사람에게 소개하는 비공개 특판 플랫폼입니다.';
   const embed = toYoutubeEmbed(settings.heroYoutubeUrl);
 
-  const heroSlides: HomeHeroSlide[] = [
+  const fallbackSlides: HomeHeroSlide[] = [
     {
+      id: 'private-specialty-market',
       eyebrow: 'PRIVATE SPECIALTY MARKET',
       title: headline,
       description: subheadline,
-      imageUrl: settings.heroBannerUrl || usableImageUrl(catalog.products[0]?.imageUrl),
+      imageUrl: usableImageUrl(catalog.products[0]?.imageUrl),
       imageAlt: headline.replace(/\n/g, ' '),
-      href: '/products',
-      ctaLabel: '상품 둘러보기',
     },
     {
+      id: 'members-only',
       eyebrow: 'MEMBERS ONLY',
       title: '코드가 있는 분만\n입장할 수 있어요.',
       description: '딜키는 누구나를 위한 오픈몰이 아닙니다. 초대코드로 연결된 회원에게만 특판가와 주문을 공개합니다.',
       imageUrl: usableImageUrl(catalog.products[1]?.imageUrl),
       imageAlt: catalog.products[1]?.name,
-      href: catalog.priceVisible ? '/products' : '#member-access',
-      ctaLabel: catalog.priceVisible ? '상품 보러 가기' : '초대코드 확인하기',
     },
     {
+      id: 'dealkey-collection',
       eyebrow: 'DEALKEY COLLECTION',
       title: '카테고리별로\n새로운 딜을 만나보세요.',
       description: '식품부터 생활용품까지, 믿을 수 있는 제휴 상품을 카테고리별로 모아 소개합니다.',
       imageUrl: usableImageUrl(catalog.products[2]?.imageUrl),
       imageAlt: catalog.products[2]?.name,
-      href: '/products',
-      ctaLabel: '전체 상품 보기',
     },
   ];
+  const configuredSlides: HomeHeroSlide[] = settings.homeBanners.map((banner) => ({
+    id: banner.id,
+    imageUrl: banner.imageUrl,
+    imageAlt: banner.altText,
+    imageOnly: true,
+  }));
+  const heroSlides = configuredSlides.length > 0 ? configuredSlides : fallbackSlides;
 
   // 카테고리 순서를 그대로 따르되, 상품이 하나도 없는 카테고리는 홈에 그리지 않는다.
   const byCategory = categories
@@ -78,7 +82,7 @@ export default async function HomePage() {
     <>
       <section className="home-hero-section">
         <Container>
-          <HomeHeroCarousel slides={heroSlides} />
+          <HomeHeroCarousel slides={heroSlides} intervalSeconds={settings.heroSlideIntervalSeconds} />
         </Container>
       </section>
 

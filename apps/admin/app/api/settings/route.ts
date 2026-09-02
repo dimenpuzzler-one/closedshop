@@ -24,6 +24,7 @@ export const POST = withAdmin(
     if (input.heroHeadline !== undefined) patch.hero_headline = input.heroHeadline;
     if (input.heroSubheadline !== undefined) patch.hero_subheadline = input.heroSubheadline;
     if (input.heroYoutubeUrl !== undefined) patch.hero_youtube_url = input.heroYoutubeUrl;
+    if (input.heroSlideIntervalSeconds !== undefined) patch.hero_slide_interval_seconds = input.heroSlideIntervalSeconds;
 
     const { error } = await client.from('store_settings').upsert(patch, { onConflict: 'id' });
     if (error) failFromSupabase('설정을 저장하지 못했습니다.', error, 'settings_upsert_failed');

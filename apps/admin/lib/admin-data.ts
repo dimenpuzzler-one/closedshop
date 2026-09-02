@@ -103,6 +103,7 @@ export interface AdminStoreSettings {
   heroSubheadline: string;
   heroYoutubeUrl: string;
   heroBannerUrl: string;
+  heroSlideIntervalSeconds: number;
 }
 
 const SETTINGS_FALLBACK = {
@@ -114,6 +115,7 @@ const SETTINGS_FALLBACK = {
   heroSubheadline: '',
   heroYoutubeUrl: '',
   heroBannerUrl: '',
+  heroSlideIntervalSeconds: 6,
 };
 
 export async function loadStoreSettings(): Promise<AdminStoreSettings> {
@@ -123,7 +125,7 @@ export async function loadStoreSettings(): Promise<AdminStoreSettings> {
   const { data, error } = await client
     .from('store_settings')
     .select(
-      'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path',
+      'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path, hero_slide_interval_seconds',
     )
     .eq('id', 1)
     .maybeSingle();
@@ -140,6 +142,44 @@ export async function loadStoreSettings(): Promise<AdminStoreSettings> {
     heroBannerUrl: data?.hero_banner_path
       ? client.storage.from('product-images').getPublicUrl(data.hero_banner_path).data.publicUrl
       : '',
+    heroSlideIntervalSeconds: data?.hero_slide_interval_seconds ?? SETTINGS_FALLBACK.heroSlideIntervalSeconds,
+  };
+}
+
+export interface AdminHomeBanner {
+  id: string;
+  imagePath: string;
+  imageUrl: string;
+  altText: string;
+  sortOrder: number;
+  isActive: boolean;
+  width?: number;
+  height?: number;
+}
+
+/** 홈페이지 꾸미기 화면은 비노출 배너까지 전부 보여줘야 한다. */
+export async function loadHomeBanners(): Promise<{ source: AdminDataSource; banners: AdminHomeBanner[] }> {
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') return { source: gate.source, banners: [] };
+  const client = gate.client;
+  const { data, error } = await client
+    .from('home_banners')
+    .select('id, image_path, alt_text, sort_order, is_active, width, height, created_at')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) return { source: 'unavailable', banners: [] };
+  return {
+    source: 'supabase',
+    banners: (data ?? []).map((banner) => ({
+      id: banner.id,
+      imagePath: banner.image_path,
+      imageUrl: client.storage.from('product-images').getPublicUrl(banner.image_path).data.publicUrl,
+      altText: banner.alt_text,
+      sortOrder: banner.sort_order,
+      isActive: banner.is_active,
+      width: banner.width ?? undefined,
+      height: banner.height ?? undefined,
+    })),
   };
 }
 

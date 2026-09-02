@@ -210,8 +210,42 @@ export const storeSettingsSchema = z.object({
       '유튜브 주소만 넣을 수 있습니다. (https://www.youtube.com/... 또는 https://youtu.be/...)',
     )
     .optional(),
+  heroSlideIntervalSeconds: z
+    .number({ invalid_type_error: '배너 전환 시간은 숫자로 입력해 주세요.' })
+    .int('배너 전환 시간은 초 단위 정수로 입력해 주세요.')
+    .min(2, '배너 전환 시간은 2초 이상이어야 합니다.')
+    .max(30, '배너 전환 시간은 30초 이하여야 합니다.')
+    .optional(),
 }).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
   message: '변경할 항목이 없습니다.',
+});
+
+const homeBannerPathSchema = z
+  .string()
+  .regex(/^banners\/[0-9a-f-]+\.(?:jpg|png|webp)$/, '배너 저장 경로가 올바르지 않습니다.');
+
+const homeBannerSortOrderSchema = z
+  .number({ invalid_type_error: '배너 순서는 숫자로 입력해 주세요.' })
+  .int('배너 순서는 정수로 입력해 주세요.')
+  .min(0, '배너 순서는 0 이상이어야 합니다.')
+  .max(9999, '배너 순서는 9999 이하여야 합니다.');
+
+/** Storage 업로드가 끝난 배너를 홈 구성에 등록할 때 사용한다. */
+export const homeBannerCommitSchema = z.object({
+  path: homeBannerPathSchema,
+  altText: z.string().trim().max(160, '배너 설명은 160자를 넘을 수 없습니다.').default(''),
+  sortOrder: homeBannerSortOrderSchema.default(100),
+  width: z.number().int().min(1).max(20_000).optional(),
+  height: z.number().int().min(1).max(20_000).optional(),
+});
+
+/** 배너 파일은 그대로 두고 순서·노출·설명만 수정한다. */
+export const homeBannerUpdateSchema = z.object({
+  altText: z.string().trim().max(160, '배너 설명은 160자를 넘을 수 없습니다.').optional(),
+  sortOrder: homeBannerSortOrderSchema.optional(),
+  isActive: z.boolean().optional(),
+}).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+  message: '변경할 배너 항목이 없습니다.',
 });
 
 export const categoryCreateSchema = z.object({

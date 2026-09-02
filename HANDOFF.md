@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-02 (Asia/Seoul)** — 온라인가·회원가 분리 표시 및 상품 카드 가격 정렬 포함
+> 마지막 갱신: **2026-09-02 (Asia/Seoul)** — 어드민 홈페이지 꾸미기·전체 이미지 배너 관리 포함
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -202,7 +202,10 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
     20260831090000_product_image_role
     20260901034111_shipping_address_book
     20260901040000_expire_stale_pending_orders
-    20260901040407_revoke_stale_order_expiry_public_access   ← 최신
+    20260901040407_revoke_stale_order_expiry_public_access
+    20260902070659_add_product_home_sort_order
+    20260902080253_home_banner_builder
+    20260902082910_optimize_home_banner_policies   ← 최신
 
 **새 DB 변경은 반드시 새 timestamp 마이그레이션 파일로 만들고, live에 적용한 뒤 Git에 커밋합니다.**
 이미 적용된 마이그레이션을 다시 실행하지 마세요.
@@ -246,9 +249,11 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 - **엑셀 다운로드**: BOM 붙인 CSV라 더블클릭하면 엑셀에서 한글이 안 깨집니다. 배송지 포함.
 - **주문 row는 지우지 않습니다.** 정산·수수료·감사 기록이 걸려 있습니다. 숨기기 + 재고 반환으로 같은 목적을 달성합니다.
 
-### 운영 설정 (`settings`)
+### 운영 설정 (`settings`) / 홈페이지 꾸미기 (`homepage`)
 
-배송비 정책(박스당 수량/요금/무료배송 기준), 카테고리 트리, 홈 화면 문구, 배송 마감 시간.
+`/settings`는 배송비 정책(박스당 수량/요금/무료배송 기준), 카테고리 트리, 배송 마감 시간을 관리합니다.
+`/homepage`는 홈 전체 이미지 배너 추가·순서·노출·삭제와 자동 전환 시간(2~30초), 기본 문구·유튜브를 관리합니다. 배너는 최대 12장, 권장 1600×600px이며 클릭 링크나 상품 보기 버튼은 없습니다.
+활성 배너는 `home_banners`에서 순서대로 읽고, 이미지 파일은 공개 `product-images/banners/` 경로에 서명 업로드합니다. 활성 배너가 없으면 기본 소개 화면을 표시합니다.
 배송비는 하드코딩이 아니라 `store_settings`에서 옵니다: `calculateShippingAmount(quantity, netAmount, policy)`.
 
 ---

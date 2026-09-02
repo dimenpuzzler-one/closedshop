@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { logServerEvent } from '@closed-commerce/observability';
+import { homeBannerCommitSchema } from '@closed-commerce/validation';
 import { ApiError, demoResponse, failFromSupabase, readJson, withAdmin } from '@/lib/route-handler';
 
 const IMAGE_BUCKET = 'product-images';
 const MAX_BANNER_BYTES = 20 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const BANNER_PREFIX = 'banners/';
+const MAX_HOME_BANNERS = 12;
 
 function extensionFor(type: string) {
   return type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
@@ -40,58 +42,49 @@ export const POST = withAdmin(
   { demo: (requestId) => demoResponse(requestId, { message: '데모 모드에서는 배너를 올릴 수 없습니다.' }) },
 );
 
-/** 업로드된 객체를 확인한 뒤에만 설정에 반영한다. 이전 배너는 지운다. */
+/** 업로드된 객체를 확인한 뒤 홈 배너 목록에 추가한다. 기존 배너는 그대로 둔다. */
 export const PUT = withAdmin(
   'admin.settings.banner.commit',
   async ({ requestId, client, userId }, request) => {
-    const body = (await readJson(request)) as { path?: unknown };
-    if (!isBannerPath(body.path)) throw new ApiError(400, '배너 저장 경로가 올바르지 않습니다.', 'invalid_storage_path');
-    const path = body.path;
+    const parsed = homeBannerCommitSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      throw new ApiError(400, '배너 입력값이 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
+    }
+    const { path, altText, sortOrder, width, height } = parsed.data;
+    if (!isBannerPath(path)) throw new ApiError(400, '배너 저장 경로가 올바르지 않습니다.', 'invalid_storage_path');
 
     const check = await client.storage.from(IMAGE_BUCKET).info(path);
     if (check.error || !check.data) {
       throw new ApiError(409, 'Storage에서 업로드된 배너를 확인하지 못했습니다.', 'upload_not_found');
     }
 
-    const { data: previous } = await client.from('store_settings').select('hero_banner_path').eq('id', 1).maybeSingle();
-    const { error } = await client.from('store_settings').upsert({ id: 1, hero_banner_path: path }, { onConflict: 'id' });
-    if (error) failFromSupabase('배너를 저장하지 못했습니다.', error, 'banner_update_failed');
+    const { count, error: countError } = await client
+      .from('home_banners')
+      .select('id', { count: 'exact', head: true });
+    if (countError) failFromSupabase('등록된 배너 수를 확인하지 못했습니다.', countError, 'banner_count_failed');
+    if ((count ?? 0) >= MAX_HOME_BANNERS) {
+      await client.storage.from(IMAGE_BUCKET).remove([path]).catch(() => undefined);
+      throw new ApiError(409, `홈 배너는 최대 ${MAX_HOME_BANNERS}장까지 등록할 수 있습니다.`, 'banner_limit_reached');
+    }
 
-    // 새 배너가 확정된 다음에만 이전 파일을 지운다. 실패해도 화면은 이미 정상이다.
-    const oldPath = previous?.hero_banner_path;
-    if (isBannerPath(oldPath) && oldPath !== path) {
-      await client.storage.from(IMAGE_BUCKET).remove([oldPath]).catch(() => undefined);
+    const { data: banner, error } = await client
+      .from('home_banners')
+      .insert({ image_path: path, alt_text: altText, sort_order: sortOrder, width: width ?? null, height: height ?? null })
+      .select('id, image_path, alt_text, sort_order, is_active, width, height')
+      .single();
+    if (error || !banner) {
+      await client.storage.from(IMAGE_BUCKET).remove([path]).catch(() => undefined);
+      failFromSupabase('배너를 저장하지 못했습니다.', error, 'banner_insert_failed');
     }
 
     await client.from('admin_audit_logs').insert({
       actor_user_id: userId,
-      action: 'store_banner_updated',
-      entity_type: 'store_settings',
-      before_data: { path: oldPath ?? null },
-      after_data: { path, requestId },
+      action: 'home_banner_created',
+      entity_type: 'home_banner',
+      entity_id: banner.id,
+      after_data: { ...banner, requestId },
     });
-    return NextResponse.json({ message: '메인 배너를 바꿨습니다.', requestId });
+    return NextResponse.json({ message: '홈 배너를 추가했습니다.', banner, requestId });
   },
   { demo: (requestId) => demoResponse(requestId, { message: '데모 모드에서는 배너를 올릴 수 없습니다.' }) },
-);
-
-/** 배너를 없애고 기본 그래픽으로 되돌린다. */
-export const DELETE = withAdmin(
-  'admin.settings.banner.remove',
-  async ({ requestId, client, userId }) => {
-    const { data: previous } = await client.from('store_settings').select('hero_banner_path').eq('id', 1).maybeSingle();
-    const { error } = await client.from('store_settings').upsert({ id: 1, hero_banner_path: null }, { onConflict: 'id' });
-    if (error) failFromSupabase('배너를 지우지 못했습니다.', error, 'banner_update_failed');
-    const oldPath = previous?.hero_banner_path;
-    if (isBannerPath(oldPath)) await client.storage.from(IMAGE_BUCKET).remove([oldPath]).catch(() => undefined);
-
-    await client.from('admin_audit_logs').insert({
-      actor_user_id: userId,
-      action: 'store_banner_removed',
-      entity_type: 'store_settings',
-      before_data: { path: oldPath ?? null, requestId },
-    });
-    return NextResponse.json({ message: '메인 배너를 지웠습니다.', requestId });
-  },
-  { demo: (requestId) => demoResponse(requestId, { message: '데모 모드에서는 배너를 지울 수 없습니다.' }) },
 );

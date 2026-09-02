@@ -372,6 +372,13 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   transform: scale(1);
 }
 
+/* 관리자가 올린 배너는 좌우 분할 없이 이미지 전체를 그대로 사용한다. */
+.home-hero.image-banners .home-hero-track { min-height: 0; aspect-ratio: 8 / 3; }
+.home-hero-slide.image-only { display: block; background: #ede8df; }
+.home-hero-full-media { position: absolute; inset: 0; }
+.home-hero-full-media img { object-fit: contain; }
+.home-hero.image-banners .home-hero-controls { right: 24px; bottom: 16px; }
+
 .home-hero-copy {
   position: relative;
   z-index: 2;
@@ -491,6 +498,9 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .home-hero-copy .hero-copy { font-size: 15px; }
   .home-hero-media { min-height: 220px; }
   .home-hero-controls { right: 22px; }
+  .home-hero.image-banners .home-hero-controls { right: 12px; bottom: 10px; gap: 7px; }
+  .home-hero.image-banners .home-hero-arrow { width: 26px; height: 26px; font-size: 19px; }
+  .home-hero.image-banners .home-hero-dot { width: 18px; }
   .home-access-grid { gap: 16px; }
 }
 
