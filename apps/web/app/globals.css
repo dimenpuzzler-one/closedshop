@@ -116,7 +116,8 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-price { font-size: 20px; font-weight: 800; white-space: nowrap; }
 .price-label { color: var(--muted); font-size: .56em; font-weight: 700; letter-spacing: .02em; margin-right: 6px; }
 .online-price { color: var(--muted); font-size: 14px; font-weight: 600; }
-.online-price.discounted .price { text-decoration: line-through; text-decoration-thickness: 1px; }
+.online-price.discounted, .online-price-reference { color: #b34e4e; text-decoration: line-through; text-decoration-thickness: 1.5px; text-decoration-color: currentColor; }
+.online-price.discounted .price-label, .online-price-reference .price-label { color: inherit; }
 .price-member-hint { color: var(--muted); font-size: 11px; line-height: 1.3; white-space: nowrap; }
 .member-price { display: inline-flex; align-items: baseline; }
 .product-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
@@ -274,9 +275,10 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   /* 상품 그리드는 1열로 떨어뜨리지 않는다. 유입 대부분이 모바일이라
      1열이면 상품 4개를 보는 데 화면을 네 번 넘겨야 한다. */
   .grid-4 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .home-product-section .grid-4 { align-items: start; }
   .product-card .product-body { padding: 12px; }
   .product-card h3 { font-size: 15px; }
-  .home-product-section .product-visual { min-height: 142px; padding: 12px; }
+  .home-product-section .product-visual { min-height: 128px; padding: 12px; }
   .home-product-section .product-weight { font-size: 21px; }
   .home-product-section .product-body { padding: 12px; }
   .home-product-section .product-body h3 { line-height: 1.35; }
@@ -285,6 +287,11 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .product-meta { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 12px; }
   .product-pricing { align-items: flex-start; }
   .product-meta .button { width: 100%; }
+  .home-product-section .product-card-compact { height: auto; }
+  .home-product-section .product-card-compact .product-body { flex: none; padding: 10px; }
+  .home-product-section .product-card-compact .product-title { height: 2.7em; line-height: 1.3; -webkit-line-clamp: 2; }
+  .home-product-section .product-card-compact .product-meta { margin-top: 8px; padding-top: 0; }
+  .home-product-section .product-card-compact .product-meta .button { min-height: 36px; padding: 9px 10px; font-size: 13px; }
   .form-grid .full { grid-column: auto; }
   .gate-form, .footer-inner { flex-direction: column; align-items: stretch; }
   .address-book-grid { grid-template-columns: 1fr; }
@@ -528,6 +535,9 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .home-hero-media { min-height: 220px; }
   .home-hero-controls { right: 22px; }
   .home-hero.image-banners .home-hero-controls { right: 12px; bottom: 10px; gap: 7px; }
+  /* PC 권장 배너(8:3)는 유지하되, 모바일에서는 2:1 영역으로 세로를 키워 읽기 쉽게 표시한다. */
+  .home-hero.image-banners .home-hero-track { aspect-ratio: 2 / 1; }
+  .home-hero.image-banners .home-hero-full-media img { object-fit: cover; }
   .home-hero.image-banners .home-hero-arrow { width: 26px; height: 26px; font-size: 19px; }
   .home-hero.image-banners .home-hero-dot { width: 18px; }
   .home-access-grid { gap: 16px; }

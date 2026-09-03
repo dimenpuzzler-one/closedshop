@@ -16,12 +16,12 @@ export function ProductPrice({ product, showMemberPrice }: { product: Product; s
     return (
       <div className="product-pricing">
         {hasOnlinePrice ? (
-          <span className="product-price online-price">
-            <span className="price-label">온라인가</span>
+          <span className="product-price online-price online-price-reference">
+            <span className="price-label">온라인 기준가</span>
             <Price amount={onlinePrice} />
           </span>
         ) : (
-          <span className="product-price muted">온라인가 준비 중</span>
+          <span className="product-price muted">온라인 기준가 준비 중</span>
         )}
         <span className="price-member-hint">회원가입 후 회원가 확인</span>
       </div>
@@ -32,7 +32,7 @@ export function ProductPrice({ product, showMemberPrice }: { product: Product; s
     <div className="product-pricing">
       {hasDiscount ? (
         <span className="product-price online-price discounted">
-          <span className="price-label">온라인가</span>
+          <span className="price-label">온라인 기준가</span>
           <Price amount={onlinePrice} />
         </span>
       ) : null}

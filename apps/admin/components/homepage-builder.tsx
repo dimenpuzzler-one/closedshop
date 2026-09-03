@@ -368,7 +368,7 @@ export function HomepageBuilder({ settings, banners, products, categories, edita
       <section className="card admin-section stack">
         <div>
           <h2>새 배너 추가</h2>
-          <p className="muted">권장 크기 1600×600px(8:3), JPG·PNG·WEBP, 한 장 최대 20MB입니다. 같은 비율로 올리면 전환할 때 화면 높이가 안정적입니다.</p>
+          <p className="muted">PC 권장 크기 1600×600px(8:3), JPG·PNG·WEBP, 한 장 최대 20MB입니다. 모바일에서는 배너 영역을 2:1로 넓혀 표시합니다.</p>
         </div>
         <form className="stack" onSubmit={upload}>
           <label className="field">

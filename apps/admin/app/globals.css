@@ -113,6 +113,7 @@ button, input, select { font: inherit; }
 .homepage-preview-product-body > strong { display: -webkit-box; height: 3.9em; overflow: hidden; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .homepage-preview-price { display: grid; gap: 2px; min-height: 32px; font-size: 11px; }
 .homepage-preview-price em { color: #776e63; font-size: 9px; font-style: normal; }
+.homepage-preview-online-price { color: #b34e4e; text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: currentColor; }
 .homepage-preview-detail { padding: 7px; border-radius: 7px; background: #efe6d3; color: #6b4d26; text-align: center; font-size: 10px; font-weight: 700; }
 .homepage-preview-empty { padding: 30px; text-align: center; }
 @media (max-width: 750px) {

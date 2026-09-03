@@ -79,7 +79,7 @@ export function HomepagePreview({
                         <small>{product.category}</small>
                         <strong>{product.name}</strong>
                         <div className="homepage-preview-price">
-                          {member ? <b>회원가 {won(memberPrice)}</b> : <><b>{product.onlinePrice ? `온라인가 ${won(product.onlinePrice)}` : '온라인가 준비 중'}</b><em>회원가입 후 회원가 확인</em></>}
+                          {member ? <b>회원가 {won(memberPrice)}</b> : <><b className="homepage-preview-online-price">{product.onlinePrice ? `온라인 기준가 ${won(product.onlinePrice)}` : '온라인 기준가 준비 중'}</b><em>회원가입 후 회원가 확인</em></>}
                         </div>
                         <span className="homepage-preview-detail">상세 보기</span>
                       </div>
