@@ -4,6 +4,7 @@ import { COMPANY } from '@closed-commerce/config';
 import { SiteHeader } from '@/components/site-header';
 import { AttributionTracker } from '@/components/attribution-tracker';
 import { Container } from '@closed-commerce/ui';
+import { loadStoreSettings } from '@/lib/store-settings';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -12,7 +13,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await loadStoreSettings();
+  const bodyClassName = `theme-${settings.siteTheme} width-${settings.siteWidth} density-${settings.siteDensity}`;
   return <html lang="ko">
     {/*
       폰트를 globals.css의 @import로 걸었더니 두 페이지 모두 이게 가장 느린 리소스가 됐다
@@ -33,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap"
       />
     </head>
-    <body>
+    <body className={bodyClassName}>
       <SiteHeader />
       <AttributionTracker />
       <main>{children}</main>

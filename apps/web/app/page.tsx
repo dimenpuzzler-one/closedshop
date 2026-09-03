@@ -81,13 +81,13 @@ export default async function HomePage() {
   return (
     <>
       <section className="home-hero-section">
-        <Container>
+        <Container className="home-hero-container">
           <HomeHeroCarousel slides={heroSlides} intervalSeconds={settings.heroSlideIntervalSeconds} />
         </Container>
       </section>
 
       {categories.length > 1 ? (
-        <section className="section-tight">
+        <section className="section-tight home-category-nav-section">
           <Container>
             <div className="category-nav">
               {categories.map((category) => (

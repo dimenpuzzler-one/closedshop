@@ -62,19 +62,25 @@ export type Database = {
           id: number; shipping_cutoff_time: string; shipping_fee_per_carton: number;
           shipping_carton_quantity: number; free_shipping_threshold: number | null;
           hero_headline: string; hero_subheadline: string; hero_youtube_url: string;
-          hero_banner_path: string | null; hero_slide_interval_seconds: number; updated_at: string;
+          hero_banner_path: string | null; hero_slide_interval_seconds: number;
+          site_theme: 'dealkey_gold' | 'warm_beige' | 'clean_white'; site_width: 'standard' | 'wide';
+          site_density: 'compact' | 'balanced' | 'spacious'; updated_at: string;
         },
         {
           id?: number; shipping_cutoff_time?: string; shipping_fee_per_carton?: number;
           shipping_carton_quantity?: number; free_shipping_threshold?: number | null;
           hero_headline?: string; hero_subheadline?: string; hero_youtube_url?: string;
-          hero_banner_path?: string | null; hero_slide_interval_seconds?: number; updated_at?: string;
+          hero_banner_path?: string | null; hero_slide_interval_seconds?: number;
+          site_theme?: 'dealkey_gold' | 'warm_beige' | 'clean_white'; site_width?: 'standard' | 'wide';
+          site_density?: 'compact' | 'balanced' | 'spacious'; updated_at?: string;
         },
         {
           shipping_cutoff_time?: string; shipping_fee_per_carton?: number;
           shipping_carton_quantity?: number; free_shipping_threshold?: number | null;
           hero_headline?: string; hero_subheadline?: string; hero_youtube_url?: string;
-          hero_banner_path?: string | null; hero_slide_interval_seconds?: number; updated_at?: string;
+          hero_banner_path?: string | null; hero_slide_interval_seconds?: number;
+          site_theme?: 'dealkey_gold' | 'warm_beige' | 'clean_white'; site_width?: 'standard' | 'wide';
+          site_density?: 'compact' | 'balanced' | 'spacious'; updated_at?: string;
         }
       >;
       home_banners: Table<

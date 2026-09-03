@@ -85,8 +85,16 @@ export const b2bLeadSchema = z.object({
 
 export const orderUpdateSchema = z.object({
   status: z.enum(['pending', 'payment_pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancel_requested', 'cancelled', 'refund_requested', 'partially_refunded', 'refunded']),
-  shippingCompany: z.string().trim().max(80).optional(),
-  trackingNumber: z.string().trim().max(120).optional(),
+  shippingCompany: z.string().trim().min(1, '택배사를 입력해 주세요.').max(80).optional(),
+  trackingNumber: z.string().trim().min(1, '운송장 번호를 입력해 주세요.').max(120).optional(),
+}).superRefine((value, context) => {
+  if (value.status !== 'shipped') return;
+  if (!value.shippingCompany) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['shippingCompany'], message: '배송 처리에는 택배사가 필요합니다.' });
+  }
+  if (!value.trackingNumber || value.trackingNumber === '입력 필요') {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['trackingNumber'], message: '실제 운송장 번호를 입력해 주세요.' });
+  }
 });
 
 export const commissionUpdateSchema = z.object({
@@ -216,6 +224,9 @@ export const storeSettingsSchema = z.object({
     .min(2, '배너 전환 시간은 2초 이상이어야 합니다.')
     .max(30, '배너 전환 시간은 30초 이하여야 합니다.')
     .optional(),
+  siteTheme: z.enum(['dealkey_gold', 'warm_beige', 'clean_white']).optional(),
+  siteWidth: z.enum(['standard', 'wide']).optional(),
+  siteDensity: z.enum(['compact', 'balanced', 'spacious']).optional(),
 }).refine((value) => Object.values(value).some((entry) => entry !== undefined), {
   message: '변경할 항목이 없습니다.',
 });

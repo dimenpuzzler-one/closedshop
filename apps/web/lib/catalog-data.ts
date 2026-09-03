@@ -208,8 +208,8 @@ export async function loadVisibleCatalog(referralCode?: string, category?: strin
   const client = pickClient(sessionClient, access);
   if (!client) return { products: [], ...access };
 
-  let query = client.from('products').select(PRODUCT_COLUMNS).eq('status', 'active');
-  if (!access.priceVisible) query = query.neq('visibility', 'hidden');
+  // hidden은 운영 중 임시로 감춘 상품이다. 회원 여부와 관계없이 목록에 노출하면 안 된다.
+  let query = client.from('products').select(PRODUCT_COLUMNS).eq('status', 'active').neq('visibility', 'hidden');
   if (category) query = query.eq('category', category);
   const { data: rows, error } = await query.order('home_sort_order', { ascending: true }).order('created_at', { ascending: false });
   if (error || !rows) return { products: [], ...access };
@@ -239,8 +239,7 @@ export async function loadProductBySlug(slug: string, referralCode?: string): Pr
   const client = pickClient(sessionClient, access);
   if (!client) return access;
 
-  let query = client.from('products').select(PRODUCT_COLUMNS).eq('slug', slug).eq('status', 'active');
-  if (!access.priceVisible) query = query.neq('visibility', 'hidden');
+  const query = client.from('products').select(PRODUCT_COLUMNS).eq('slug', slug).eq('status', 'active').neq('visibility', 'hidden');
   const { data: row } = await query.maybeSingle();
   if (!row) return access;
   const [product] = await hydrate(client, [row], 'all');

@@ -25,6 +25,9 @@ export const POST = withAdmin(
     if (input.heroSubheadline !== undefined) patch.hero_subheadline = input.heroSubheadline;
     if (input.heroYoutubeUrl !== undefined) patch.hero_youtube_url = input.heroYoutubeUrl;
     if (input.heroSlideIntervalSeconds !== undefined) patch.hero_slide_interval_seconds = input.heroSlideIntervalSeconds;
+    if (input.siteTheme !== undefined) patch.site_theme = input.siteTheme;
+    if (input.siteWidth !== undefined) patch.site_width = input.siteWidth;
+    if (input.siteDensity !== undefined) patch.site_density = input.siteDensity;
 
     const { error } = await client.from('store_settings').upsert(patch, { onConflict: 'id' });
     if (error) failFromSupabase('설정을 저장하지 못했습니다.', error, 'settings_upsert_failed');

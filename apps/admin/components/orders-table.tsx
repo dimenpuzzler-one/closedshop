@@ -103,13 +103,24 @@ export function OrdersTable({ orders }: { orders: AdminOrderRow[] }) {
     }
   }
 
+  async function startShipping(orderId: string) {
+    const shippingCompany = window.prompt('택배사를 입력해 주세요.', 'CJ대한통운')?.trim();
+    if (!shippingCompany) return;
+    const trackingNumber = window.prompt('실제 운송장 번호를 입력해 주세요.')?.trim();
+    if (!trackingNumber) {
+      setError('배송 처리에는 실제 운송장 번호가 필요합니다.');
+      return;
+    }
+    await patch(orderId, { status: 'shipped', shippingCompany, trackingNumber });
+  }
+
   function action(order: AdminOrderRow) {
     if (order.status === 'payment_pending' || order.status === 'pending') {
       // 결제를 끝내지 않은 주문. 취소하면 잡아둔 재고가 즉시 풀린다.
       return <button className="button button-ghost" type="button" disabled={busyId === order.id} onClick={() => void patch(order.id, { status: 'cancelled' })}>정리(재고 반환)</button>;
     }
     if (order.status === 'paid') return <button className="button button-ghost" type="button" disabled={busyId === order.id} onClick={() => void patch(order.id, { status: 'preparing' })}>준비 시작</button>;
-    if (order.status === 'preparing') return <button className="button button-ghost" type="button" disabled={busyId === order.id} onClick={() => void patch(order.id, { status: 'shipped', shippingCompany: 'CJ대한통운', trackingNumber: '입력 필요' })}>배송 처리</button>;
+    if (order.status === 'preparing') return <button className="button button-ghost" type="button" disabled={busyId === order.id} onClick={() => void startShipping(order.id)}>배송 정보 입력</button>;
     if (order.status === 'shipped') return <button className="button button-ghost" type="button" disabled={busyId === order.id} onClick={() => void patch(order.id, { status: 'delivered' })}>배송 완료</button>;
     return <span className="muted">—</span>;
   }

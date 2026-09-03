@@ -27,4 +27,10 @@ describe('homepage banner validation', () => {
     expect(storeSettingsSchema.safeParse({ heroSlideIntervalSeconds: 1 }).success).toBe(false);
     expect(storeSettingsSchema.safeParse({ heroSlideIntervalSeconds: 31 }).success).toBe(false);
   });
+
+  it('accepts only the supported homepage design presets', () => {
+    expect(storeSettingsSchema.safeParse({ siteTheme: 'warm_beige', siteWidth: 'wide', siteDensity: 'compact' }).success).toBe(true);
+    expect(storeSettingsSchema.safeParse({ siteTheme: 'custom_css' }).success).toBe(false);
+    expect(storeSettingsSchema.safeParse({ siteWidth: 'full' }).success).toBe(false);
+  });
 });

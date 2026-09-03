@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { DEMO_PRODUCTS, DEMO_PROMOTIONS, DEMO_REFERRAL_CODES } from '@closed-commerce/commerce';
 import type { AppSupabaseClient } from '@closed-commerce/db';
 import type { B2BLead, Product, ProductImage, PromotionCode, ReferralCode } from '@closed-commerce/types';
@@ -16,11 +17,11 @@ type AdminGate =
  * 병렬로 실행하므로 비로그인 요청에서도 아래 조회들이 전부 실행됐다.
  * 이제 권한을 통과해야만 client가 나온다 — 인가와 권한 클라이언트를 타입으로 묶는다.
  */
-async function adminGate(): Promise<AdminGate> {
+const adminGate = cache(async (): Promise<AdminGate> => {
   const result = await requireAdminClient();
   if (result.ok) return { source: 'supabase', client: result.client };
   return { source: result.mode === 'demo' ? 'demo' : 'unavailable' };
-}
+});
 
 export async function loadAdminProducts(): Promise<{ source: AdminDataSource; products: Product[] }> {
   const gate = await adminGate();
@@ -104,6 +105,9 @@ export interface AdminStoreSettings {
   heroYoutubeUrl: string;
   heroBannerUrl: string;
   heroSlideIntervalSeconds: number;
+  siteTheme: 'dealkey_gold' | 'warm_beige' | 'clean_white';
+  siteWidth: 'standard' | 'wide';
+  siteDensity: 'compact' | 'balanced' | 'spacious';
 }
 
 const SETTINGS_FALLBACK = {
@@ -116,6 +120,9 @@ const SETTINGS_FALLBACK = {
   heroYoutubeUrl: '',
   heroBannerUrl: '',
   heroSlideIntervalSeconds: 6,
+  siteTheme: 'dealkey_gold' as const,
+  siteWidth: 'wide' as const,
+  siteDensity: 'compact' as const,
 };
 
 export async function loadStoreSettings(): Promise<AdminStoreSettings> {
@@ -125,7 +132,7 @@ export async function loadStoreSettings(): Promise<AdminStoreSettings> {
   const { data, error } = await client
     .from('store_settings')
     .select(
-      'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path, hero_slide_interval_seconds',
+      'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path, hero_slide_interval_seconds, site_theme, site_width, site_density',
     )
     .eq('id', 1)
     .maybeSingle();
@@ -143,6 +150,9 @@ export async function loadStoreSettings(): Promise<AdminStoreSettings> {
       ? client.storage.from('product-images').getPublicUrl(data.hero_banner_path).data.publicUrl
       : '',
     heroSlideIntervalSeconds: data?.hero_slide_interval_seconds ?? SETTINGS_FALLBACK.heroSlideIntervalSeconds,
+    siteTheme: data?.site_theme ?? SETTINGS_FALLBACK.siteTheme,
+    siteWidth: data?.site_width ?? SETTINGS_FALLBACK.siteWidth,
+    siteDensity: data?.site_density ?? SETTINGS_FALLBACK.siteDensity,
   };
 }
 
@@ -155,6 +165,33 @@ export interface AdminHomeBanner {
   isActive: boolean;
   width?: number;
   height?: number;
+}
+
+/** 고객 홈과 같은 활성 카테고리 순서를 관리자 미리보기에 사용한다. */
+export async function loadHomeCategoryNames(): Promise<{ source: AdminDataSource; categories: string[] }> {
+  const gate = await adminGate();
+  if (gate.source !== 'supabase') {
+    return {
+      source: gate.source,
+      categories: gate.source === 'demo' ? [...new Set(DEMO_PRODUCTS.map((product) => product.category))] : [],
+    };
+  }
+  const { data, error } = await gate.client
+    .from('product_categories')
+    .select('id, name, parent_id, sort_order')
+    .eq('is_active', true)
+    .order('sort_order')
+    .order('name');
+  if (error) return { source: 'unavailable', categories: [] };
+  const rows = data ?? [];
+  const parents = rows.filter((row) => !row.parent_id);
+  const grouped = parents.flatMap((parent) => {
+    const children = rows.filter((row) => row.parent_id === parent.id).map((row) => row.name);
+    return children.length ? children : [parent.name];
+  });
+  const claimed = new Set(grouped);
+  const looseChildren = rows.filter((row) => row.parent_id && !claimed.has(row.name)).map((row) => row.name);
+  return { source: 'supabase', categories: [...grouped, ...looseChildren] };
 }
 
 /** 홈페이지 꾸미기 화면은 비노출 배너까지 전부 보여줘야 한다. */

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { DEFAULT_SHIPPING_POLICY, type ShippingPolicy } from '@closed-commerce/commerce';
 import { hasSupabaseEnv } from '@closed-commerce/db';
 import { createServerAppClient } from '@/lib/supabase-server';
@@ -25,6 +26,9 @@ export interface StoreSettings {
   heroBannerUrl: string;
   heroSlideIntervalSeconds: number;
   homeBanners: HomeBanner[];
+  siteTheme: 'dealkey_gold' | 'warm_beige' | 'clean_white';
+  siteWidth: 'standard' | 'wide';
+  siteDensity: 'compact' | 'balanced' | 'spacious';
 }
 
 const FALLBACK: StoreSettings = {
@@ -36,12 +40,15 @@ const FALLBACK: StoreSettings = {
   heroBannerUrl: '',
   heroSlideIntervalSeconds: 6,
   homeBanners: [],
+  siteTheme: 'dealkey_gold',
+  siteWidth: 'wide',
+  siteDensity: 'compact',
 };
 
 const COLUMNS =
-  'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path, hero_slide_interval_seconds';
+  'shipping_cutoff_time, shipping_fee_per_carton, shipping_carton_quantity, free_shipping_threshold, hero_headline, hero_subheadline, hero_youtube_url, hero_banner_path, hero_slide_interval_seconds, site_theme, site_width, site_density';
 
-export async function loadStoreSettings(): Promise<StoreSettings> {
+export const loadStoreSettings = cache(async (): Promise<StoreSettings> => {
   if (!hasSupabaseEnv()) return FALLBACK;
   const client = await createServerAppClient();
   const [{ data }, { data: bannerRows }] = await Promise.all([
@@ -84,8 +91,11 @@ export async function loadStoreSettings(): Promise<StoreSettings> {
       : '',
     heroSlideIntervalSeconds: data?.hero_slide_interval_seconds ?? FALLBACK.heroSlideIntervalSeconds,
     homeBanners,
+    siteTheme: data?.site_theme ?? FALLBACK.siteTheme,
+    siteWidth: data?.site_width ?? FALLBACK.siteWidth,
+    siteDensity: data?.site_density ?? FALLBACK.siteDensity,
   };
-}
+});
 
 /** 배송 마감 시간만 필요한 화면용. 예전 이름을 유지해 호출부를 한 번에 안 고쳐도 되게 한다. */
 export async function loadShippingSettings(): Promise<{ shippingCutoffTime: string }> {

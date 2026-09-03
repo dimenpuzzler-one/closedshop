@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-02 (Asia/Seoul)** — 어드민 홈페이지 꾸미기·전체 이미지 배너 관리 포함
+> 마지막 갱신: **2026-09-03 (Asia/Seoul)** — 홈 미리보기·광폭 배너·상품 진열 순서·주문 상태 안전장치 포함
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -99,7 +99,6 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | |
 | `NEXT_PUBLIC_WEB_URL` | **`https://dealkey.co.kr`** — 11.2절 참고 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 |
-| `PAYMENT_WEBHOOK_SECRET` | 서버 전용 |
 | `KORPAY_MERCHANT_ID` | 서버 전용 |
 | `KORPAY_MKEY` | **서버 전용 비밀키** |
 | `KORPAY_BASE_URL` | 미설정. 코드 기본값 `https://payments.korpay.com/v1` 사용 |
@@ -205,7 +204,9 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
     20260901040407_revoke_stale_order_expiry_public_access
     20260902070659_add_product_home_sort_order
     20260902080253_home_banner_builder
-    20260902082910_optimize_home_banner_policies   ← 최신
+    20260902082910_optimize_home_banner_policies
+    20260902084211_enforce_home_banner_limit
+    20260903021107_add_site_theme_settings   ← 최신
 
 **새 DB 변경은 반드시 새 timestamp 마이그레이션 파일로 만들고, live에 적용한 뒤 Git에 커밋합니다.**
 이미 적용된 마이그레이션을 다시 실행하지 마세요.
@@ -247,13 +248,15 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 - 배송지(수령인/연락처/우편번호/주소/요청사항)가 표에 나옵니다.
 - 결제대기 주문에는 **정리(재고 반환)** 버튼 — `PATCH {status:'cancelled'}`가 재고까지 되돌립니다.
 - **엑셀 다운로드**: BOM 붙인 CSV라 더블클릭하면 엑셀에서 한글이 안 깨집니다. 배송지 포함.
+- 배송 처리는 실제 택배사·운송장 번호를 입력해야 하며 `입력 필요` 같은 임시값은 API가 거부합니다. 허용된 상태 전이만 가능하고, 결제된 주문을 일반 상태 변경 API로 취소·환불 완료 처리할 수 없습니다.
 - **주문 row는 지우지 않습니다.** 정산·수수료·감사 기록이 걸려 있습니다. 숨기기 + 재고 반환으로 같은 목적을 달성합니다.
 
 ### 운영 설정 (`settings`) / 홈페이지 꾸미기 (`homepage`)
 
 `/settings`는 배송비 정책(박스당 수량/요금/무료배송 기준), 카테고리 트리, 배송 마감 시간을 관리합니다.
-`/homepage`는 홈 전체 이미지 배너 추가·순서·노출·삭제와 자동 전환 시간(2~30초), 기본 문구·유튜브를 관리합니다. 배너는 최대 12장, 권장 1600×600px이며 클릭 링크나 상품 보기 버튼은 없습니다.
-활성 배너는 `home_banners`에서 순서대로 읽고, 이미지 파일은 공개 `product-images/banners/` 경로에 서명 업로드합니다. 활성 배너가 없으면 기본 소개 화면을 표시합니다.
+`/homepage`는 홈 전체 이미지 배너 추가·순서·노출·삭제와 자동 전환 시간(2~30초), 기본 문구·유튜브, 화면 분위기·폭·간격 프리셋, 상품 진열 순서를 관리합니다. 배너는 최대 12장, 권장 1600×600px이며 클릭 링크나 상품 보기 버튼은 없습니다.
+활성 배너는 `home_banners`에서 순서대로 읽고, 이미지 파일은 공개 `product-images/banners/` 경로에 서명 업로드합니다. DB 등록 전 실패하면 미등록 파일만 정리하며, 완료 응답 유실 후 재시도는 중복 생성하지 않습니다. DB 트리거가 동시 업로드 상황에서도 최대 12장을 보장합니다. 활성 배너가 없으면 기본 소개 화면을 표시합니다.
+관리자 미리보기는 실제 등록 상품과 저장된 설정으로 PC/모바일, 회원/비회원 가격 화면을 전환합니다. 고객 홈의 배너는 일반 본문보다 넓은 최대 1480px이며 모바일 좌우 여백은 5px입니다. `home_sort_order`가 작은 상품이 같은 카테고리에서 먼저 나오고, `hidden` 상품은 회원 여부와 무관하게 고객 목록과 미리보기 모두에서 제외됩니다.
 배송비는 하드코딩이 아니라 `store_settings`에서 옵니다: `calculateShippingAmount(quantity, netAmount, policy)`.
 
 ---
@@ -311,7 +314,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 5. 3PL 정식 상호를 개인정보 위탁 표에 기입
 6. PG사(코페이) 상호를 위탁 표에 기입
 7. 개인정보 **국외이전** 고지 — Vercel 실제 처리 지역 확인 필요(개인정보 보호법 제28조의8)
-8. 코페이 **취소/환불 API 규격** 요청 — 현재 환불은 관리자 화면에서 상태만 바꿉니다. 실제 PG 취소 연동이 없습니다
+8. 코페이 **취소/환불 API 규격** 요청 — 실제 PG 취소 연동 전까지 관리자 환불 API는 501로 실패하도록 닫혀 있습니다. DB만 환불 완료로 바꾸지 않습니다
 9. 이메일 인증(Confirm email) — 가입 API는 `admin.createUser(email_confirm=true)`로 확인 메일을 사용하지 않음. 호스티드 Supabase 프로젝트 전역 토글은 대시보드 로그인 후 필요 시 별도 확인
 10. `tester@dealkey.co.kr` 오픈 전 삭제
 

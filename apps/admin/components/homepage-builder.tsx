@@ -5,7 +5,10 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@closed-commerce/db';
+import type { Product } from '@closed-commerce/types';
 import type { AdminHomeBanner, AdminStoreSettings } from '@/lib/admin-data';
+import { HomeProductOrderEditor } from './home-product-order-editor';
+import { HomepagePreview } from './homepage-preview';
 
 type ApiResult = {
   message?: string;
@@ -62,10 +65,23 @@ function numberOf(form: FormData, key: string) {
 }
 
 async function imageDimensions(file: File) {
-  const bitmap = await createImageBitmap(file);
-  const dimensions = { width: bitmap.width, height: bitmap.height };
-  bitmap.close();
-  return dimensions;
+  if (typeof createImageBitmap !== 'function') return undefined;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const dimensions = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dimensions;
+  } catch {
+    return undefined;
+  }
+}
+
+async function cleanupUnregisteredBanner(path: string) {
+  await fetch('/api/settings/banner', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paths: [path] }),
+  }).catch(() => undefined);
 }
 
 function BannerEditor({ banner }: { banner: AdminHomeBanner }) {
@@ -165,7 +181,7 @@ function BannerEditor({ banner }: { banner: AdminHomeBanner }) {
   );
 }
 
-export function HomepageBuilder({ settings, banners }: { settings: AdminStoreSettings; banners: AdminHomeBanner[] }) {
+export function HomepageBuilder({ settings, banners, products, categories, editable }: { settings: AdminStoreSettings; banners: AdminHomeBanner[]; products: Product[]; categories: string[]; editable: boolean }) {
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsMessage, setSettingsMessage] = useState('');
@@ -190,6 +206,9 @@ export function HomepageBuilder({ settings, banners }: { settings: AdminStoreSet
           heroHeadline: textOf(form, 'heroHeadline'),
           heroSubheadline: textOf(form, 'heroSubheadline'),
           heroYoutubeUrl: textOf(form, 'heroYoutubeUrl'),
+          siteTheme: textOf(form, 'siteTheme'),
+          siteWidth: textOf(form, 'siteWidth'),
+          siteDensity: textOf(form, 'siteDensity'),
         }),
       });
       const result = await readResponse(response);
@@ -240,36 +259,36 @@ export function HomepageBuilder({ settings, banners }: { settings: AdminStoreSet
         return;
       }
 
-      const storage = createBrowserSupabaseClient().storage.from('product-images');
-      const { error: storageError } = await storage.uploadToSignedUrl(prepared.upload.path, prepared.upload.token, file, {
-        contentType: file.type,
-        cacheControl: '31536000',
-        upsert: false,
-      });
-      if (storageError) {
-        setUploadError(`배너 이미지를 올리지 못했습니다: ${storageError.message}`);
-        return;
-      }
+      try {
+        const storage = createBrowserSupabaseClient().storage.from('product-images');
+        const { error: storageError } = await storage.uploadToSignedUrl(prepared.upload.path, prepared.upload.token, file, {
+          contentType: file.type,
+          cacheControl: '31536000',
+          upsert: false,
+        });
+        if (storageError) throw new Error(`배너 이미지를 올리지 못했습니다: ${storageError.message}`);
 
-      const commitResponse = await fetch('/api/settings/banner', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: prepared.upload.path,
-          altText: textOf(form, 'altText'),
-          sortOrder: numberOf(form, 'sortOrder'),
-          width: dimensions.width,
-          height: dimensions.height,
-        }),
-      });
-      const committed = await readResponse(commitResponse);
-      if (!commitResponse.ok) {
-        setUploadError(describeFailure(commitResponse, committed));
-        return;
+        const commitResponse = await fetch('/api/settings/banner', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: prepared.upload.path,
+            altText: textOf(form, 'altText'),
+            sortOrder: numberOf(form, 'sortOrder'),
+            width: dimensions?.width,
+            height: dimensions?.height,
+          }),
+        });
+        const committed = await readResponse(commitResponse);
+        if (!commitResponse.ok) throw new Error(describeFailure(commitResponse, committed));
+        setUploadMessage(committed.message ?? '홈 배너를 추가했습니다.');
+        formElement.reset();
+        router.refresh();
+      } catch (caught) {
+        // 완료 응답이 유실됐을 수도 있으므로 서버가 DB 등록 여부를 다시 확인한 뒤 미등록 파일만 지운다.
+        await cleanupUnregisteredBanner(prepared.upload.path);
+        throw caught;
       }
-      setUploadMessage(committed.message ?? '홈 배너를 추가했습니다.');
-      formElement.reset();
-      router.refresh();
     } catch (caught) {
       setUploadError(`배너를 올리지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
     } finally {
@@ -285,14 +304,39 @@ export function HomepageBuilder({ settings, banners }: { settings: AdminStoreSet
           <p className="muted">배너에는 별도 글자나 상품 보기 버튼을 얹지 않습니다. 등록한 이미지 전체가 홈 상단에 표시됩니다.</p>
         </div>
         <form className="stack" onSubmit={saveSettings}>
-          <label className="field">
-            <span className="field-label">자동 전환 시간</span>
-            <div className="row" style={{ justifyContent: 'flex-start' }}>
-              <input className="input" style={{ maxWidth: 140 }} type="number" name="heroSlideIntervalSeconds" min="2" max="30" defaultValue={settings.heroSlideIntervalSeconds} required />
-              <span>초</span>
-            </div>
-            <span className="field-hint">2~30초. 배너가 한 장이면 자동 전환하지 않습니다.</span>
-          </label>
+          <div className="form-grid">
+            <label className="field">
+              <span className="field-label">자동 전환 시간</span>
+              <div className="row" style={{ justifyContent: 'flex-start' }}>
+                <input className="input" style={{ maxWidth: 140 }} type="number" name="heroSlideIntervalSeconds" min="2" max="30" defaultValue={settings.heroSlideIntervalSeconds} required />
+                <span>초</span>
+              </div>
+              <span className="field-hint">2~30초. 배너가 한 장이면 자동 전환하지 않습니다.</span>
+            </label>
+            <label className="field">
+              <span className="field-label">화면 폭</span>
+              <select className="select" name="siteWidth" defaultValue={settings.siteWidth}>
+                <option value="wide">광폭 (권장)</option>
+                <option value="standard">기본 폭</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">화면 분위기</span>
+              <select className="select" name="siteTheme" defaultValue={settings.siteTheme}>
+                <option value="dealkey_gold">딜키 골드</option>
+                <option value="warm_beige">웜 베이지</option>
+                <option value="clean_white">클린 화이트</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">섹션 간격</span>
+              <select className="select" name="siteDensity" defaultValue={settings.siteDensity}>
+                <option value="compact">촘촘하게 (권장)</option>
+                <option value="balanced">기본</option>
+                <option value="spacious">여유 있게</option>
+              </select>
+            </label>
+          </div>
 
           <details>
             <summary>배너가 없을 때 기본 화면·영상 설정</summary>
@@ -316,6 +360,10 @@ export function HomepageBuilder({ settings, banners }: { settings: AdminStoreSet
           <Feedback error={settingsError} message={settingsMessage} />
         </form>
       </section>
+
+      <HomeProductOrderEditor products={products} editable={editable} />
+
+      <HomepagePreview settings={settings} banners={banners} products={products} categories={categories} />
 
       <section className="card admin-section stack">
         <div>

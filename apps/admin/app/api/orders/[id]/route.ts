@@ -3,15 +3,36 @@ import { orderUpdateSchema } from '@closed-commerce/validation';
 import { logServerError } from '@closed-commerce/observability';
 import { ApiError, demoResponse, failFromSupabase, readJson, withAdminParams } from '@/lib/route-handler';
 
+const ALLOWED_TRANSITIONS: Record<string, ReadonlySet<string>> = {
+  pending: new Set(['cancelled']),
+  payment_pending: new Set(['cancelled']),
+  paid: new Set(['preparing']),
+  preparing: new Set(['shipped']),
+  shipped: new Set(['delivered']),
+};
+
 export const PATCH = withAdminParams<{ id: string }>(
   'admin.orders.update',
   async ({ requestId, client, userId }, request, { id }) => {
     const parsed = orderUpdateSchema.safeParse(await readJson(request));
     if (!parsed.success) throw new ApiError(400, '주문 상태가 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
 
-    const { data: before, error: readError } = await client.from('orders').select('id, status, order_number').eq('id', id).maybeSingle();
+    const { data: before, error: readError } = await client
+      .from('orders')
+      .select('id, status, order_number, shipped_at, delivered_at, cancelled_at, refunded_at')
+      .eq('id', id)
+      .maybeSingle();
     if (readError) failFromSupabase('주문을 조회하지 못했습니다.', readError, 'order_read_failed');
     if (!before) throw new ApiError(404, `주문을 찾을 수 없습니다: ${id}`, 'order_not_found');
+
+    const nextStatus = parsed.data.status;
+    if (nextStatus !== before.status && !ALLOWED_TRANSITIONS[before.status]?.has(nextStatus)) {
+      throw new ApiError(
+        409,
+        `주문 상태를 ${before.status}에서 ${nextStatus}(으)로 바로 변경할 수 없습니다. 취소·환불은 실제 PG 처리 경로를 사용해야 합니다.`,
+        'invalid_order_transition',
+      );
+    }
 
     const now = new Date().toISOString();
     const orderUpdate: { status: string; shipped_at?: string; delivered_at?: string; cancelled_at?: string; refunded_at?: string } = {
@@ -25,17 +46,38 @@ export const PATCH = withAdminParams<{ id: string }>(
     const { error: updateError } = await client.from('orders').update(orderUpdate).eq('id', id);
     if (updateError) failFromSupabase('주문 상태를 변경하지 못했습니다.', updateError, 'order_update_failed');
 
-    if (parsed.data.shippingCompany || parsed.data.trackingNumber || parsed.data.status === 'shipped' || parsed.data.status === 'delivered') {
-      const { error: shipmentError } = await client.from('shipments').upsert({
+    let shipmentError: unknown;
+    if (parsed.data.status === 'shipped') {
+      const result = await client.from('shipments').upsert({
         order_id: id,
-        shipping_company: parsed.data.shippingCompany ?? null,
-        tracking_number: parsed.data.trackingNumber ?? null,
-        status: parsed.data.status === 'delivered' ? 'delivered' : 'shipped',
-        shipped_at: parsed.data.status === 'shipped' ? now : null,
-        delivered_at: parsed.data.status === 'delivered' ? now : null,
-      });
-      // 주문 상태는 이미 바뀌었으므로 여기서 실패해도 요청 전체를 되돌리지 않는다. 다만 조용히 넘기지도 않는다.
-      if (shipmentError) logServerError('admin.orders.update', requestId, shipmentError, { stage: 'shipment_upsert', orderId: id });
+        shipping_company: parsed.data.shippingCompany,
+        tracking_number: parsed.data.trackingNumber,
+        status: 'shipped',
+        shipped_at: now,
+        delivered_at: null,
+      }, { onConflict: 'order_id' });
+      shipmentError = result.error;
+    } else if (parsed.data.status === 'delivered') {
+      // 배송완료 처리에서 택배사·운송장 값을 null로 덮어쓰던 기존 upsert를 피한다.
+      const result = await client
+        .from('shipments')
+        .update({ status: 'delivered', delivered_at: now })
+        .eq('order_id', id)
+        .select('id')
+        .maybeSingle();
+      shipmentError = result.error ?? (result.data ? null : new Error('배송 정보가 없습니다.'));
+    }
+    if (shipmentError) {
+      logServerError('admin.orders.update', requestId, shipmentError, { stage: 'shipment_write', orderId: id });
+      const { error: rollbackError } = await client.from('orders').update({
+        status: before.status,
+        shipped_at: before.shipped_at,
+        delivered_at: before.delivered_at,
+        cancelled_at: before.cancelled_at,
+        refunded_at: before.refunded_at,
+      }).eq('id', id);
+      if (rollbackError) logServerError('admin.orders.update', requestId, rollbackError, { stage: 'order_rollback', orderId: id });
+      throw new ApiError(500, '배송 정보를 저장하지 못해 주문 상태 변경을 취소했습니다.', 'shipment_write_failed');
     }
 
     const wasClosed = before.status === 'cancelled' || before.status === 'refunded';

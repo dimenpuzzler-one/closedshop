@@ -84,10 +84,13 @@ pnpm --filter admin dev
 | `L1_COMMISSION_RATE`                   | 1단계 추천 수수료율                                   |
 | `L2_COMMISSION_RATE`                   | 2단계 추천 수수료율                                   |
 | `COMMISSION_APPROVAL_DAYS`             | 수수료 승인 대기 일수                                 |
-| `PAYMENT_WEBHOOK_SECRET`               | 결제 웹훅 서명 검증용 시크릿                          |
+| `KORPAY_MERCHANT_ID`                   | 코페이 가맹점 ID(서버 전용)                           |
+| `KORPAY_MKEY`                          | 코페이 서명·승인 비밀키(서버 전용)                    |
+| `KORPAY_BASE_URL`                      | 코페이 API 기준 URL                                   |
+| `JUSO_API_KEY`                         | 행정안전부 주소 검색 승인키(서버 전용)                |
 | `CC_DISABLE_DEMO`                      | 데모 데이터/동작 비활성화 플래그                      |
 
-`SUPABASE_SERVICE_ROLE_KEY`와 `PAYMENT_WEBHOOK_SECRET`는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
+`SUPABASE_SERVICE_ROLE_KEY`, `KORPAY_MKEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
 
 Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주문 흐름을 확인할 수 있습니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
 
@@ -120,6 +123,8 @@ pnpm dlx supabase@latest db reset
 - `store_settings`에 배송비 규칙(`shipping_carton_quantity`, `shipping_fee_per_carton`, `free_shipping_threshold`)과 홈 콘텐츠(`hero_headline`, `hero_subheadline`, `hero_youtube_url`, `hero_banner_path`) 추가
 - 홈 전체 이미지 배너 목록 `home_banners`와 자동 전환 시간(`hero_slide_interval_seconds`) 추가
 - 홈 배너의 공개 읽기와 관리자 쓰기 RLS 정책을 분리해 중복 정책 평가 제거
+- 홈 배너 최대 12장 제한을 동시 업로드에서도 DB 트리거로 보장
+- 고객몰 디자인 프리셋(`site_theme`, `site_width`, `site_density`)과 광폭 배너 설정 추가
 - 카테고리 마스터 `product_categories` 신설(공개 읽기, 운영자만 쓰기)
 
 ## 회원가입·이메일 인증
@@ -175,7 +180,7 @@ pnpm dlx supabase@latest db reset
 | ---- | ---- | ---- |
 | `/settings` | 배송비 | 묶음 수량, 묶음당 요금, 무료배송 기준액(선택), 배송 마감 시간 |
 | `/settings` | 카테고리 | 추가·삭제. 상품이 붙어 있는 카테고리는 삭제를 거부합니다 |
-| `/homepage` | 홈 화면 | 전체 이미지 배너 추가·순서·노출·삭제, 2~30초 전환 시간, 기본 문구·유튜브 |
+| `/homepage` | 홈 화면 | 전체 이미지 배너, 디자인 프리셋, 상품 진열 순서, PC·모바일/회원·비회원 미리보기 |
 
 - 배송비 입력란에는 수량별 계산 결과 미리보기가 함께 표시됩니다.
 - 카테고리는 `product_categories`가 원천이며, 상품 등록·수정 화면의 선택지가 됩니다. 자유 입력이면 오타 하나로 카테고리가 갈라집니다.
@@ -183,6 +188,8 @@ pnpm dlx supabase@latest db reset
 - 배너는 최대 12장, 권장 1600×600px(8:3)입니다. 별도 문구·상품 링크·상품 보기 버튼을 얹지 않고 이미지 전체를 표시합니다.
 - 배너 이미지는 상품 사진과 같은 서명 업로드 경로를 사용합니다(`banners/` 접두사, 20MB 제한). 브라우저가 Storage로 직접 올리므로 Vercel 본문 한도를 거치지 않습니다.
 - 비활성 배너는 어드민에 남지만 고객몰에서는 읽히지 않습니다. 활성 배너가 없으면 기존 기본 소개 화면으로 돌아갑니다.
+- 화면 분위기·본문 폭·섹션 간격은 안전한 프리셋만 저장합니다. 임의 CSS 입력은 허용하지 않습니다.
+- 홈 상품은 `home_sort_order`가 작은 순서로 진열합니다. 홈페이지 꾸미기에서 실제 등록 상품의 순서를 바로 바꾸고, 저장된 결과를 PC/모바일 및 회원/비회원 화면으로 미리 볼 수 있습니다.
 - 모든 변경은 `admin_audit_logs`에 기록됩니다.
 
 ## 상품 이미지 업로드
@@ -210,7 +217,7 @@ PUT JSON (업로드 결과/메타데이터) -> DB 등록 및 검증
 
 ## 고객몰 홈·상품 카드
 
-- 홈 화면은 롤링 히어로 배너, 카테고리별 상품 진열, 설정된 유튜브 소개 영상 순서로 표시합니다.
+- 홈 화면은 광폭 롤링 히어로 배너, 카테고리별 상품 진열, 설정된 유튜브 소개 영상 순서로 표시합니다. 모바일의 배너 좌우 여백과 카테고리–상품 사이 간격은 별도로 좁혀 두었습니다.
 - `초대코드로 가입 승인 받기` 영역은 홈 최하단에 배치하며, 기존 `#member-access` 앵커 링크로 바로 이동할 수 있습니다.
 - 홈·상품 목록·장바구니는 `product_images.role = 'thumbnail'` 이미지만 사용합니다. 상세 본문 이미지는 상품 상세 화면에서만 사용합니다.
 - 홈 상품 카드는 모바일에서 2열로 표시하고 설명·태그를 생략합니다. 상품명은 최대 3줄로 말줄임 처리하며 카드 높이와 `상세 보기` 버튼을 하단에 맞춰 긴 상품명도 레이아웃을 밀어내지 않습니다.
@@ -306,11 +313,11 @@ Supabase 프로젝트가 `ap-northeast-2`(서울)에 있습니다. 리전 지정
 
 ## 알려진 제한
 
-- **결제는 아직 `MockPaymentProvider`입니다.** 실제 PG 계약과 키가 없으면 실결제가 불가능합니다. 운영 개시 전 최우선 선행 과제입니다.
+- 운영 결제는 코페이 인증결제이며 `MockPaymentProvider`는 환경변수가 없는 로컬 데모 주문에서만 사용합니다.
+- 코페이 취소/환불 API는 아직 연결 전입니다. 관리자 환불 API는 실제 승인 취소 없이 DB만 바꾸지 않도록 `501 provider_refund_not_configured`으로 실패합니다.
 - 비회원 카탈로그 경로는 온라인가만 공개하고 회원가를 애플리케이션 코드(`stripPrices`)에서 제거합니다. 온라인가 미입력 상품은 비회원에게 가격 준비 중으로 표시됩니다.
 - 카테고리는 DB 제약이 아니므로 migration이나 직접 SQL로 `products.category`를 바꾸면 마스터 목록과 어긋날 수 있습니다.
 - 배송비는 주문 전체 수량 기준 단일 규칙입니다. 상품마다 카툰 수량이 다르면 상품 컬럼 추가가 필요합니다.
-- 이용약관·개인정보처리방침·환불 교환 안내 페이지가 아직 없습니다.
 - 기존 저해상도 이미지를 서버에서 원본 수준으로 복원할 수 없습니다.
 - 관리자 대량 상품 목록은 데이터가 크게 늘면 페이지네이션·서버 집계 RPC를 추가해야 합니다.
 - 운영 데이터 변경은 migration 또는 승인된 관리자 흐름을 통해서만 수행합니다.

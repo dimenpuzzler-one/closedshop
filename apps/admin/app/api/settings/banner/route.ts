@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { logServerEvent } from '@closed-commerce/observability';
+import { logServerError, logServerEvent } from '@closed-commerce/observability';
 import { homeBannerCommitSchema } from '@closed-commerce/validation';
 import { ApiError, demoResponse, failFromSupabase, readJson, withAdmin } from '@/lib/route-handler';
 
@@ -58,6 +58,18 @@ export const PUT = withAdmin(
       throw new ApiError(409, 'Storage에서 업로드된 배너를 확인하지 못했습니다.', 'upload_not_found');
     }
 
+    // 브라우저가 완료 응답을 받기 전에 연결이 끊겨 같은 요청을 다시 보내도
+    // 이미 등록된 파일을 오류나 중복 배너로 만들지 않는다.
+    const { data: existing, error: existingError } = await client
+      .from('home_banners')
+      .select('id, image_path, alt_text, sort_order, is_active, width, height')
+      .eq('image_path', path)
+      .maybeSingle();
+    if (existingError) failFromSupabase('기존 배너를 확인하지 못했습니다.', existingError, 'banner_read_failed');
+    if (existing) {
+      return NextResponse.json({ message: '이미 등록된 홈 배너입니다.', banner: existing, requestId });
+    }
+
     const { count, error: countError } = await client
       .from('home_banners')
       .select('id', { count: 'exact', head: true });
@@ -73,6 +85,19 @@ export const PUT = withAdmin(
       .select('id, image_path, alt_text, sort_order, is_active, width, height')
       .single();
     if (error || !banner) {
+      // 두 완료 요청이 동시에 들어온 경우 한쪽의 unique 충돌은 실패가 아니라
+      // 이미 같은 파일이 등록된 성공 상태다. 여기서 파일을 지우면 정상 배너까지 깨진다.
+      if (error?.code === '23505') {
+        const { data: racedBanner, error: racedReadError } = await client
+          .from('home_banners')
+          .select('id, image_path, alt_text, sort_order, is_active, width, height')
+          .eq('image_path', path)
+          .maybeSingle();
+        if (racedReadError) failFromSupabase('등록된 배너를 다시 확인하지 못했습니다.', racedReadError, 'banner_read_failed');
+        if (racedBanner) {
+          return NextResponse.json({ message: '이미 등록된 홈 배너입니다.', banner: racedBanner, requestId });
+        }
+      }
       await client.storage.from(IMAGE_BUCKET).remove([path]).catch(() => undefined);
       failFromSupabase('배너를 저장하지 못했습니다.', error, 'banner_insert_failed');
     }
@@ -87,4 +112,35 @@ export const PUT = withAdmin(
     return NextResponse.json({ message: '홈 배너를 추가했습니다.', banner, requestId });
   },
   { demo: (requestId) => demoResponse(requestId, { message: '데모 모드에서는 배너를 올릴 수 없습니다.' }) },
+);
+
+/** 직접 업로드 뒤 DB 등록이 끝나지 않은 객체만 정리한다. 등록된 배너 파일은 절대 지우지 않는다. */
+export const DELETE = withAdmin(
+  'admin.settings.banner.cleanup',
+  async ({ requestId, client }, request) => {
+    const body = (await readJson(request)) as { paths?: unknown };
+    const requested = Array.isArray(body.paths)
+      ? [...new Set(body.paths.filter(isBannerPath))].slice(0, MAX_HOME_BANNERS)
+      : [];
+    if (requested.length === 0) return NextResponse.json({ message: '정리할 파일이 없습니다.', requestId });
+
+    const { data: registered, error } = await client
+      .from('home_banners')
+      .select('image_path')
+      .in('image_path', requested);
+    if (error) failFromSupabase('등록된 배너 파일을 확인하지 못했습니다.', error, 'banner_read_failed');
+
+    const protectedPaths = new Set((registered ?? []).map((row) => row.image_path));
+    const removable = requested.filter((path) => !protectedPaths.has(path));
+    if (removable.length) {
+      const { error: removeError } = await client.storage.from(IMAGE_BUCKET).remove(removable);
+      if (removeError) {
+        logServerError('admin.settings.banner.cleanup', requestId, removeError, { paths: removable });
+        failFromSupabase('미완료 배너 파일을 정리하지 못했습니다.', removeError, 'banner_cleanup_failed');
+      }
+    }
+    logServerEvent('admin.settings.banner.cleanup', requestId, { removedCount: removable.length });
+    return NextResponse.json({ message: `미완료 배너 파일 ${removable.length}개를 정리했습니다.`, requestId });
+  },
+  { demo: (requestId) => demoResponse(requestId, { message: '정리할 파일이 없습니다.' }) },
 );

@@ -13,11 +13,14 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 NEXT_PUBLIC_WEB_URL
 ```
 
-The web project also needs these server-only variables for persisted order and webhook flows:
+The web project also needs these server-only variables for persisted orders, Korpay, and address lookup:
 
 ```text
 SUPABASE_SERVICE_ROLE_KEY
-PAYMENT_WEBHOOK_SECRET
+KORPAY_MERCHANT_ID
+KORPAY_MKEY
+KORPAY_BASE_URL
+JUSO_API_KEY
 L1_COMMISSION_RATE
 L2_COMMISSION_RATE
 COMMISSION_APPROVAL_DAYS
