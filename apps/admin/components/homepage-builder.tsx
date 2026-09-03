@@ -361,7 +361,7 @@ export function HomepageBuilder({ settings, banners, products, categories, edita
         </form>
       </section>
 
-      <HomeProductOrderEditor products={products} editable={editable} />
+      <HomeProductOrderEditor products={products} categories={categories} editable={editable} />
 
       <HomepagePreview settings={settings} banners={banners} products={products} categories={categories} />
 

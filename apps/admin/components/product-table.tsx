@@ -9,7 +9,7 @@ import { ProductEditPanel } from './product-edit-panel';
 
 const STATUS_LABEL: Record<string, string> = {
   active: '판매중',
-  paused: '판매중지',
+  paused: '판매중지중',
   draft: '초안',
   archived: '보관',
 };

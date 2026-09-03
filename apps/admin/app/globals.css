@@ -68,10 +68,16 @@ button, input, select { font: inherit; }
 @media (max-width: 650px) { .admin-topbar, .admin-content { padding-left: 18px; padding-right: 18px; } .admin-topbar { align-items: flex-start; flex-direction: column; padding-top: 14px; padding-bottom: 14px; } .admin-topbar-actions { width: 100%; justify-content: flex-end; } .admin-grid-4, .admin-grid-2 { grid-template-columns: 1fr; } .admin-heading { align-items: flex-start; flex-direction: column; } }
 
 /* 홈페이지 꾸미기: 진열 순서와 실제 등록 데이터 기반 PC/모바일 미리보기 */
+.home-order-category-list { display: grid; gap: 22px; }
+.home-order-category { display: grid; gap: 10px; }
+.home-order-category-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px; }
+.home-order-category-heading .eyebrow { margin-bottom: 4px; }
+.home-order-category-heading h3 { margin: 0; font-size: 20px; letter-spacing: -.04em; }
 .home-order-list { display: grid; gap: 8px; }
 .home-order-row { display: grid; grid-template-columns: minmax(220px, 1fr) 120px auto 90px; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: white; }
 .home-order-product { display: grid; gap: 5px; min-width: 0; }
-.home-order-product strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-order-product-header { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.home-order-product-header strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-order-field { gap: 4px; }
 .home-order-message { align-self: center; color: var(--green-dark); font-size: 11px; }
 .homepage-preview-heading { margin-bottom: 0; align-items: center; }

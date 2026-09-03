@@ -4,6 +4,34 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@closed-commerce/types';
 
+function sortProducts(products: Product[]) {
+  return [...products].sort((a, b) => {
+    const orderDifference = (a.homeSortOrder ?? 100) - (b.homeSortOrder ?? 100);
+    return orderDifference || a.name.localeCompare(b.name, 'ko');
+  });
+}
+
+function groupProductsByCategory(products: Product[], categories: string[]) {
+  const productsByCategory = new Map<string, Product[]>();
+  products.forEach((product) => {
+    const current = productsByCategory.get(product.category) ?? [];
+    current.push(product);
+    productsByCategory.set(product.category, current);
+  });
+
+  const categoryOrder = [
+    ...categories,
+    ...products.filter((product) => !categories.includes(product.category)).map((product) => product.category),
+  ];
+  const seen = new Set<string>();
+  return categoryOrder.flatMap((category) => {
+    if (seen.has(category)) return [];
+    seen.add(category);
+    const categoryProducts = productsByCategory.get(category);
+    return categoryProducts?.length ? [{ category, products: sortProducts(categoryProducts) }] : [];
+  });
+}
+
 function ProductOrderRow({ product, editable }: { product: Product; editable: boolean }) {
   const [order, setOrder] = useState(product.homeSortOrder ?? 100);
   const [busy, setBusy] = useState(false);
@@ -33,11 +61,16 @@ function ProductOrderRow({ product, editable }: { product: Product; editable: bo
     }
   }
 
+  const isSelling = product.status === 'active';
+
   return (
     <div className="home-order-row">
       <div className="home-order-product">
-        <strong>{product.name}</strong>
-        <span className="field-hint">{product.category} · {product.status === 'active' ? '홈 노출 가능' : '판매중 아님'}</span>
+        <div className="home-order-product-header">
+          <strong>{product.name}</strong>
+          <span className={`badge ${isSelling ? 'badge-success' : 'badge-warning'}`}>{isSelling ? '판매중' : '판매중지중'}</span>
+        </div>
+        <span className="field-hint">{product.visibility === 'hidden' ? '홈 비노출' : '홈 노출 가능'}</span>
       </div>
       <label className="field home-order-field">
         <span className="field-label">순서</span>
@@ -60,16 +93,31 @@ function ProductOrderRow({ product, editable }: { product: Product; editable: bo
   );
 }
 
-export function HomeProductOrderEditor({ products, editable }: { products: Product[]; editable: boolean }) {
+export function HomeProductOrderEditor({ products, categories, editable }: { products: Product[]; categories: string[]; editable: boolean }) {
+  const groups = groupProductsByCategory(products, categories);
+
   return (
     <section className="card admin-section stack">
       <div>
         <h2>홈 상품 진열 순서</h2>
-        <p className="muted">숫자가 작을수록 같은 카테고리 안에서 먼저 보입니다. 홈에는 판매중 상품만 표시됩니다.</p>
+        <p className="muted">카테고리별로 숫자가 작을수록 먼저 보입니다. 판매중 상품만 고객몰 홈에 표시됩니다.</p>
       </div>
-      {products.length ? (
-        <div className="home-order-list">
-          {products.map((product) => <ProductOrderRow key={product.id} product={product} editable={editable} />)}
+      {groups.length ? (
+        <div className="home-order-category-list">
+          {groups.map((group) => (
+            <section className="home-order-category" key={group.category}>
+              <div className="home-order-category-heading">
+                <div>
+                  <p className="eyebrow">CATEGORY</p>
+                  <h3>{group.category}</h3>
+                </div>
+                <span className="badge badge-neutral">{group.products.length}개</span>
+              </div>
+              <div className="home-order-list">
+                {group.products.map((product) => <ProductOrderRow key={product.id} product={product} editable={editable} />)}
+              </div>
+            </section>
+          ))}
         </div>
       ) : (
         <p className="muted">등록된 상품이 없습니다.</p>
