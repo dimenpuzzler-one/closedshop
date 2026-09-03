@@ -12,7 +12,7 @@ import { resolveRuntimeMode } from '@closed-commerce/db';
  * 역할(profiles.role) 확인은 DB 조회가 필요하므로 기존대로 layout/route에서 한다.
  */
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/robots.txt'];
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout', '/robots.txt'];
 
 export async function middleware(request: NextRequest) {
   const mode = resolveRuntimeMode({ requireServiceRole: true });

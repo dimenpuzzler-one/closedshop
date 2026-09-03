@@ -14,6 +14,7 @@ button, input, select { font: inherit; }
 .admin-sidebar-foot { margin-top: auto; padding: 14px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; font-size: 12px; color: #c4b498; line-height: 1.6; }
 .admin-main { min-width: 0; }
 .admin-topbar { min-height: 74px; background: white; border-bottom: 1px solid var(--line); padding: 0 36px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.admin-topbar-actions { display: flex; align-items: center; gap: 8px; }
 .admin-topbar-title { color: var(--muted); font-size: 13px; }
 .admin-content { padding: 36px; max-width: 1440px; }
 .admin-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 26px; }
@@ -38,6 +39,11 @@ button, input, select { font: inherit; }
 .button-primary { background: var(--green); color: white; }
 .button-secondary { background: var(--mint); color: var(--green-dark); }
 .button-ghost { background: transparent; border: 1px solid var(--line); }
+.admin-check-control { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; color: var(--ink); font-size: 12px; font-weight: 700; cursor: pointer; }
+.admin-check-control input { width: 17px; height: 17px; margin: 0; accent-color: var(--green); cursor: pointer; }
+.admin-check-control input:disabled { cursor: not-allowed; }
+.admin-check-control.admin-check-readonly { color: var(--muted); cursor: default; }
+.admin-check-control.admin-check-readonly input { opacity: .75; }
 .badge { display: inline-block; padding: 5px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .badge-success { background: var(--mint); color: var(--green); }
 .badge-warning { background: #fff0c9; color: #8b5b1e; }
@@ -59,7 +65,7 @@ button, input, select { font: inherit; }
 .unauthorized { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
 .unauthorized .card { max-width: 460px; }
 @media (max-width: 1000px) { .admin-layout { grid-template-columns: 1fr; } .admin-sidebar { padding: 14px 20px; } .admin-nav { flex-direction: row; overflow-x: auto; } .admin-sidebar-foot { display: none; } .admin-grid-4 { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 650px) { .admin-topbar, .admin-content { padding-left: 18px; padding-right: 18px; } .admin-grid-4, .admin-grid-2 { grid-template-columns: 1fr; } .admin-heading { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 650px) { .admin-topbar, .admin-content { padding-left: 18px; padding-right: 18px; } .admin-topbar { align-items: flex-start; flex-direction: column; padding-top: 14px; padding-bottom: 14px; } .admin-topbar-actions { width: 100%; justify-content: flex-end; } .admin-grid-4, .admin-grid-2 { grid-template-columns: 1fr; } .admin-heading { align-items: flex-start; flex-direction: column; } }
 
 /* 홈페이지 꾸미기: 진열 순서와 실제 등록 데이터 기반 PC/모바일 미리보기 */
 .home-order-list { display: grid; gap: 8px; }
