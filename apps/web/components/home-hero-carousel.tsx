@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 export interface HomeHeroSlide {
@@ -10,6 +11,8 @@ export interface HomeHeroSlide {
   description?: string;
   imageUrl?: string;
   imageAlt?: string;
+  primaryAction?: { label: string; href: string };
+  secondaryAction?: { label: string; href: string };
   /** true면 좌우 분할 없이 이미지 한 장이 배너 전체를 차지한다. */
   imageOnly?: boolean;
 }
@@ -63,6 +66,11 @@ export function HomeHeroCarousel({ slides, intervalSeconds = 6 }: { slides: Home
                     <p className="eyebrow">{slide.eyebrow}</p>
                     <h1>{slide.title}</h1>
                     <p className="hero-copy">{slide.description}</p>
+                    {slide.primaryAction || slide.secondaryAction ? <div className="hero-actions">
+                      {slide.primaryAction ? <Link href={slide.primaryAction.href} className="button button-primary button-large">{slide.primaryAction.label}<span aria-hidden="true">›</span></Link> : null}
+                      {slide.secondaryAction ? <Link href={slide.secondaryAction.href} className="button button-hero-ghost button-large">{slide.secondaryAction.label}<span aria-hidden="true">›</span></Link> : null}
+                    </div> : null}
+                    <div className="hero-trust-points"><span><strong>01</strong> 초대코드 확인</span><span><strong>02</strong> 회원가입</span><span><strong>03</strong> 특별가 OPEN</span></div>
                   </div>
                   <div className={`home-hero-media${slide.imageUrl ? '' : ' abstract'}`}>
                     {slide.imageUrl ? (

@@ -285,7 +285,7 @@ export async function loadCategoryTree(): Promise<CategoryGroup[]> {
 }
 
 /** 화면에서 상품 필터로 쓸 수 있는 모든 카테고리 이름(소분류 우선, 없으면 대분류). */
-export async function loadCategories(): Promise<string[]> {
+export const loadCategories = cache(async (): Promise<string[]> => {
   const tree = await loadCategoryTree();
   return tree.flatMap((group) => (group.children.length > 0 ? group.children : [group.name]));
-}
+});
