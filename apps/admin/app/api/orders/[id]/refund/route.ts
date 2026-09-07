@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
-import { MockPaymentProvider } from '@closed-commerce/payment';
+import { PayDataKrError } from '@closed-commerce/payment';
 import { refundSchema } from '@closed-commerce/validation';
 import { logServerError } from '@closed-commerce/observability';
 import { ApiError, demoResponse, failFromSupabase, readJson, withAdminParams } from '@/lib/route-handler';
+import { getPayDataKrProvider } from '@/lib/paydatakr-config';
+
+function payloadString(payload: unknown, key: string): string | undefined {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function seoulDateYmd(value: string | null | undefined): string {
+  const date = value ? new Date(value) : new Date();
+  const seoul = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${seoul.getUTCFullYear()}${pad(seoul.getUTCMonth() + 1)}${pad(seoul.getUTCDate())}`;
+}
 
 export const POST = withAdminParams<{ id: string }>(
   'admin.orders.refund',
@@ -12,8 +26,8 @@ export const POST = withAdminParams<{ id: string }>(
 
     const [{ data: order, error: orderError }, { data: payment, error: paymentError }, { data: previousRefunds, error: refundsError }] =
       await Promise.all([
-        client.from('orders').select('id, paid_amount, status').eq('id', id).maybeSingle(),
-        client.from('payments').select('id, provider, provider_payment_id, amount, status').eq('order_id', id).maybeSingle(),
+        client.from('orders').select('id, order_number, paid_amount, status').eq('id', id).maybeSingle(),
+        client.from('payments').select('id, provider, provider_payment_id, amount, status, paid_at, raw_payload').eq('order_id', id).maybeSingle(),
         client.from('refunds').select('amount').eq('order_id', id).in('status', ['requested', 'approved', 'completed']),
       ]);
     if (orderError || paymentError || refundsError) {
@@ -21,15 +35,7 @@ export const POST = withAdminParams<{ id: string }>(
     }
     if (!order) throw new ApiError(404, `주문을 찾을 수 없습니다: ${id}`, 'order_not_found');
     if (!payment || !payment.provider_payment_id) throw new ApiError(404, '이 주문에는 환불할 결제 건이 없습니다.', 'payment_not_found');
-    // Mock 구현으로 코페이 결제를 환불 완료 처리하면 실제 카드 승인 취소 없이 DB만 바뀐다.
-    // 코페이 취소 API 규격을 연결하기 전까지는 반드시 실패로 닫는다.
-    if (payment.provider !== 'mock') {
-      throw new ApiError(
-        501,
-        '코페이 취소 API가 아직 연결되지 않아 관리자 화면에서 환불을 완료할 수 없습니다. PG 관리자에서 실제 취소 후 연동 기능을 먼저 구현해 주세요.',
-        'provider_refund_not_configured',
-      );
-    }
+    if (payment.provider !== 'paydatakr') throw new ApiError(501, '한국결제데이터 결제 건만 환불할 수 있습니다.', 'provider_refund_not_configured');
     if (order.status === 'cancelled' || order.status === 'refunded') {
       throw new ApiError(400, `이미 ${order.status === 'cancelled' ? '취소' : '전액 환불'}된 주문입니다.`, 'order_already_closed');
     }
@@ -44,11 +50,28 @@ export const POST = withAdminParams<{ id: string }>(
       );
     }
 
-    const refund = await new MockPaymentProvider().refundPayment({
-      paymentId: payment.provider_payment_id,
-      amount: parsed.data.amount,
-      reason: parsed.data.reason,
-    });
+    const originalTransactionDate = payloadString(payment.raw_payload, 'transactionDate') ?? payloadString(payment.raw_payload, 'create');
+    const rootTrxDay = originalTransactionDate?.slice(0, 8) || seoulDateYmd(payment.paid_at);
+    const refundTrackId = `REF${id.replace(/-/g, '')}${String(refundedSoFar + parsed.data.amount)}`.slice(0, 50);
+    let refundResponse;
+    try {
+      refundResponse = await getPayDataKrProvider().refund({
+        trackId: refundTrackId,
+        amount: parsed.data.amount,
+        rootTrxId: payment.provider_payment_id,
+        rootTrackId: order.order_number,
+        rootTrxDay,
+      });
+    } catch (error) {
+      const message = error instanceof PayDataKrError ? error.message : '한국결제데이터 환불 요청에 실패했습니다.';
+      logServerError('admin.orders.refund', requestId, error, { stage: 'provider_refund', orderId: id });
+      throw new ApiError(502, message, 'provider_refund_failed');
+    }
+    const refund = {
+      refundedAmount: parsed.data.amount,
+      refundedAt: new Date().toISOString(),
+      providerResponse: refundResponse,
+    };
 
     const { error: refundError } = await client.from('refunds').insert({
       order_id: id,
@@ -100,7 +123,7 @@ export const POST = withAdminParams<{ id: string }>(
       action: 'order_refunded',
       entity_type: 'order',
       entity_id: id,
-      after_data: { amount: refund.refundedAmount, reason: parsed.data.reason, nextOrderStatus, requestId },
+      after_data: { amount: refund.refundedAmount, reason: parsed.data.reason, nextOrderStatus, providerResponse: refund.providerResponse, requestId },
     });
     return NextResponse.json({ message: `${refund.refundedAmount.toLocaleString('ko-KR')}원 환불이 처리되었습니다.`, refund, requestId });
   },

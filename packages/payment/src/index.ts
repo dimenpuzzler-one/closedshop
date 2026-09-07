@@ -53,4 +53,4 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 }
 
-export * from './korpay';
+export * from './paydatakr';

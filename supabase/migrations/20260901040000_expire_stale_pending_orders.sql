@@ -20,7 +20,7 @@ declare
   expired_count integer := 0;
   stale record;
 begin
-  -- 코페이는 카드 인증 후 10분 안에 승인을 요청해야 한다. 그 시간을 넘긴
+  -- 인증결제창에서 결제를 끝내지 않고 남긴 주문은 20분 뒤 정리한다.
   -- 결제대기 주문은 되살아날 수 없으므로 재고를 붙잡고 있을 이유가 없다.
   -- 기본값 20분은 그 한계의 두 배로, 진행 중인 결제를 건드리지 않는다.
   if p_minutes is null or p_minutes < 10 then

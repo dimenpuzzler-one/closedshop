@@ -13,17 +13,28 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 NEXT_PUBLIC_WEB_URL
 ```
 
-The web project also needs these server-only variables for persisted orders, Korpay, and address lookup:
+The web project also needs these server-only variables for persisted orders, PayDataKR, and address lookup:
 
 ```text
 SUPABASE_SERVICE_ROLE_KEY
-KORPAY_MERCHANT_ID
-KORPAY_MKEY
-KORPAY_BASE_URL
+PAYDATAKR_PUBLIC_KEY
+PAYDATAKR_PAY_KEY
+PAYDATAKR_CHECKOUT_URL
+PAYDATAKR_API_BASE_URL
+PAYDATAKR_RECEIPT_BASE_URL
 JUSO_API_KEY
 L1_COMMISSION_RATE
 L2_COMMISSION_RATE
 COMMISSION_APPROVAL_DAYS
 ```
+
+The admin project also needs these server-only PayDataKR variables for refunds:
+
+```text
+PAYDATAKR_PAY_KEY
+PAYDATAKR_API_BASE_URL
+```
+
+`PAYDATAKR_API_BASE_URL` defaults to `https://api.paydatakr.com`. Once the values are entered in the appropriate Vercel project environments and redeployed, the PayDataKR flow is enabled without another code change.
 
 Never add `SUPABASE_SERVICE_ROLE_KEY` to a `NEXT_PUBLIC_*` variable or client component. Apply the Supabase migration and seed before switching either project from demo fallback to production data.

@@ -84,13 +84,19 @@ pnpm --filter admin dev
 | `L1_COMMISSION_RATE`                   | 1단계 추천 수수료율                                   |
 | `L2_COMMISSION_RATE`                   | 2단계 추천 수수료율                                   |
 | `COMMISSION_APPROVAL_DAYS`             | 수수료 승인 대기 일수                                 |
-| `KORPAY_MERCHANT_ID`                   | 코페이 가맹점 ID(서버 전용)                           |
-| `KORPAY_MKEY`                          | 코페이 서명·승인 비밀키(서버 전용)                    |
-| `KORPAY_BASE_URL`                      | 코페이 API 기준 URL                                   |
+| `PAYDATAKR_PUBLIC_KEY`                 | 한국결제데이터 결제창 publicKey                        |
+| `PAYDATAKR_PAY_KEY`                    | 한국결제데이터 API 인증 Pay Key(서버 전용)             |
+| `PAYDATAKR_CHECKOUT_URL`               | 한국결제데이터 인증결제창 action URL                   |
+| `PAYDATAKR_API_BASE_URL`               | 한국결제데이터 REST API 기준 URL                       |
+| `PAYDATAKR_RECEIPT_BASE_URL`           | 한국결제데이터 매출전표 기준 URL                       |
 | `JUSO_API_KEY`                         | 행정안전부 주소 검색 승인키(서버 전용)                |
 | `CC_DISABLE_DEMO`                      | 데모 데이터/동작 비활성화 플래그                      |
 
-`SUPABASE_SERVICE_ROLE_KEY`, `KORPAY_MKEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
+`SUPABASE_SERVICE_ROLE_KEY`, `PAYDATAKR_PAY_KEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
+
+운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`, `PAYDATAKR_CHECKOUT_URL`을 입력하고 재배포합니다. `PAYDATAKR_CHECKOUT_URL`에는 한국결제데이터에서 제공한 `결제창호출.html`의 실제 `action` URL을 입력합니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
+
+관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항이며, 환경변수 입력과 재배포가 끝나면 별도 코드 변경 없이 결제·환불 연동을 사용할 수 있습니다.
 
 Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주문 흐름을 확인할 수 있습니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
 
@@ -317,8 +323,8 @@ Supabase 프로젝트가 `ap-northeast-2`(서울)에 있습니다. 리전 지정
 
 ## 알려진 제한
 
-- 운영 결제는 코페이 인증결제이며 `MockPaymentProvider`는 환경변수가 없는 로컬 데모 주문에서만 사용합니다.
-- 코페이 취소/환불 API는 아직 연결 전입니다. 관리자 환불 API는 실제 승인 취소 없이 DB만 바꾸지 않도록 `501 provider_refund_not_configured`으로 실패합니다.
+- 운영 결제는 한국결제데이터 인증결제이며 `MockPaymentProvider`는 환경변수가 없는 로컬 데모 주문에서만 사용합니다.
+- 한국결제데이터 결제 결과는 `returnUrl`과 `webhookUrl`에서 같은 주문 확정 흐름으로 처리하고, 관리자 환불은 `/api/refund` 성공 응답을 받은 뒤에만 DB 상태를 변경합니다.
 - 비회원 카탈로그 경로는 온라인가만 공개하고 회원가를 애플리케이션 코드(`stripPrices`)에서 제거합니다. 온라인가 미입력 상품은 비회원에게 가격 준비 중으로 표시됩니다.
 - 카테고리는 DB 제약이 아니므로 migration이나 직접 SQL로 `products.category`를 바꾸면 마스터 목록과 어긋날 수 있습니다.
 - 배송비는 주문 전체 수량 기준 단일 규칙입니다. 상품마다 카툰 수량이 다르면 상품 컬럼 추가가 필요합니다.
@@ -368,5 +374,5 @@ pnpm check           # lint · typecheck · build · test
 pnpm --filter web dev
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY`와 `KORPAY_MKEY`는 서버 전용 비밀값입니다.
+`SUPABASE_SERVICE_ROLE_KEY`와 `PAYDATAKR_PAY_KEY`는 서버 전용 비밀값입니다.
 채팅이나 문서에 붙여넣지 말고, 이 두 경로로만 옮깁니다.

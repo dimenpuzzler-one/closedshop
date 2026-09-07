@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { APP_NAME_KO } from '@closed-commerce/config';
+import type { PayDataKrCheckoutParams } from '@closed-commerce/payment';
 import { Price } from '@closed-commerce/ui';
-import KorpaySdk, { type PaymentData } from '@korpay/sdk';
 import {
   saveShippingAddress,
   setDefaultShippingAddress,
@@ -24,8 +24,8 @@ type OrderResult = {
   orderNumber?: string;
   error?: string;
   requestId?: string;
-  checkoutParams?: Omit<PaymentData, 'amount'> & { amount: string };
-  checkoutBaseUrl?: string;
+  checkoutParams?: PayDataKrCheckoutParams;
+  checkoutUrl?: string;
 };
 
 type CheckoutFormProps = {
@@ -33,21 +33,25 @@ type CheckoutFormProps = {
 };
 
 /**
- * 결제창 주소는 서버(/api/orders)가 내려준다. 반드시 스킴을 포함해야 하며,
- * 없으면 SDK의 form POST가 우리 사이트 상대경로로 향해 20초 뒤 실패한다.
+ * 결제창 주소와 필드는 서버(/api/orders)가 내려준다. 결제창 규격의 대소문자까지
+ * 그대로 유지해야 하므로 SDK 없이 HTML form POST로 전달한다.
  */
-const KORPAY_BASE_URL_FALLBACK = 'https://payments.korpay.com/v1';
-
-function normalizeBaseUrl(value: string | undefined): string {
-  const raw = (value ?? '').trim().replace(/\/$/, '');
-  if (!raw) return KORPAY_BASE_URL_FALLBACK;
-  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  try {
-    new URL(withScheme);
-    return withScheme;
-  } catch {
-    return KORPAY_BASE_URL_FALLBACK;
-  }
+function submitPayDataKrForm(action: string, params: PayDataKrCheckoutParams) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = action;
+  form.target = '_self';
+  form.acceptCharset = 'UTF-8';
+  Object.entries(params).forEach(([name, value]) => {
+    if (value === undefined) return;
+    const field = document.createElement('input');
+    field.type = 'hidden';
+    field.name = name;
+    field.value = String(value);
+    form.appendChild(field);
+  });
+  document.body.appendChild(form);
+  form.submit();
 }
 
 function text(form: FormData, key: string): string {
@@ -197,7 +201,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         );
         return;
       }
-      if (!result.checkoutParams) {
+      if (!result.checkoutParams || !result.checkoutUrl) {
         setStatus('error');
         setMessage(
           `결제창을 열 준비를 하지 못했습니다.${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
@@ -207,24 +211,8 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
 
       const params = result.checkoutParams;
       setMessage('결제창을 여는 중입니다…');
-      KorpaySdk.payment(
-        normalizeBaseUrl(result.checkoutBaseUrl),
-        // amount만 숫자로 바꾼다. 해시는 서버에서 만든 문자열 값 기준이다.
-        { ...params, amount: Number(params.amount) },
-        {
-          onError: (error) => {
-            setStatus('error');
-            setMessage(`결제창에서 오류가 발생했습니다: ${error}`);
-          },
-          onClose: () => {
-            // 성공 시에는 returnUrl로 이동한다. 이 화면이 남았다면 고객이 닫은 것이다.
-            setStatus('idle');
-            setMessage(
-              '결제를 완료하지 않으셨습니다. 다시 시도하시려면 결제하기를 눌러 주세요.',
-            );
-          },
-        },
-      );
+      // 한국결제데이터 인증결제는 결제창 호출 페이지를 HTML form으로 전송한다.
+      submitPayDataKrForm(result.checkoutUrl, params);
     } catch (caught) {
       setStatus('error');
       setMessage(

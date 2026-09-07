@@ -8,7 +8,7 @@ import { calculateTwoDepthCommissions, findValidReferralCode } from '@closed-com
 import { orderCreateSchema } from '@closed-commerce/validation';
 import { createServerAppClient } from '@/lib/supabase-server';
 import { prepareOrder, OrderServiceError } from '@/lib/order-service';
-import { korpayBaseUrl, korpayConfigured } from '@/lib/korpay-config';
+import { payDataKrCheckoutUrl, payDataKrConfigured } from '@/lib/paydatakr-config';
 
 export async function POST(request: Request) {
   const requestId = newRequestId();
@@ -46,17 +46,17 @@ export async function POST(request: Request) {
       const supabase = await createServerAppClient();
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) return NextResponse.json({ error: '로그인 후 주문해 주세요.', requestId }, { status: 401 });
-      if (!korpayConfigured()) {
+      if (!payDataKrConfigured()) {
         // 결제 설정이 없으면 주문을 만들지 않는다. 만들어두면 재고만 잡히고 결제는 못 한다.
-        logServerError('web.orders.create', requestId, new Error('korpay not configured'), { stage: 'config' });
+        logServerError('web.orders.create', requestId, new Error('paydatakr not configured'), { stage: 'config' });
         return NextResponse.json({ error: '결제 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.', requestId }, { status: 503 });
       }
       try {
         logServerEvent('web.orders.create', requestId, { stage: 'start', userId: data.user.id, itemCount: input.items.length });
-        // 주문만 만들고 재고를 잡는다. 결제는 코페이 결제창을 거쳐 리턴 URL에서 확정된다.
+        // 주문만 만들고 재고를 잡는다. 결제는 한국결제데이터 인증창을 거쳐 결과 URL에서 확정된다.
         const result = await prepareOrder(input, data.user.id, requestId);
-        // 결제창 주소는 서버가 알려준다. 클라이언트에 따로 적어두면 두 값이 어긋난다.
-        return NextResponse.json({ ...result, checkoutBaseUrl: korpayBaseUrl(), requestId });
+        // 결제창 주소와 필드는 서버가 알려준다. 클라이언트에 따로 하드코딩하지 않는다.
+        return NextResponse.json({ ...result, checkoutUrl: payDataKrCheckoutUrl(), requestId });
       } catch (caught) {
         if (caught instanceof OrderServiceError) {
           logServerError('web.orders.create', requestId, caught, { stage: 'order_service', status: caught.status, userId: data.user.id });

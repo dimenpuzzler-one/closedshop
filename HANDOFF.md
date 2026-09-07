@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-03 (Asia/Seoul)** — 상품관리 체크박스·재고 자동 판매중지·관리자 로그아웃 포함
+> 마지막 갱신: **2026-09-07 (Asia/Seoul)** — 한국결제데이터 인증결제 전환 반영
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -11,11 +11,11 @@
 
 ## 0. 지금 가장 중요한 사실
 
-**2026-09-01부터 실제 결제가 돌아갑니다. 진짜 돈이 오갑니다.**
+**실제 결제 이력이 있습니다. 진짜 돈이 오갑니다.**
 
 - 첫 실결제: 2026-09-01 11:44 KST, 13,900원, 주문번호 `DK20260901C48E74B901`
-- PG사: **코페이(Korpay) 인증결제** — 심사 완료, 운영 키 적용됨
-- 그 전까지는 `MockPaymentProvider`였습니다. 옛 문서에 "Mock payment"라고 적힌 부분은 전부 폐기된 내용입니다.
+- PG사: **한국결제데이터(PayDataKR) 인증결제**로 전환 중
+- 기존 결제 이력은 삭제하거나 재매핑하지 않고, 신규 결제부터 `paydatakr`로 기록합니다.
 
 따라서 이제부터 주문/결제/재고 코드를 건드릴 때는 **운영 데이터가 이미 있다**는 전제로 작업해야 합니다.
 `orders`, `payments`, `commissions`에 실제 거래 기록이 있습니다. 주문 row를 지우면 매출·정산이 어긋납니다.
@@ -99,54 +99,58 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | |
 | `NEXT_PUBLIC_WEB_URL` | **`https://dealkey.co.kr`** — 11.2절 참고 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 |
-| `KORPAY_MERCHANT_ID` | 서버 전용 |
-| `KORPAY_MKEY` | **서버 전용 비밀키** |
-| `KORPAY_BASE_URL` | 미설정. 코드 기본값 `https://payments.korpay.com/v1` 사용 |
+| `PAYDATAKR_PUBLIC_KEY` | 결제창에 전달되는 공개 키 |
+| `PAYDATAKR_PAY_KEY` | **서버 전용 API 인증 키** |
+| `PAYDATAKR_CHECKOUT_URL` | 한국결제데이터 인증결제창 action URL |
+| `PAYDATAKR_API_BASE_URL` | 기본값 `https://api.paydatakr.com` |
+| `PAYDATAKR_RECEIPT_BASE_URL` | 기본값 `https://mcht.paydatakr.com/trx/receipt` |
 | `JUSO_API_KEY` | 행정안전부 도로명주소 검색 API 운영 승인키, 서버 전용 |
 
 ### `closed-commerce-admin`
 
-위 공용 3개 + `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_LOGIN_EMAIL_DOMAIN`.
+위 공용 3개 + `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_LOGIN_EMAIL_DOMAIN`, `PAYDATAKR_PAY_KEY`, `PAYDATAKR_API_BASE_URL`.
 `NEXT_PUBLIC_WEB_URL`은 어드민에도 필요합니다(`admin-shell.tsx`가 고객몰 링크에 씁니다). 없으면 localhost를 가리킵니다.
 
 ### 절대 규칙
 
-- `SUPABASE_SERVICE_ROLE_KEY`와 `KORPAY_MKEY`에 **`NEXT_PUBLIC_` 접두사를 붙이면 안 됩니다.** 붙는 순간 브라우저 번들에 들어가고, mkey가 새면 누구나 결제 요청을 위조할 수 있습니다.
-- 운영 계정 비밀번호와 mkey 값을 **이 문서·Git·채팅에 적지 않습니다.** 값이 필요하면 Vercel 환경변수 화면에서 직접 넣으세요.
+- `SUPABASE_SERVICE_ROLE_KEY`와 `PAYDATAKR_PAY_KEY`에 **`NEXT_PUBLIC_` 접두사를 붙이면 안 됩니다.** 붙는 순간 브라우저 번들에 들어가고, Pay Key가 새면 누구나 결제 취소 API를 호출할 수 있습니다.
+- 운영 계정 비밀번호와 Pay Key 값을 **이 문서·Git·채팅에 적지 않습니다.** 값이 필요하면 Vercel 환경변수 화면에서 직접 넣으세요.
 - `NEXT_PUBLIC_` 변수는 **빌드 타임에 번들에 박힙니다.** 값만 바꾸고 재배포하지 않으면 예전 값이 그대로 돕니다.
 
 ---
 
-## 4. 결제(코페이 인증결제)
+## 4. 결제(한국결제데이터 인증결제)
 
 ### 흐름
 
     고객: 결제하기
-      → POST /api/orders          주문 생성 + 재고 예약(status=payment_pending), checkoutParams 반환
-      → KorpaySdk.payment(baseUrl, params, callbacks)   결제창(iframe) 열림
+      → POST /api/orders          주문 생성 + 재고 예약(status=payment_pending), checkoutUrl/checkoutParams 반환
+      → HTML form POST           한국결제데이터 인증결제창
       → 카드 인증
-      → 코페이가 고객 브라우저로 returnUrl에 POST
-      → POST /api/payments/korpay/return
-           금액·주문번호를 DB 기준으로 재검증 → payments row 선점 → 코페이 승인 API 호출 → 주문 확정
+      → 한국결제데이터가 webhookUrl에 JSON POST
+           결과코드·주문번호·금액·거래번호 검증 → payments row 선점 → 주문 확정 → result=0000 응답
+      → 한국결제데이터가 returnUrl에 form POST
+           동일한 확정 흐름에서 중복이면 이미 처리된 결과로 응답
       → 303 redirect → /checkout/result
 
 ### 핵심 파일
 
-- `packages/payment/src/korpay.ts` — 해시, 주문번호 정규화, 승인 호출
-- `packages/payment/src/korpay-codes.ts` — 코페이 응답코드 → 한국어 문장
-- `apps/web/lib/korpay-config.ts` — 설정, `korpayBaseUrl()`, `korpayReturnUrl()`
-- `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizeKorpayOrder()` / `cancelPendingOrder()`
-- `apps/web/app/api/payments/korpay/return/route.ts` — 리턴 수신
+- `packages/payment/src/paydatakr.ts` — 인증결제 폼·환불 API·결과 파싱
+- `apps/web/lib/paydatakr-config.ts` — 설정과 callback URL
+- `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizePayDataKrOrder()` / `cancelPendingOrder()`
+- `apps/web/app/api/payments/paydatakr/return/route.ts` — 브라우저 리턴 수신
+- `apps/web/app/api/payments/paydatakr/webhook/route.ts` — JSON 웹훅 수신
 - `apps/web/components/checkout-form.tsx` — 결제창 호출
 
 ### 규칙
 
-- `hashKey = SHA-256(merchantId + ediDate + amount + mkey)`, `ediDate`는 KST `yyyyMMddHHmmss`
-- 주문번호는 **영문·숫자만, 40자 이하**. 하이픈이 있으면 결제창이 안 열립니다(`toKorpayOrderNumber`가 제거).
+- 결제창은 `publicKey`, `certflag=cardcert`, `paysvctype=0000`, `paymethod=card`, `Unit=00`을 사용합니다.
+- `PAYDATAKR_PAY_KEY`는 서버의 `Authorization` 헤더에만 사용합니다.
+- `trackId`는 중복되지 않는 가맹점 주문번호이며 최대 50자입니다.
 - 최소 결제금액 **1,000원**
-- 카드 인증 후 **10분 안에** 승인 API를 불러야 합니다.
-- 리턴 요청은 고객 브라우저에서 오므로 **금액을 절대 믿지 않습니다.** 주문번호로 DB의 주문을 찾아 저장된 금액으로 승인합니다.
-- 이중 승인 방지: `payments.order_id` UNIQUE로 선점합니다. 중복이면 409.
+- return/webhook 요청은 외부에서 오므로 **금액·주문번호를 그대로 믿지 않습니다.** 주문번호로 DB의 주문을 찾아 저장된 금액과 대조합니다.
+- 웹훅은 문서상 재통보가 없으므로 수신 처리 후 `result=0000`을 회신하고, 별도 조회 기능으로 대사를 보완해야 합니다.
+- 이중 확정 방지: `payments.order_id` UNIQUE로 선점합니다.
 
 ---
 
@@ -160,7 +164,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 - `public.expire_stale_pending_orders(p_minutes integer default 20)`
   20분 넘은 `payment_pending` 주문을 `cancelled`로 바꾸고 예약 재고를 되돌립니다. 취소 건수를 반환합니다.
-  20분은 코페이 인증 유효시간(10분)의 두 배 — 진행 중인 결제는 건드리지 않습니다.
+  20분은 한국결제데이터 인증결제 세션보다 충분히 긴 정리 유예시간 — 진행 중인 결제는 건드리지 않습니다.
 - **pg_cron 이 5분마다 실행**: 잡 이름 `expire-stale-pending-orders`, 스케줄 `*/5 * * * *`
 - `prepareOrder()`가 재고를 세기 **직전에 한 번 더** 호출합니다. 방금 결제창을 닫고 다시 들어온 고객이 cron을 기다리지 않게 하려고요.
 
@@ -318,9 +322,9 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 ### 운영/법무 미결
 
 5. 3PL 정식 상호를 개인정보 위탁 표에 기입
-6. PG사(코페이) 상호를 위탁 표에 기입
+6. 한국결제데이터(PayDataKR) 상호를 위탁 표에 기입
 7. 개인정보 **국외이전** 고지 — Vercel 실제 처리 지역 확인 필요(개인정보 보호법 제28조의8)
-8. 코페이 **취소/환불 API 규격** 요청 — 실제 PG 취소 연동 전까지 관리자 환불 API는 501로 실패하도록 닫혀 있습니다. DB만 환불 완료로 바꾸지 않습니다
+8. 한국결제데이터 **취소/환불 운영 정보** — 관리자 환불은 `/api/refund` 연동으로 처리하며, 운영 키와 원거래 필드 검증이 필요합니다
 9. 이메일 인증(Confirm email) — 가입 API는 `admin.createUser(email_confirm=true)`로 확인 메일을 사용하지 않음. 호스티드 Supabase 프로젝트 전역 토글은 대시보드 로그인 후 필요 시 별도 확인
 10. `tester@dealkey.co.kr` 오픈 전 삭제
 
@@ -350,22 +354,22 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 ## 11. 함정 — 이거 모르면 같은 자리에서 막힙니다
 
-### 11.1 코페이 결제창 baseUrl에 스킴이 없으면 20초 뒤 죽습니다
+### 11.1 한국결제데이터 결제창 URL은 HTTPS로 설정해야 합니다
 
-SDK는 `${baseUrl}/payment`로 숨긴 form을 POST합니다. 스킴(`https://`)이 없으면 브라우저가 **상대경로로 해석**해서 결제 요청이 코페이가 아니라 `dealkey.co.kr`로 갑니다. iframe에 우리 404가 뜨고, SDK는 `PAYMENT_MODAL_READY`를 못 받은 채 20초 뒤 "결제 페이지 요청 시간이 초과되었습니다"를 냅니다.
+서버가 `/api/orders`에서 결제 파라미터를 만들고 브라우저가 `PAYDATAKR_CHECKOUT_URL`로 HTML form POST를 보냅니다. URL에 `https://`가 없으면 상대 경로로 처리될 수 있으므로 운영 환경에서는 반드시 HTTPS 전체 URL을 설정합니다.
 
-지금은 서버(`/api/orders`)가 `checkoutBaseUrl`을 내려주고 양쪽에서 스킴을 정규화합니다. **클라이언트에 주소를 따로 하드코딩하지 마세요.**
+**클라이언트에 결제 URL이나 Pay Key를 하드코딩하지 마세요.** Pay Key는 서버의 `PAYDATAKR_PAY_KEY`로만 사용합니다.
 
-`@korpay/sdk` npm 패키지는 1,461바이트짜리 **로더일 뿐**입니다. 실제 구현은 `payments.korpay.com/js/korpay-sdk.js`(105KB)에 있습니다. 에러 문구를 찾을 때 npm 패키지만 뒤지면 못 찾습니다.
+제공된 연동 문서에는 실제 인증결제 페이지 URI가 별도 첨부파일(`결제창호출.html`)로 안내되어 있어, 저장소에서는 `PAYDATAKR_CHECKOUT_URL` 환경변수로 주입하도록 했습니다.
 
 ### 11.2 `NEXT_PUBLIC_WEB_URL`이 틀리면 결제 후 고객이 사라집니다
 
-이 값이 코페이 `returnUrl`과 결과 페이지 리다이렉트에 쓰입니다. `closed-commerce-web.vercel.app`으로 돼 있으면 결제 후 고객이 딜키 도메인 밖으로 튕기고, 세션 쿠키가 `dealkey.co.kr` 스코프라 **로그아웃 상태로 보입니다.**
+이 값이 한국결제데이터 `returnUrl`·`webhookUrl`과 결과 페이지 리다이렉트에 쓰입니다. `closed-commerce-web.vercel.app`으로 돼 있으면 결제 후 고객이 딜키 도메인 밖으로 튕기고, 세션 쿠키가 `dealkey.co.kr` 스코프라 **로그아웃 상태로 보입니다.**
 
 확인:
 
     // 브라우저 콘솔
-    (await fetch('/api/payments/korpay/return', {redirect:'follow'})).url
+    (await fetch('/api/payments/paydatakr/return', {redirect:'follow'})).url
     // → https://dealkey.co.kr/checkout/result?status=unknown 이어야 정상
 
 ### 11.3 Vercel 함수 리전이 서울이 아니면 페이지가 10배 느립니다
