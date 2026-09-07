@@ -14,6 +14,7 @@ export const DEMO_PRODUCTS: Product[] = [
     onlinePrice: 55_000,
     price: 39_000,
     shippingFee: 3_500,
+    shippingBundleQuantity: 5,
     withdrawalRestriction: '개봉 후에는 식품 위생상 교환·환불이 불가합니다. 단순 변심에 의한 반품은 미개봉 상태에서만 가능합니다.',
     visibility: 'referral',
     status: 'active',
@@ -33,6 +34,7 @@ export const DEMO_PRODUCTS: Product[] = [
     onlinePrice: 65_000,
     price: 52_000,
     shippingFee: 3_500,
+    shippingBundleQuantity: 5,
     withdrawalRestriction: '개봉 후에는 식품 위생상 교환·환불이 불가합니다. 단순 변심에 의한 반품은 미개봉 상태에서만 가능합니다.',
     visibility: 'referral',
     status: 'active',
@@ -52,6 +54,7 @@ export const DEMO_PRODUCTS: Product[] = [
     onlinePrice: 72_000,
     price: 59_000,
     shippingFee: 0,
+    shippingBundleQuantity: 5,
     withdrawalRestriction: '개봉 후에는 식품 위생상 교환·환불이 불가합니다. 단순 변심에 의한 반품은 미개봉 상태에서만 가능합니다.',
     visibility: 'referral',
     status: 'active',
@@ -71,6 +74,7 @@ export const DEMO_PRODUCTS: Product[] = [
     onlinePrice: 85_000,
     price: 72_000,
     shippingFee: 0,
+    shippingBundleQuantity: 5,
     withdrawalRestriction: '개봉 후에는 식품 위생상 교환·환불이 불가합니다. 단순 변심에 의한 반품은 미개봉 상태에서만 가능합니다.',
     visibility: 'referral',
     status: 'active',
@@ -135,9 +139,8 @@ export function getVisibleProducts(isMember = false, hasReferral = false): Produ
  * 육포 420g 판매가가 55,000원이라 1개만 사도 배송비가 0원이 됐고,
  * 3PL 건당 4,000원을 판매자가 전액 부담했다. 이제 store_settings에서 읽는다.
  *
- * 계산: 올림(총수량 ÷ cartonQuantity) × feePerCarton
- *   cartonQuantity=5, feePerCarton=4000 이면 1~5개 4,000원 / 6~10개 8,000원.
- * 기준은 "주문 전체 수량"이다. 상품별로 카툰 수량이 다르면 상품 컬럼이 필요하다.
+ * 기존 장바구니와의 호환을 위해 store_settings의 전역 정책도 남겨 둔다.
+ * 상품에 shippingBundleQuantity가 있으면 상품별 배송비 규칙을 우선한다.
  */
 export interface ShippingPolicy {
   /** 카툰 하나에 들어가는 수량. 1 이상. */
@@ -161,6 +164,14 @@ export function calculateShippingAmount(quantity: number, netAmount: number, pol
   return Math.ceil(quantity / unit) * fee;
 }
 
+/** 상품 한 종류의 수량을 상품별 묶음 정책으로 배송비로 환산한다. */
+export function calculateProductShippingAmount(quantity: number, feePerBundle: number, bundleQuantity: number): number {
+  if (quantity <= 0) return 0;
+  const unit = Math.max(1, Math.trunc(bundleQuantity));
+  const fee = Math.max(0, Math.trunc(feePerBundle));
+  return Math.ceil(quantity / unit) * fee;
+}
+
 export interface CatalogLine {
   productId: string;
   productName: string;
@@ -168,6 +179,8 @@ export interface CatalogLine {
   optionName?: string;
   unitPrice: number;
   shippingFee: number;
+  /** 상품별 묶음 수량. 없으면 이전 전역 정책으로 계산한다. */
+  shippingBundleQuantity?: number;
   quantity: number;
 }
 
@@ -206,9 +219,23 @@ export function calculateCartTotalsFromLines(
     : 0;
   const discountAmount = Math.min(grossAmount, rawDiscount);
   const netAmount = Math.max(0, grossAmount - discountAmount);
-  // 상품별 shippingFee는 더 이상 합계에 쓰지 않는다. 실제 비용은 3PL 카툰 단위로 발생하므로
-  // 주문 전체 수량으로 한 번만 계산한다. 상품 컬럼은 표시/참고용으로만 남는다.
-  const shippingAmount = lines.length === 0 ? 0 : calculateShippingAmount(quantity, netAmount, policy);
+  // 상품마다 공급처·포장 방식이 다를 수 있으므로 상품별 묶음 규칙을 합산한다.
+  // 이전 호출부가 shippingBundleQuantity를 보내지 않는 경우에만 전역 정책을 유지한다.
+  const hasProductShippingRules = lines.some((line) => line.shippingBundleQuantity !== undefined);
+  const shippingAmount = lines.length === 0
+    ? 0
+    : hasProductShippingRules
+      ? [...lines.reduce((groups, line) => {
+        const current = groups.get(line.productId);
+        groups.set(line.productId, {
+          quantity: (current?.quantity ?? 0) + line.quantity,
+          shippingFee: current?.shippingFee ?? line.shippingFee,
+          shippingBundleQuantity: current?.shippingBundleQuantity ?? line.shippingBundleQuantity ?? policy.cartonQuantity,
+        });
+        return groups;
+      }, new Map<string, { quantity: number; shippingFee: number; shippingBundleQuantity: number }>()).values()]
+        .reduce((sum, group) => sum + calculateProductShippingAmount(group.quantity, group.shippingFee, group.shippingBundleQuantity), 0)
+      : calculateShippingAmount(quantity, netAmount, policy);
   return {
     grossAmount,
     discountAmount,
@@ -248,6 +275,7 @@ export function toDemoCatalogLines(items: CartItem[]): CatalogLine[] {
       optionName: `${option.name}: ${option.value}`,
       unitPrice: option.price,
       shippingFee: product.shippingFee,
+      shippingBundleQuantity: product.shippingBundleQuantity,
       quantity: item.quantity,
     };
   });

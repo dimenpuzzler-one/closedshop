@@ -6,14 +6,14 @@ import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@closed-commerce/types';
 import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
-import { CategorySelect, ImagePicker, WithdrawalField } from './admin-create-forms';
+import { CategorySelect, ImagePicker, ShippingRuleFields, WithdrawalField } from './admin-create-forms';
 import type { CategoryGroup } from '@/lib/admin-data';
 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
 
 const FIELD_LABELS: Record<string, string> = {
   name: '상품명', category: '카테고리', shortDescription: '짧은 소개', description: '상세 설명',
-  basePrice: '회원가', onlinePrice: '온라인가', shippingFee: '배송비', visibility: '노출 대상',
+  basePrice: '회원가', onlinePrice: '온라인가', shippingMode: '배송 정책', shippingFee: '배송비', shippingBundleQuantity: '묶음 가능 수량', visibility: '노출 대상',
   status: '판매 상태', optionName: '옵션명', optionValue: '옵션값', stock: '재고',
   withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
 };
@@ -130,6 +130,9 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
       withdrawalRestriction: text('withdrawalRestriction'),
       basePrice: numberOrUndefined('basePrice'),
       onlinePrice: numberOrNull('onlinePrice'),
+      shippingMode: text('shippingMode') as 'free' | 'paid',
+      shippingFee: numberOrUndefined('shippingFee'),
+      shippingBundleQuantity: numberOrUndefined('shippingBundleQuantity'),
       optionName: text('optionName'),
       optionValue: text('optionValue'),
       stock: numberOrUndefined('stock'),
@@ -183,6 +186,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
           </label>
           <label className="field"><span className="field-label">회원가</span><input className="input" type="number" min="0" name="basePrice" defaultValue={product.basePrice ?? product.price} /><span className="field-hint">추천 코드로 가입한 회원에게 공개되는 실제 결제 가격입니다.</span></label>
           <label className="field"><span className="field-label">온라인가(선택)</span><input className="input" type="number" min="0" name="onlinePrice" defaultValue={product.onlinePrice ?? ''} /><span className="field-hint">비로그인 방문자에게 보여주는 기준 가격입니다. 회원가보다 높게 입력하면 할인 전 가격으로 표시됩니다.</span></label>
+          <ShippingRuleFields defaultFee={product.shippingFee} defaultBundleQuantity={product.shippingBundleQuantity ?? 1} />
           <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue={option?.name ?? '구성'} required /><span className="field-hint">고객이 보는 구성 항목 이름입니다. 예: 구성</span></label>
           <label className="field"><span className="field-label">옵션값</span><input className="input" name="optionValue" defaultValue={option?.value ?? ''} placeholder="예: 300g / 기본 구성" required /><span className="field-hint">중량이나 구성 내용입니다. 예: 420g</span></label>
           <label className="field"><span className="field-label">총재고</span><input className="input" type="number" min="0" name="stock" defaultValue={stock} /><span className="field-hint">예약 {product.reservedQuantity ?? 0}개 · 판매 가능 {Math.max(0, stock - (product.reservedQuantity ?? 0))}개</span></label>

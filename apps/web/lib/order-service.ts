@@ -106,7 +106,7 @@ async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): 
   const [{ data: products, error: productError }, { data: options, error: optionError }, { data: inventory, error: inventoryError }] = await Promise.all([
     // status만 보고 visibility를 보지 않으면, 판매를 내린 hidden 상품도 id만 알면 주문된다.
     // service role은 RLS(products_visible_read)를 우회하므로 여기서 직접 막는다.
-    client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, visibility, status, created_at').in('id', productIds).eq('status', 'active').neq('visibility', 'hidden'),
+    client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, shipping_bundle_quantity, visibility, status, created_at').in('id', productIds).eq('status', 'active').neq('visibility', 'hidden'),
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
     client.from('inventory').select('product_id, quantity, reserved_quantity').in('product_id', productIds),
   ]);
@@ -128,7 +128,7 @@ async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): 
     const stock = inventoryMap.get(item.productId);
     const available = stock ? stock.quantity - stock.reserved_quantity : 0;
     if (available < item.quantity) fail(400, `${product.name} 재고가 부족합니다.`);
-    return { productId: product.id, productName: product.name, optionId: option.id, optionName: `${option.name}: ${option.value}`, unitPrice: option.price, shippingFee: product.shipping_fee, quantity: item.quantity };
+    return { productId: product.id, productName: product.name, optionId: option.id, optionName: `${option.name}: ${option.value}`, unitPrice: option.price, shippingFee: product.shipping_fee, shippingBundleQuantity: product.shipping_bundle_quantity, quantity: item.quantity };
   });
   const normalizedProducts: Product[] = (products ?? []).map((product) => ({
     id: product.id,
@@ -141,6 +141,7 @@ async function loadCatalog(client: AppSupabaseClient, input: CreateOrderInput): 
     price: product.base_price,
     onlinePrice: product.supply_cost ?? undefined,
     shippingFee: product.shipping_fee,
+    shippingBundleQuantity: product.shipping_bundle_quantity,
     visibility: product.visibility,
     status: product.status,
     imageUrl: '',

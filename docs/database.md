@@ -6,6 +6,8 @@
 
 `orders`는 `gross_amount`, `discount_amount`, `shipping_amount`, `paid_amount`, `commissionable_amount`, `referral_code`, `promotion_code`, `address_snapshot`을 저장합니다. `commissions`는 `commission_base`, `commission_rate`, `commission_amount`, `depth`, `beneficiary_user_id`를 별도 snapshot으로 저장합니다.
 
+상품의 `shipping_fee`는 묶음 1회당 배송비(0이면 무료배송), `shipping_bundle_quantity`는 한 번에 묶어 보낼 수 있는 수량입니다. 주문 금액 계산은 같은 상품의 옵션 수량을 합산한 뒤 상품별 정책을 적용하고, 상품별 배송비 합계를 `orders.shipping_amount`에 snapshot합니다.
+
 ## RLS
 
 public schema의 모든 테이블에 RLS를 활성화했습니다. 운영자 판별은 노출된 user metadata가 아니라 `profiles.role`을 조회하는 private schema 함수로 수행합니다. 고객은 본인 주문·주소·추천관계·수령 가능한 Commission만 읽을 수 있습니다. Commission과 Promotion redemption 생성은 클라이언트 정책에서 열지 않고 서버 전용 service-role 흐름에서만 수행합니다.

@@ -15,6 +15,7 @@ type ProductRow = {
   base_price: number;
   supply_cost: number | null;
   shipping_fee: number;
+  shipping_bundle_quantity: number;
   home_sort_order: number;
   withdrawal_restriction: string;
   visibility: Product['visibility'];
@@ -25,7 +26,7 @@ type ProductRow = {
 type AnyClient = Awaited<ReturnType<typeof createServerAppClient>>;
 
 const PRODUCT_COLUMNS =
-  'id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, home_sort_order, withdrawal_restriction, visibility, status, created_at';
+  'id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, shipping_bundle_quantity, home_sort_order, withdrawal_restriction, visibility, status, created_at';
 
 function isSupabaseMode() {
   return resolveRuntimeMode({ requireServiceRole: false }) === 'supabase';
@@ -53,6 +54,7 @@ function mapProduct(
     homeSortOrder: row.home_sort_order,
     price: options[0]?.price ?? row.base_price,
     shippingFee: row.shipping_fee,
+    shippingBundleQuantity: row.shipping_bundle_quantity,
     withdrawalRestriction: row.withdrawal_restriction ?? '',
     visibility: row.visibility,
     status: row.status,

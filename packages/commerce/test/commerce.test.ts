@@ -66,6 +66,22 @@ describe('commerce totals', () => {
     expect(result.shippingAmount).toBe(8000);
   });
 
+  it('calculates shipping independently for each product rule', () => {
+    const result = calculateCartTotalsFromLines([
+      line({ productId: 'jerky', quantity: 7, shippingFee: 4000, shippingBundleQuantity: 5 }),
+      line({ productId: 'kettle', quantity: 2, shippingFee: 5000, shippingBundleQuantity: 1 }),
+    ]);
+    expect(result.shippingAmount).toBe(18000);
+  });
+
+  it('combines options of one product before applying its bundle quantity', () => {
+    const result = calculateCartTotalsFromLines([
+      line({ productId: 'gift-set', optionId: '600g', quantity: 3, shippingFee: 4000, shippingBundleQuantity: 5 }),
+      line({ productId: 'gift-set', optionId: '480g', quantity: 2, shippingFee: 4000, shippingBundleQuantity: 5 }),
+    ]);
+    expect(result.shippingAmount).toBe(4000);
+  });
+
   it('waives shipping only when the operator set a free-shipping threshold', () => {
     const policy = { cartonQuantity: 5, feePerCarton: 4000, freeShippingThreshold: 100_000 };
     const justUnder = calculateCartTotalsFromLines([line({ unitPrice: 99_999 })], undefined, policy);

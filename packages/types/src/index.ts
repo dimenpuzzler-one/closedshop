@@ -42,7 +42,10 @@ export interface Product {
   /** 홈 화면 진열 순서. 숫자가 작을수록 먼저 노출된다. */
   homeSortOrder?: number;
   price: number;
+  /** 상품 하나의 배송비(0이면 무료배송). */
   shippingFee: number;
+  /** 이 상품을 한 번에 묶어 보낼 수 있는 수량. */
+  shippingBundleQuantity?: number;
   /**
    * 청약철회가 제한되는 사유. 상품 상세에 표시된다.
    * 비어 있으면 제한을 주장할 수 없다(전자상거래법 제17조 제2항 단서).

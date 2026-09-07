@@ -11,6 +11,7 @@ export interface QuotedLine {
   optionName?: string;
   unitPrice: number;
   shippingFee: number;
+  shippingBundleQuantity?: number;
   quantity: number;
   availableStock?: number;
   imageUrl?: string;

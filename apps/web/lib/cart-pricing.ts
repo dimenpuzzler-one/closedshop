@@ -140,7 +140,7 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
   // 세션 클라이언트를 쓰므로 RLS(products_visible_read)가 그대로 적용된다.
   // 회원이 볼 수 없는 상품은 애초에 조회되지 않는다 = 여기서 인가가 끝난다.
   const [{ data: products }, { data: options }, { data: images }] = await Promise.all([
-    client.from('products').select('id, slug, name, base_price, shipping_fee, status, visibility').in('id', productIds).eq('status', 'active'),
+    client.from('products').select('id, slug, name, base_price, shipping_fee, shipping_bundle_quantity, status, visibility').in('id', productIds).eq('status', 'active'),
     client.from('product_options').select('id, product_id, name, value, price').in('product_id', productIds),
     client.from('product_images').select('product_id, storage_path, sort_order').in('product_id', productIds).eq('role', 'thumbnail').order('sort_order'),
   ]);
@@ -190,6 +190,7 @@ export async function quoteCart(items: CartItem[]): Promise<CartQuote> {
       optionName: `${option.name}: ${option.value}`,
       unitPrice: option.price,
       shippingFee: product.shipping_fee,
+      shippingBundleQuantity: product.shipping_bundle_quantity,
       quantity: item.quantity,
       availableStock: knownStock,
       imageUrl: imageMap.get(product.id),

@@ -141,7 +141,14 @@ export const productCreateSchema = z.object({
   description: z.string().trim().max(4000, '상세 설명은 4000자를 넘을 수 없습니다.').default(''),
   basePrice: wonAmount('회원가'),
   onlinePrice: wonAmount('온라인가').optional(),
+  shippingMode: z.enum(['free', 'paid'], { errorMap: () => ({ message: '배송 정책은 무료배송 또는 배송비 입력 중에서 골라 주세요.' }) }).default('paid'),
   shippingFee: wonAmount('배송비').default(0),
+  shippingBundleQuantity: z
+    .number({ invalid_type_error: '묶음 가능 수량은 숫자로 입력해 주세요.' })
+    .int('묶음 가능 수량은 정수로 입력해 주세요.')
+    .min(1, '묶음 가능 수량은 1개 이상이어야 합니다.')
+    .max(1000, '묶음 가능 수량은 1,000개 이하로 입력해 주세요.')
+    .default(1),
   withdrawalRestriction: z.string().trim().max(500, '청약철회 제한 안내는 500자를 넘을 수 없습니다.').default(''),
   visibility: z.enum(['public', 'member', 'referral', 'hidden'], {
     errorMap: () => ({ message: '노출 대상은 공개/회원 전용/추천 회원 전용/비공개 중에서 골라 주세요.' }),
@@ -163,7 +170,9 @@ export const productUpdateSchema = z.object({
   description: z.string().trim().max(4000).optional(),
   basePrice: z.number().int().min(0).optional(),
   onlinePrice: z.number().int().min(0).nullable().optional(),
+  shippingMode: z.enum(['free', 'paid'], { errorMap: () => ({ message: '배송 정책은 무료배송 또는 배송비 입력 중에서 골라 주세요.' }) }).optional(),
   shippingFee: z.number().int().min(0).optional(),
+  shippingBundleQuantity: z.number().int().min(1).max(1000).optional(),
   withdrawalRestriction: z.string().trim().max(500, '청약철회 제한 안내는 500자를 넘을 수 없습니다.').optional(),
   visibility: z.enum(['public', 'member', 'referral', 'hidden']).optional(),
   status: z.enum(['draft', 'active', 'paused', 'archived']).optional(),

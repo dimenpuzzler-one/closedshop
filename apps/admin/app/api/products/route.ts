@@ -113,7 +113,7 @@ async function parseRequest(request: Request) {
   }
   const values: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) if (typeof value === 'string') values[key] = value;
-  for (const key of ['basePrice', 'onlinePrice', 'shippingFee', 'stock', 'homeSortOrder']) {
+  for (const key of ['basePrice', 'onlinePrice', 'shippingFee', 'shippingBundleQuantity', 'stock', 'homeSortOrder']) {
     const raw = values[key];
     if (raw === '' || raw === undefined) {
       delete values[key];
@@ -139,6 +139,20 @@ export const POST = withAdmin(
     // 비인증 요청도 서버가 파일을 통째로 버퍼링했다.
     const { values, images } = await parseRequest(request);
     const totalBytes = assertImagesAreUploadable(images);
+
+    // 배송 정책은 화면에서 고르지만 DB에는 0원(무료) 또는 금액으로 저장한다.
+    // 기존 JSON 호출부가 shippingMode을 보내지 않아도 shippingFee 값으로 호환한다.
+    const shippingMode = values.shippingMode === 'free'
+      ? 'free'
+      : values.shippingMode === 'paid' || values.shippingMode === undefined
+        ? (values.shippingFee === undefined || Number(values.shippingFee) > 0 ? 'paid' : 'free')
+        : undefined;
+    if (!shippingMode) throw new ApiError(400, '배송 정책은 무료배송 또는 배송비 입력 중에서 골라 주세요.', 'invalid_shipping_mode');
+    if (shippingMode === 'paid' && (values.shippingFee === undefined || Number(values.shippingFee) <= 0)) {
+      throw new ApiError(400, '배송비 입력을 선택한 경우 묶음당 배송비를 입력해 주세요.', 'shipping_fee_required');
+    }
+    values.shippingMode = shippingMode;
+    if (shippingMode === 'free') values.shippingFee = 0;
 
     // 운영자가 URL 규칙을 알아야 할 이유가 없다.
     // 직접 입력했으면 그 값을 정리해서 쓰고("Gift Set" -> "gift-set"),
@@ -175,6 +189,7 @@ export const POST = withAdmin(
           // 기존 DB 컬럼(supply_cost)은 공개 온라인가를 저장하는 호환 필드로 사용한다.
           supply_cost: parsed.data.onlinePrice ?? null,
           shipping_fee: parsed.data.shippingFee,
+          shipping_bundle_quantity: parsed.data.shippingBundleQuantity,
           home_sort_order: parsed.data.homeSortOrder ?? 100,
           // 비워두면 개봉한 식품도 환불해줘야 한다(전자상거래법 제17조 제2항 단서).
           withdrawal_restriction: parsed.data.withdrawalRestriction,

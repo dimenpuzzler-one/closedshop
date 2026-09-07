@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { COMPANY, APP_NAME_KO } from '@closed-commerce/config';
 import { LegalLayout } from '@/components/legal-layout';
-import { loadStoreSettings } from '@/lib/store-settings';
 
 export const metadata: Metadata = {
   title: `환불·교환 안내 | ${APP_NAME_KO}`,
@@ -11,10 +10,7 @@ export const metadata: Metadata = {
 // 배송비 규칙을 운영 설정에서 읽으므로 빌드 시점에 고정되면 안 된다.
 export const dynamic = 'force-dynamic';
 
-export default async function RefundPage() {
-  const settings = await loadStoreSettings();
-  const { shippingPolicy } = settings;
-
+export default function RefundPage() {
   return (
     <LegalLayout title="환불·교환 안내" effectiveDate={COMPANY.termsEffectiveDate} current="/legal/refund">
       <p>
@@ -61,15 +57,8 @@ export default async function RefundPage() {
         </tbody>
       </table>
       <p>
-        현재 배송비는 주문 전체 수량을 기준으로 묶음(카툰) 단위로 산정됩니다 —
-        <strong>
-          {' '}{shippingPolicy.cartonQuantity}개까지 {shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원,
-          초과 시 {shippingPolicy.cartonQuantity}개 단위로 추가
-        </strong>
-        {shippingPolicy.freeShippingThreshold !== undefined
-          ? ` (${shippingPolicy.freeShippingThreshold.toLocaleString('ko-KR')}원 이상 구매 시 무료배송)`
-          : ''}
-        됩니다. 단순 변심으로 반품하시는 경우 왕복 배송비가 발생할 수 있습니다.
+        배송비는 상품별 묶음 가능 수량과 묶음당 배송비를 기준으로 산정되며, 주문서에 상품별 기준과 함께 표시됩니다.
+        단순 변심으로 반품하시는 경우 왕복 배송비가 발생할 수 있습니다.
       </p>
 
       <h2>4. 환불 처리 기간</h2>

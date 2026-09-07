@@ -37,7 +37,7 @@ function toCsv(rows: string[][]): string {
 function downloadCsv(orders: AdminOrderRow[]) {
   const header = [
     '주문번호', '주문일시', '주문상태', '결제상태', '구매자', '상품',
-    '결제금액', '추천코드', '수령인', '연락처', '우편번호', '주소', '상세주소', '배송요청사항',
+    '중량', '수량', '결제금액', '추천코드', '수령인', '연락처', '우편번호', '주소', '상세주소', '배송요청사항',
   ];
   const body = orders.map((order) => [
     order.number,
@@ -45,7 +45,9 @@ function downloadCsv(orders: AdminOrderRow[]) {
     STATUS_LABEL[order.status] ?? order.status,
     order.payment,
     order.buyer,
-    order.item,
+    order.items.map((item) => item.product).join(', '),
+    order.items.map((item) => item.weight).join(', '),
+    order.items.map((item) => String(item.quantity)).join(', '),
     // 엑셀이 숫자로 읽도록 원 단위 정수만 넣는다.
     String(order.amount),
     order.ref,

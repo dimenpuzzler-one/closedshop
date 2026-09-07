@@ -12,13 +12,13 @@ type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: 
 type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; productId?: string; details?: ValidationDetails };
 
 const NUMERIC_KEYS = [
-  'basePrice', 'onlinePrice', 'shippingFee', 'stock', 'homeSortOrder',
+  'basePrice', 'onlinePrice', 'shippingFee', 'shippingBundleQuantity', 'stock', 'homeSortOrder',
   'discountRate', 'discountAmount', 'minimumOrderAmount', 'minimumQuantity', 'totalUsageLimit', 'perMemberUsageLimit',
 ];
 
 const FIELD_LABELS: Record<string, string> = {
   slug: '상품 주소', name: '상품명', category: '카테고리', shortDescription: '짧은 소개',
-  description: '상세 설명', basePrice: '회원가', onlinePrice: '온라인가', shippingFee: '배송비',
+  description: '상세 설명', basePrice: '회원가', onlinePrice: '온라인가', shippingMode: '배송 정책', shippingFee: '배송비', shippingBundleQuantity: '묶음 가능 수량',
   visibility: '노출 대상', status: '판매 상태', optionName: '옵션명', optionValue: '옵션값',
   stock: '초기재고', shippingCutoffTime: '배송 마감 시간',
   withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
@@ -276,6 +276,33 @@ export function WithdrawalField({ defaultValue }: { defaultValue?: string }) {
   );
 }
 
+/** 상품마다 다른 포장·출고처를 반영하는 배송비 입력. */
+export function ShippingRuleFields({ defaultFee = 4000, defaultBundleQuantity = 1 }: { defaultFee?: number; defaultBundleQuantity?: number }) {
+  const [mode, setMode] = useState<'free' | 'paid'>(defaultFee > 0 ? 'paid' : 'free');
+  return (
+    <>
+      <label className="field">
+        <span className="field-label">배송 정책</span>
+        <select className="select" name="shippingMode" value={mode} onChange={(event) => setMode(event.currentTarget.value as 'free' | 'paid')}>
+          <option value="free">무료배송</option>
+          <option value="paid">배송비 입력</option>
+        </select>
+        <span className="field-hint">상품별 공급처·포장 기준으로 설정합니다. 무료배송이면 배송비는 0원으로 저장됩니다.</span>
+      </label>
+      <label className="field">
+        <span className="field-label">묶음당 배송비</span>
+        <input className="input" type="number" min="0" max="1000000" name="shippingFee" defaultValue={defaultFee > 0 ? defaultFee : ''} disabled={mode === 'free'} required={mode === 'paid'} />
+        <span className="field-hint">예: 주전자 5,000원. 무료배송을 선택하면 이 값은 사용하지 않습니다.</span>
+      </label>
+      <label className="field">
+        <span className="field-label">묶음 가능 수량</span>
+        <input className="input" type="number" min="1" max="1000" name="shippingBundleQuantity" defaultValue={defaultBundleQuantity} disabled={mode === 'free'} required={mode === 'paid'} />
+        <span className="field-hint">배송비 입력 상품만 설정합니다. 5개 설정 시 1~5개는 1회, 6~10개는 2회 배송비가 붙습니다.</span>
+      </label>
+    </>
+  );
+}
+
 export function ProductCreateForm({ categories }: { categories: CategoryGroup[] }) {
   const form = useCreate('/api/products', { productImages: true });
   // 상품명에서 상품 주소를 자동으로 만든다. 운영자가 URL 규칙을 알 필요가 없다.
@@ -319,6 +346,7 @@ export function ProductCreateForm({ categories }: { categories: CategoryGroup[] 
           </label>
           <label className="field"><span className="field-label">회원가</span><input className="input" type="number" min="0" name="basePrice" required /><span className="field-hint">추천 코드로 가입한 회원에게 공개되는 실제 결제 가격입니다.</span></label>
           <label className="field"><span className="field-label">온라인가(선택)</span><input className="input" type="number" min="0" name="onlinePrice" /><span className="field-hint">비로그인 방문자에게 보여주는 기준 가격입니다. 회원가보다 높게 입력하면 할인 전 가격으로 표시됩니다.</span></label>
+          <ShippingRuleFields />
           <label className="field"><span className="field-label">노출 대상</span><select className="select" name="visibility" defaultValue="referral"><option value="referral">추천 회원 전용</option><option value="member">회원 전용</option><option value="public">공개</option><option value="hidden">비공개</option></select></label>
           <label className="field"><span className="field-label">판매 상태</span><select className="select" name="status" defaultValue="active"><option value="active">즉시 판매</option><option value="draft">초안</option><option value="paused">판매 중지</option></select></label>
           <label className="field"><span className="field-label">옵션명</span><input className="input" name="optionName" defaultValue="구성" required /></label>

@@ -52,11 +52,10 @@ export default async function ProductDetailPage({
   const heroImage = gallery[0];
   const stock = product.options[0]?.stock ?? 0;
   const shippingPolicy = settings.shippingPolicy;
-  const shippingCopy = `${shippingPolicy.cartonQuantity}개까지 ${shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원, 초과 시 ${shippingPolicy.cartonQuantity}개 단위로 추가${
-    shippingPolicy.freeShippingThreshold !== undefined
-      ? ` (${shippingPolicy.freeShippingThreshold.toLocaleString('ko-KR')}원 이상 무료배송)`
-      : ''
-  }`;
+  const bundleQuantity = product.shippingBundleQuantity ?? shippingPolicy.cartonQuantity;
+  const shippingCopy = product.shippingFee === 0
+    ? '무료배송'
+    : `${bundleQuantity}개까지 ${product.shippingFee.toLocaleString('ko-KR')}원, 초과 시 ${bundleQuantity}개 단위로 추가`;
 
   return (
     <>

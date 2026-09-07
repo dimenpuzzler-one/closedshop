@@ -1,9 +1,9 @@
-insert into public.products (slug, name, short_description, description, visibility, status, base_price, shipping_fee)
+insert into public.products (slug, name, short_description, description, visibility, status, base_price, shipping_fee, shipping_bundle_quantity)
 values
-  ('premium-jerky-300g', '한우 육포 선물세트 300g', '가볍게 전하기 좋은 프리미엄 한우 육포 세트', '엄선한 원육을 정성껏 숙성해 담은 실속형 명절 선물세트입니다.', 'referral', 'active', 39000, 3500),
-  ('premium-jerky-420g', '한우 육포 선물세트 420g', '가족과 나누기 좋은 균형 잡힌 구성', '선물의 만족도와 실용성을 함께 고려한 420g 구성입니다.', 'referral', 'active', 52000, 3500),
-  ('premium-jerky-480g', '한우 육포 선물세트 480g', '거래처와 가족 모두에게 어울리는 대표 구성', '선물용 패키지와 넉넉한 중량으로 준비한 대표 상품입니다.', 'referral', 'active', 59000, 0),
-  ('premium-jerky-600g', '한우 육포 선물세트 600g', '감사한 분께 넉넉하게 전하는 프리미엄 구성', '중요한 선물과 단체 주문을 위해 가장 넉넉하게 구성했습니다.', 'referral', 'active', 72000, 0)
+  ('premium-jerky-300g', '한우 육포 선물세트 300g', '가볍게 전하기 좋은 프리미엄 한우 육포 세트', '엄선한 원육을 정성껏 숙성해 담은 실속형 명절 선물세트입니다.', 'referral', 'active', 39000, 3500, 5),
+  ('premium-jerky-420g', '한우 육포 선물세트 420g', '가족과 나누기 좋은 균형 잡힌 구성', '선물의 만족도와 실용성을 함께 고려한 420g 구성입니다.', 'referral', 'active', 52000, 3500, 5),
+  ('premium-jerky-480g', '한우 육포 선물세트 480g', '거래처와 가족 모두에게 어울리는 대표 구성', '선물용 패키지와 넉넉한 중량으로 준비한 대표 상품입니다.', 'referral', 'active', 59000, 0, 5),
+  ('premium-jerky-600g', '한우 육포 선물세트 600g', '감사한 분께 넉넉하게 전하는 프리미엄 구성', '중요한 선물과 단체 주문을 위해 가장 넉넉하게 구성했습니다.', 'referral', 'active', 72000, 0, 5)
 on conflict (slug) do nothing;
 
 insert into public.product_options (product_id, name, value, price)

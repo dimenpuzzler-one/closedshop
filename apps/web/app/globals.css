@@ -103,7 +103,6 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-visual { min-height: 190px; padding: 18px; display: flex; align-items: flex-end; background: linear-gradient(140deg, #f2ead9, #ddcdb0); position: relative; }
 .product-image { object-fit: cover; z-index: 0; }
 .product-visual:before { content: 'PREMIUM\A JERKY'; white-space: pre; display: block; color: rgba(90, 70, 40, .45); font-size: 12px; letter-spacing: .12em; line-height: 1.4; }
-.product-weight { margin-left: auto; font-weight: 800; color: var(--green-dark); font-size: 28px; letter-spacing: -.06em; position: relative; z-index: 1; text-shadow: 0 1px 8px rgba(255,255,255,.7); }
 .product-body { padding: 22px; display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .product-copy { display: block; min-width: 0; }
 .product-category { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
@@ -279,7 +278,6 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .product-card .product-body { padding: 12px; }
   .product-card h3 { font-size: 15px; }
   .home-product-section .product-visual { min-height: 128px; padding: 12px; }
-  .home-product-section .product-weight { font-size: 21px; }
   .home-product-section .product-body { padding: 12px; }
   .home-product-section .product-body h3 { line-height: 1.35; }
   .home-product-section .product-meta { margin-top: auto; padding-top: 10px; gap: 6px; }

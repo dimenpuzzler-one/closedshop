@@ -56,6 +56,11 @@ export function CartView() {
               <h3>{line.productName}</h3>
               <p className="muted">{line.optionName}</p>
               <Price amount={line.unitPrice} />
+              <p className="muted" style={{ fontSize: '0.82rem', margin: '0.35rem 0 0' }}>
+                배송: {line.shippingFee === 0
+                  ? '무료배송'
+                  : `${line.shippingBundleQuantity ?? quote.shippingPolicy.cartonQuantity}개까지 ${line.shippingFee.toLocaleString('ko-KR')}원 · 초과 시 묶음 단위 추가`}
+              </p>
               {line.availableStock !== undefined && line.availableStock <= 5 ? (
                 <p className="muted">재고 {line.availableStock}개</p>
               ) : null}
@@ -88,10 +93,7 @@ export function CartView() {
         <div className="row"><span className="muted">상품금액</span><Price amount={quote.totals.grossAmount} /></div>
         <div className="row"><span className="muted">배송비</span><Price amount={quote.totals.shippingAmount} /></div>
         <p className="muted" style={{ fontSize: '0.82rem', margin: 0 }}>
-          {quote.shippingPolicy.cartonQuantity}개까지 {quote.shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원, 초과 시 {quote.shippingPolicy.cartonQuantity}개 단위로 추가됩니다.
-          {quote.shippingPolicy.freeShippingThreshold !== undefined
-            ? ` ${quote.shippingPolicy.freeShippingThreshold.toLocaleString('ko-KR')}원 이상 구매 시 무료배송입니다.`
-            : ''}
+          배송비는 상품별 묶음 가능 수량과 묶음당 배송비를 기준으로 계산됩니다.
         </p>
         <hr className="divider" />
         <div className="row total-line"><strong>결제 예정</strong><strong><Price amount={quote.totals.paidAmount} /></strong></div>

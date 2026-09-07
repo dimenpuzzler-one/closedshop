@@ -27,7 +27,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
   const gate = await adminGate();
   if (gate.source !== 'supabase') return { source: gate.source, products: gate.source === 'demo' ? DEMO_PRODUCTS : [] };
   const client = gate.client;
-  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, home_sort_order, withdrawal_restriction, visibility, status, created_at').order('home_sort_order', { ascending: true }).order('created_at', { ascending: false });
+  const { data: rows, error } = await client.from('products').select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, shipping_bundle_quantity, home_sort_order, withdrawal_restriction, visibility, status, created_at').order('home_sort_order', { ascending: true }).order('created_at', { ascending: false });
   if (error || !rows) return { source: 'unavailable', products: [] };
   const productIds = rows.map((row) => row.id);
   const [{ data: options }, { data: inventories }, { data: imageRows }] = await Promise.all([
@@ -74,6 +74,7 @@ export async function loadAdminProducts(): Promise<{ source: AdminDataSource; pr
       homeSortOrder: row.home_sort_order,
       price: productOptions[0]?.price ?? row.base_price,
       shippingFee: row.shipping_fee,
+      shippingBundleQuantity: row.shipping_bundle_quantity,
       withdrawalRestriction: row.withdrawal_restriction ?? '',
       visibility: row.visibility,
       status: row.status,
@@ -283,11 +284,18 @@ export interface AdminOrderAddress {
   deliveryMessage?: string;
 }
 
+export interface AdminOrderItem {
+  product: string;
+  weight: string;
+  quantity: number;
+}
+
 export interface AdminOrderRow {
   id: string;
   number: string;
   buyer: string;
   item: string;
+  items: AdminOrderItem[];
   amount: number;
   status: string;
   payment: string;
@@ -295,6 +303,13 @@ export interface AdminOrderRow {
   createdAt: string;
   /** 주문 당시 배송지. 옛 주문이나 형식이 깨진 주문은 undefined일 수 있다. */
   address?: AdminOrderAddress;
+}
+
+/** 옵션값이나 상품명에서 배송·출고용 중량을 뽑는다. 예: "구성: 300g" → "300g". */
+function extractOrderItemWeight(optionName: string | null | undefined, productName: string): string {
+  const measurement = /\b\d+(?:\.\d+)?\s?(?:kg|g|mg|ml|l)\b/i;
+  const optionValue = optionName?.replace(/^[^:]+:\s*/, '').trim() ?? '';
+  return optionValue.match(measurement)?.[0] ?? productName.match(measurement)?.[0] ?? '';
 }
 
 /** address_snapshot은 jsonb라 무엇이든 들어올 수 있다. 화면에 넘기기 전에 모양을 확인한다. */
@@ -326,9 +341,9 @@ const demoAddress: AdminOrderAddress = {
 };
 
 const demoOrders: AdminOrderRow[] = [
-  { id: 'demo-1', number: 'CC-20260819-001', buyer: '김*현', item: '육포 420g × 2', amount: 104000, status: 'paid', payment: 'paid', ref: 'KGY001', createdAt: '2026-08-19', address: demoAddress },
-  { id: 'demo-2', number: 'CC-20260818-014', buyer: '박*진', item: '육포 600g × 1', amount: 72000, status: 'preparing', payment: 'paid', ref: 'LEE001', createdAt: '2026-08-18', address: { ...demoAddress, recipientName: '박*진' } },
-  { id: 'demo-3', number: 'CC-20260818-011', buyer: '이*우', item: '육포 300g × 4', amount: 156000, status: 'shipped', payment: 'paid', ref: 'JIHYE01', createdAt: '2026-08-18', address: { ...demoAddress, recipientName: '이*우' } },
+  { id: 'demo-1', number: 'CC-20260819-001', buyer: '김*현', item: '육포 420g × 2', items: [{ product: '육포 420g', weight: '420g', quantity: 2 }], amount: 104000, status: 'paid', payment: 'paid', ref: 'KGY001', createdAt: '2026-08-19', address: demoAddress },
+  { id: 'demo-2', number: 'CC-20260818-014', buyer: '박*진', item: '육포 600g × 1', items: [{ product: '육포 600g', weight: '600g', quantity: 1 }], amount: 72000, status: 'preparing', payment: 'paid', ref: 'LEE001', createdAt: '2026-08-18', address: { ...demoAddress, recipientName: '박*진' } },
+  { id: 'demo-3', number: 'CC-20260818-011', buyer: '이*우', item: '육포 300g × 4', items: [{ product: '육포 300g', weight: '300g', quantity: 4 }], amount: 156000, status: 'shipped', payment: 'paid', ref: 'JIHYE01', createdAt: '2026-08-18', address: { ...demoAddress, recipientName: '이*우' } },
 ];
 
 export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orders: AdminOrderRow[] }> {
@@ -341,7 +356,7 @@ export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orde
   if (error || !orders) return { source: 'unavailable', orders: [] };
   const orderIds = orders.map((order) => order.id);
   const [{ data: items }, { data: payments }, { data: profiles }] = await Promise.all([
-    orderIds.length ? client.from('order_items').select('order_id, product_name_snapshot, quantity').in('order_id', orderIds) : Promise.resolve({ data: [] }),
+    orderIds.length ? client.from('order_items').select('order_id, product_name_snapshot, option_name_snapshot, quantity').in('order_id', orderIds) : Promise.resolve({ data: [] }),
     orderIds.length ? client.from('payments').select('order_id, status').in('order_id', orderIds) : Promise.resolve({ data: [] }),
     client.from('profiles').select('id, display_name').in('id', orders.map((order) => order.buyer_user_id)),
   ]);
@@ -349,18 +364,28 @@ export async function loadAdminOrders(): Promise<{ source: AdminDataSource; orde
   const paymentStatus = new Map((payments ?? []).map((payment) => [payment.order_id, payment.status]));
   return {
     source: 'supabase',
-    orders: orders.map((order) => ({
-      id: order.id,
-      number: order.order_number,
-      buyer: names.get(order.buyer_user_id) ?? '회원',
-      item: (items ?? []).filter((item) => item.order_id === order.id).map((item) => `${item.product_name_snapshot} × ${item.quantity}`).join(', '),
-      amount: order.paid_amount,
-      status: order.status,
-      payment: paymentStatus.get(order.id) ?? 'pending',
-      ref: order.referral_code ?? '—',
-      createdAt: order.created_at,
-      address: toOrderAddress(order.address_snapshot),
-    })),
+    orders: orders.map((order) => {
+      const orderItems = (items ?? [])
+        .filter((item) => item.order_id === order.id)
+        .map((item) => ({
+          product: item.product_name_snapshot,
+          weight: extractOrderItemWeight(item.option_name_snapshot, item.product_name_snapshot),
+          quantity: item.quantity,
+        }));
+      return {
+        id: order.id,
+        number: order.order_number,
+        buyer: names.get(order.buyer_user_id) ?? '회원',
+        item: orderItems.map((item) => `${item.product} × ${item.quantity}`).join(', '),
+        items: orderItems,
+        amount: order.paid_amount,
+        status: order.status,
+        payment: paymentStatus.get(order.id) ?? 'pending',
+        ref: order.referral_code ?? '—',
+        createdAt: order.created_at,
+        address: toOrderAddress(order.address_snapshot),
+      };
+    }),
   };
 }
 

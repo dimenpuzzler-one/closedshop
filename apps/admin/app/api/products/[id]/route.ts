@@ -22,9 +22,13 @@ export const PATCH = withAdminParams<{ id: string }>(
       throw new ApiError(400, `상품 수정값이 올바르지 않습니다. ${summary || flat.formErrors.join(' ')}`.trim(), 'validation_failed', flat);
     }
 
+    if (parsed.data.shippingMode === 'paid' && (parsed.data.shippingFee === undefined || parsed.data.shippingFee <= 0)) {
+      throw new ApiError(400, '배송비 입력을 선택한 경우 묶음당 배송비를 입력해 주세요.', 'shipping_fee_required');
+    }
+
     const { data: before, error: readError } = await client
       .from('products')
-      .select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, home_sort_order, visibility, status')
+      .select('id, slug, name, category, short_description, description, base_price, supply_cost, shipping_fee, shipping_bundle_quantity, home_sort_order, visibility, status')
       .eq('id', id)
       .maybeSingle();
     if (readError) failFromSupabase('상품을 조회하지 못했습니다.', readError, 'product_read_failed');
@@ -33,6 +37,10 @@ export const PATCH = withAdminParams<{ id: string }>(
     // DB의 기존 supply_cost 컬럼은 온라인가로 유지한다. RPC의 옛 키를 여기서
     // 변환해 live migration 없이도 기존 상품과 호환한다.
     const patch: Record<string, unknown> = { ...parsed.data };
+    if (parsed.data.shippingMode !== undefined) {
+      patch.shippingFee = parsed.data.shippingMode === 'free' ? 0 : parsed.data.shippingFee;
+      delete patch.shippingMode;
+    }
     if ('onlinePrice' in patch) {
       patch.supplyCost = patch.onlinePrice;
       delete patch.onlinePrice;

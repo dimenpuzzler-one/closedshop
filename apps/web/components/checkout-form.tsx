@@ -470,6 +470,11 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           >
             <span>
               {line.productName} × {line.quantity}
+              <small className="muted" style={{ display: 'block' }}>
+                {line.shippingFee === 0
+                  ? '무료배송'
+                  : `${line.shippingBundleQuantity ?? quote.shippingPolicy.cartonQuantity}개까지 ${line.shippingFee.toLocaleString('ko-KR')}원`}
+              </small>
             </span>
             <Price amount={line.unitPrice * line.quantity} />
           </div>
@@ -484,12 +489,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           <Price amount={quote.totals.shippingAmount} />
         </div>
         <p className="muted" style={{ fontSize: '0.82rem', margin: 0 }}>
-          {quote.shippingPolicy.cartonQuantity}개까지{' '}
-          {quote.shippingPolicy.feePerCarton.toLocaleString('ko-KR')}원, 초과 시{' '}
-          {quote.shippingPolicy.cartonQuantity}개 단위로 추가됩니다.
-          {quote.shippingPolicy.freeShippingThreshold !== undefined
-            ? ` ${quote.shippingPolicy.freeShippingThreshold.toLocaleString('ko-KR')}원 이상 구매 시 무료배송입니다.`
-            : ''}
+          배송비는 상품별 묶음 가능 수량과 묶음당 배송비를 기준으로 계산됩니다.
         </p>
         <div className="row total-line">
           <strong>결제 예정</strong>
