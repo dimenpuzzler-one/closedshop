@@ -91,6 +91,45 @@ describe('PayDataKr result helpers', () => {
 describe('PayDataKr server APIs', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it('creates a browser-safe widget session with a POST token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          result: { resultCd: PAYDATAKR_SUCCESS, resultMsg: '정상' },
+          widget: {
+            routeUrl: '/kpdWebPayment/KpdCredit?token=key_test_123',
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const session = await new PayDataKrPaymentProvider(config).createWidgetSession({
+      amount: 1000,
+      publicKey: config.publicKey,
+      payRoute: 'regular',
+      mode: 'popup',
+      trackId: 'DK-WIDGET-1',
+      products: [{ name: '테스트', price: 1000, qty: 1 }],
+      redirectUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
+      webhookUrl: 'https://dealkey.co.kr/api/payments/paydatakr/webhook',
+    });
+
+    expect(session).toEqual({
+      checkoutUrl: 'https://api.paydatakr.com/kpdWebPayment/KpdCredit?token=key_test_123',
+      token: 'key_test_123',
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.paydatakr.com/api/widget',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: config.publicKey }),
+      }),
+    );
+    expect(String(fetchMock.mock.calls[0]?.[1]?.body)).not.toContain(config.payKey);
+  });
+
   it('rechecks a transaction with the Pay Key and does not expose it in the URL', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ result: { resultCd: '0000', resultMsg: '정상' } }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);

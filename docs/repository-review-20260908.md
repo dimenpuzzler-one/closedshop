@@ -23,7 +23,7 @@
 
 ### 1. PG 실제 결제·환불 복구 (높음)
 
-- 공식 매뉴얼의 v1.5 JavaScript SDK 결제창 URL과 `products` 필드, SDK의 `result`/`pay` 중첩 응답, webhook의 평면 응답을 확인했다.
+- 공식 매뉴얼과 v1.5 소스의 `products` 필드, `/api/widget` 토큰 발급, SDK의 `result`/`pay` 중첩 응답, webhook의 평면 응답을 확인했다.
 - `pk_` 키는 SDK `publicKey`로 전달하고 같은 키로 `/api/echo` POST를 호출해 `0000` 응답을 확인했다. 서버는 결제 결과를 정규화한 뒤 Pay Key로 `/api/get/{transactionId}`를 재조회한다.
 - 조회 검증기는 최상위 또는 `pay` 객체의 `trackId`, `transactionId`/`trxId`, `amount`가 모두 일치해야 통과한다. 실제 승인·환불 거래 자체는 아직 실행하지 않았다.
 - 실패 통보가 인증되지 않았기 때문에 즉시 재고 반환을 제거했다. 취소된 결제의 재고는 기존 20분 만료 정책까지 예약될 수 있다.
@@ -70,7 +70,7 @@
 
 ### 결제 테스트 준비 상태
 
-- 공식 SDK로 결제창 호출 및 응답 매핑을 구현했고, 고객몰·관리자 Vercel Production에 키를 등록했다. 별도 `PAYDATAKR_CHECKOUT_URL`은 사용하지 않는다.
+- 고객몰·관리자 Vercel Production에 키를 등록했다. 고객몰은 `/api/widget`에서 받은 일회성 `routeUrl`·토큰을 브라우저 form POST로 호출하고, 별도 `PAYDATAKR_CHECKOUT_URL`은 사용하지 않는다.
 - 코드 검사와 배포 후 제한된 테스트 주문의 승인·주문 확정·전액 환불을 실행하면 된다. 이 기록에는 실제 승인·환불 결과를 적지 않는다.
 - 실운영 공개 전에는 위의 원자적 갱신/환불 복구 과제도 처리해야 한다.
 

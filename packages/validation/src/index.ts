@@ -275,6 +275,11 @@ export const categoryCreateSchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).optional(),
 });
 
+export const categorySortOrderUpdateSchema = z.object({
+  name: z.string().trim().min(1, '카테고리 이름을 입력해 주세요.').max(80, '카테고리 이름은 80자를 넘을 수 없습니다.'),
+  sortOrder: z.number().int().min(0).max(9999),
+});
+
 export const refundSchema = z.object({
   amount: z.number().int().positive(),
   reason: z.string().trim().min(1).max(500),

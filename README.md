@@ -93,7 +93,7 @@ pnpm --filter admin dev
 
 `SUPABASE_SERVICE_ROLE_KEY`, `PAYDATAKR_PAY_KEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
 
-운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 고객몰은 공식 v1.5 SDK(`https://api.paydatakr.com/js/clientside-1.1.0.js`)로 결제창을 열며 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 사용하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
+운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 서버가 공식 `/api/widget`에 공개키로 일회성 결제 토큰을 발급한 뒤, 브라우저가 반환된 `routeUrl`에 토큰을 HTML form POST해 결제창을 엽니다. 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 사용하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
 
 관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항입니다. 공식 SDK 응답은 `result`/`pay` 중첩 구조, webhook 응답은 평면 구조이므로 서버에서 공통 형태로 정규화합니다. 운영 활성화 전에는 제한된 테스트 결제·환불을 검증해야 합니다. 현재 조회 검증은 응답 최상위 또는 `pay` 객체의 주문번호·거래번호·금액이 모두 일치해야 통과하며, 성공 코드만 있는 응답은 주문을 확정하지 않습니다.
 
@@ -103,14 +103,14 @@ Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주
 
 ## PayDataKR 테스트 결제
 
-고객몰은 한국결제데이터 공식 v1.5 JavaScript SDK로 결제창을 호출합니다. 별도의 결제창 action URL은 사용하지 않습니다.
+고객몰은 서버에서 한국결제데이터 `/api/widget` 세션을 만든 뒤, 반환된 일회성 `routeUrl`에 `token`을 form POST해 결제창을 호출합니다. `PAYDATAKR_PAY_KEY`는 이 과정에 포함되지 않습니다.
 
 ```text
 결제하기
   → POST /api/orders
   → 주문 생성·재고 예약(payment_pending)
-  → PayDataKR SDK 결제창
-  → responseFunction(JSON) + webhookUrl(JSON)
+  → PayDataKR routeUrl에 token POST
+  → returnUrl + webhookUrl(JSON)
   → 서버가 응답을 정규화하고 Pay Key로 /api/get 재조회
   → 주문번호·거래번호·금액 검증
   → payments 저장·주문 paid 확정

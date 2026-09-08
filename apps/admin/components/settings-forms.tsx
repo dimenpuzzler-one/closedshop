@@ -188,6 +188,65 @@ export function ShippingSettingsForm({ settings }: { settings: AdminStoreSetting
   );
 }
 
+function CategoryOrderRow({ category }: { category: AdminCategory }) {
+  const save = useSave();
+  const [sortOrder, setSortOrder] = useState(category.sortOrder);
+
+  async function updateOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await save.postJson(
+      '/api/categories',
+      { name: category.name, sortOrder },
+      '카테고리 순서를 저장했습니다.',
+    );
+  }
+
+  async function remove() {
+    if (!window.confirm(`"${category.name}" 카테고리를 삭제할까요?`)) return;
+    await save.send(
+      '/api/categories',
+      { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: category.name }) },
+      '카테고리를 삭제했습니다.',
+    );
+  }
+
+  return (
+    <tr>
+      <td>
+        {category.parentName ? <span className="muted" style={{ marginRight: 6 }}>└</span> : null}
+        <strong>{category.name}</strong>
+        {category.parentName ? null : <span className="muted" style={{ marginLeft: 6 }}>대분류</span>}
+      </td>
+      <td>
+        <form className="row" style={{ gap: 6, flexWrap: 'nowrap' }} onSubmit={updateOrder}>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            max="9999"
+            value={sortOrder}
+            disabled={save.busy}
+            onChange={(event) => setSortOrder(Number(event.target.value))}
+            aria-label={`${category.name} 카테고리 노출 순서`}
+            style={{ width: 92 }}
+          />
+          <button className="button button-ghost" disabled={save.busy}>{save.busy ? '저장 중…' : '저장'}</button>
+        </form>
+        {save.error ? <span className="admin-note" role="alert">{save.error}</span> : null}
+        {save.message ? <span className="admin-note" role="status">{save.message}</span> : null}
+      </td>
+      <td>{category.productCount}개</td>
+      <td>
+        {category.productCount > 0 ? (
+          <span className="muted">상품이 있어 삭제 불가</span>
+        ) : (
+          <button className="button button-ghost" type="button" disabled={save.busy} onClick={() => void remove()}>삭제</button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 export function CategorySettingsForm({ categories }: { categories: AdminCategory[] }) {
   const save = useSave();
 
@@ -231,37 +290,7 @@ export function CategorySettingsForm({ categories }: { categories: AdminCategory
             </thead>
             <tbody>
               {[...ordered, ...orphans].map((category) => (
-                <tr key={category.name}>
-                  <td>
-                    {category.parentName ? (
-                      <span className="muted" style={{ marginRight: 6 }}>└</span>
-                    ) : null}
-                    <strong>{category.name}</strong>
-                    {category.parentName ? null : <span className="muted" style={{ marginLeft: 6 }}>대분류</span>}
-                  </td>
-                  <td>{category.sortOrder}</td>
-                  <td>{category.productCount}개</td>
-                  <td>
-                    {category.productCount > 0 ? (
-                      <span className="muted">상품이 있어 삭제 불가</span>
-                    ) : (
-                      <button
-                        className="button button-ghost"
-                        type="button"
-                        disabled={save.busy}
-                        onClick={() =>
-                          void save.send(
-                            '/api/categories',
-                            { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: category.name }) },
-                            '카테고리를 삭제했습니다.',
-                          )
-                        }
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                <CategoryOrderRow key={category.name} category={category} />
               ))}
             </tbody>
           </table>

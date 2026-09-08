@@ -99,7 +99,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | |
 | `NEXT_PUBLIC_WEB_URL` | **`https://dealkey.co.kr`** — 11.2절 참고 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 |
-| `PAYDATAKR_PUBLIC_KEY` | v1.5 SDK 결제창에 전달되는 `pk_` 공개 키 |
+| `PAYDATAKR_PUBLIC_KEY` | `/api/widget` 세션 발급에 쓰는 `pk_` 공개 키 |
 | `PAYDATAKR_PAY_KEY` | **서버 전용 API 인증 키** |
 | `PAYDATAKR_API_BASE_URL` | 기본값 `https://api.paydatakr.com` |
 | `PAYDATAKR_RECEIPT_BASE_URL` | 기본값 `https://mcht.paydatakr.com/trx/receipt` |
@@ -123,8 +123,8 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 ### 흐름
 
     고객: 결제하기
-      → POST /api/orders          주문 생성 + 재고 예약(status=payment_pending), SDK 설정 반환
-      → PayDataKR v1.5 SDK       브라우저 결제창 호출
+      → POST /api/orders          주문 생성 + 재고 예약(status=payment_pending), 일회성 위젯 URL·토큰 반환
+      → PayDataKR /api/widget     서버가 공개키로 토큰 발급, 브라우저가 routeUrl에 token POST
       → 카드 인증
       → 한국결제데이터가 webhookUrl에 JSON POST
            결과코드·주문번호·금액·거래번호 검증 → payments row 선점 → 주문 확정 → result=0000 응답
@@ -134,16 +134,16 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 ### 핵심 파일
 
-- `packages/payment/src/paydatakr.ts` — SDK 설정·환불 API·중첩/평면 결과 파싱
+- `packages/payment/src/paydatakr.ts` — 위젯 토큰 발급·form 파라미터·환불 API·중첩/평면 결과 파싱
 - `apps/web/lib/paydatakr-config.ts` — 설정과 callback URL
 - `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizePayDataKrOrder()`; 미인증 실패 통보는 DB 취소를 하지 않으며 미완료 주문은 만료 작업으로 정리
 - `apps/web/app/api/payments/paydatakr/return/route.ts` — 브라우저 리턴 수신
 - `apps/web/app/api/payments/paydatakr/webhook/route.ts` — JSON 웹훅 수신
-- `apps/web/components/checkout-form.tsx` — 결제창 호출
+- `apps/web/components/checkout-form.tsx` — 결제창 form POST 및 팝업 핸들링
 
 ### 규칙
 
-- 결제창은 공식 v1.5 SDK를 사용하며 `amount`, `publicKey`, `payRoute=regular`, `products`를 전달합니다. SDK URL은 코드에 고정된 공식 URL입니다.
+- 결제창은 서버가 공식 `/api/widget`으로 발급한 일회성 토큰을 `routeUrl`에 HTML form POST합니다. `amount`, `publicKey`, `payRoute=regular`, `products`, `returnUrl`, `webhookUrl`을 위젯 요청에 전달합니다.
 - `PAYDATAKR_PAY_KEY`는 서버의 `Authorization` 헤더에만 사용합니다.
 - `trackId`는 중복되지 않는 가맹점 주문번호이며 최대 50자입니다.
 - 기존 쇼핑몰 최소 주문금액 **1,000원** (새 PG의 최소 금액으로 확인된 값은 아님)
@@ -355,7 +355,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 ### 11.1 한국결제데이터 SDK와 키 역할
 
-현재 결제 경로는 공식 v1.5 JavaScript SDK(`https://api.paydatakr.com/js/clientside-1.1.0.js`)가 결제창을 연다. 따라서 별도의 `PAYDATAKR_CHECKOUT_URL`은 필요하지 않다. `PAYDATAKR_PUBLIC_KEY`는 SDK에 전달되는 `pk_` 공개 키이고, `PAYDATAKR_PAY_KEY`는 서버가 `/api/get`·환불 요청의 `Authorization` 헤더에만 사용한다.
+현재 결제 경로는 서버가 공식 `/api/widget`에 `PAYDATAKR_PUBLIC_KEY`로 일회성 토큰을 발급하고, 브라우저가 반환된 `routeUrl`에 토큰을 form POST해 결제창을 연다. 따라서 별도의 `PAYDATAKR_CHECKOUT_URL`은 필요하지 않다. `PAYDATAKR_PAY_KEY`는 서버가 `/api/get`·환불 요청의 `Authorization` 헤더에만 사용한다.
 
 SDK callback은 중첩 `result`/`pay`, webhook은 평면 JSON으로 올 수 있으므로 서버가 먼저 공통 결과로 정규화한 뒤 Pay Key로 거래를 재조회한다. 결제창 URL이나 Pay Key를 클라이언트 코드에 하드코딩하지 않는다.
 

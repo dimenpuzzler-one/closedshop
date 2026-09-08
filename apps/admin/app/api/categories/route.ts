@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { categoryCreateSchema } from '@closed-commerce/validation';
+import { categoryCreateSchema, categorySortOrderUpdateSchema } from '@closed-commerce/validation';
 import { ApiError, demoResponse, failFromSupabase, readJson, withAdmin } from '@/lib/route-handler';
 
 export const POST = withAdmin(
@@ -47,6 +47,40 @@ export const POST = withAdmin(
     return NextResponse.json({ message: `"${name}" 카테고리를 추가했습니다.`, requestId });
   },
   { demo: (requestId) => demoResponse(requestId, { message: '카테고리가 추가되었습니다.' }) },
+);
+
+export const PATCH = withAdmin(
+  'admin.categories.sort_order_update',
+  async ({ requestId, client, userId }, request) => {
+    const parsed = categorySortOrderUpdateSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      throw new ApiError(400, '카테고리 정렬 정보가 올바르지 않습니다.', 'validation_failed', parsed.error.flatten());
+    }
+    const { name, sortOrder } = parsed.data;
+    const { data: before, error: readError } = await client
+      .from('product_categories')
+      .select('name, sort_order, parent_id')
+      .eq('name', name)
+      .maybeSingle();
+    if (readError) failFromSupabase('카테고리를 확인하지 못했습니다.', readError, 'category_read_failed');
+    if (!before) throw new ApiError(404, '카테고리를 찾을 수 없습니다.', 'category_not_found');
+
+    const { error } = await client
+      .from('product_categories')
+      .update({ sort_order: sortOrder })
+      .eq('name', name);
+    if (error) failFromSupabase('카테고리 순서를 저장하지 못했습니다.', error, 'category_sort_order_update_failed');
+
+    await client.from('admin_audit_logs').insert({
+      actor_user_id: userId,
+      action: 'category_sort_order_updated',
+      entity_type: 'product_category',
+      before_data: { name, sortOrder: before.sort_order, parentId: before.parent_id, requestId },
+      after_data: { name, sortOrder },
+    });
+    return NextResponse.json({ message: `"${name}" 카테고리 순서를 저장했습니다.`, requestId });
+  },
+  { demo: (requestId) => demoResponse(requestId, { message: '카테고리 순서를 저장했습니다.' }) },
 );
 
 /**
