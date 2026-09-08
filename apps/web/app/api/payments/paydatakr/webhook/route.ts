@@ -1,8 +1,8 @@
 import {
   isPayDataKrCancellation,
+  normalizePayDataKrResult,
   payDataKrResultCode,
   PAYDATAKR_SUCCESS,
-  type PayDataKrPaymentResult,
 } from '@closed-commerce/payment';
 import { logServerError, logServerEvent, newRequestId } from '@closed-commerce/observability';
 import { finalizePayDataKrOrder } from '@/lib/order-service';
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
     if (!body || typeof body !== 'object' || Array.isArray(body)) return acknowledgement('9999');
-    const result = body as PayDataKrPaymentResult;
+    const result = normalizePayDataKrResult(body);
     const resultCode = payDataKrResultCode(result);
     const orderNumber = typeof result.trackId === 'string' ? result.trackId.trim() : '';
     logServerEvent('payment.paydatakr.webhook', requestId, {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return acknowledgement('0000');
     }
 
-    await finalizePayDataKrOrder({ result, source: 'webhook' }, requestId);
+    await finalizePayDataKrOrder({ result: body, source: 'webhook' }, requestId);
     return acknowledgement('0000');
   } catch (error) {
     logServerError('payment.paydatakr.webhook', requestId, error, { stage: 'unhandled' });

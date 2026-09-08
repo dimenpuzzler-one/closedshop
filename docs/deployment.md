@@ -19,7 +19,6 @@ The web project also needs these server-only variables for persisted orders, Pay
 SUPABASE_SERVICE_ROLE_KEY
 PAYDATAKR_PUBLIC_KEY
 PAYDATAKR_PAY_KEY
-PAYDATAKR_CHECKOUT_URL
 PAYDATAKR_API_BASE_URL
 PAYDATAKR_RECEIPT_BASE_URL
 JUSO_API_KEY
@@ -35,6 +34,6 @@ PAYDATAKR_PAY_KEY
 PAYDATAKR_API_BASE_URL
 ```
 
-`PAYDATAKR_API_BASE_URL` defaults to `https://api.paydatakr.com`. Once the values are entered in the appropriate Vercel project environments and redeployed, the PayDataKR flow is enabled without another code change.
+The web checkout loads the official PayDataKR v1.5 SDK from `https://api.paydatakr.com/js/clientside-1.1.0.js`; no checkout action URL environment variable is required. `PAYDATAKR_API_BASE_URL` defaults to `https://api.paydatakr.com`. Once the values are entered in the appropriate Vercel project environments and redeployed, the PayDataKR flow is enabled without another code change.
 
 Never add `SUPABASE_SERVICE_ROLE_KEY` to a `NEXT_PUBLIC_*` variable or client component. Apply the Supabase migration and seed before switching either project from demo fallback to production data.

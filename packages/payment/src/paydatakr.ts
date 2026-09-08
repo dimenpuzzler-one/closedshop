@@ -1,9 +1,9 @@
 /**
  * 한국결제데이터 인증결제 연동.
  *
- * 결제창은 브라우저에서 HTML form POST로 호출하고, 결제 결과는 returnUrl과
- * webhookUrl로 각각 전달된다. Pay Key는 서버 API 호출에만 사용하며 브라우저로
- * 절대 전달하지 않는다.
+ * 결제창은 브라우저에서 한국결제데이터 JavaScript SDK로 호출하고, 결제 결과는
+ * SDK callback과 webhookUrl로 각각 전달된다. Pay Key는 서버 API 호출에만 사용하며
+ * 브라우저로 절대 전달하지 않는다.
  */
 
 export const PAYDATAKR_SUCCESS = '0000';
@@ -14,8 +14,33 @@ export type PayDataKrPopupType = 'popup' | 'layerpopup' | 'submit';
 export interface PayDataKrConfig {
   publicKey: string;
   payKey: string;
-  checkoutUrl: string;
+  /** 구형 인증결제 form 호환용. 현재 결제창은 SDK가 고정 URL을 사용한다. */
+  checkoutUrl?: string;
   apiBaseUrl: string;
+}
+
+/** 한국결제데이터 v1.5 JavaScript SDK에 전달할 상품 정보. */
+export interface PayDataKrSdkProduct {
+  name: string;
+  price: number | string;
+  qty: number;
+  desc?: string;
+}
+
+/** 서버가 주문 API로 내려주는 SDK 결제창 설정. responseFunction은 브라우저에서 추가한다. */
+export interface PayDataKrSdkCheckoutParams {
+  amount: number;
+  publicKey: string;
+  payRoute: string;
+  products: PayDataKrSdkProduct[];
+  trackId?: string;
+  webhookUrl?: string;
+  udf1?: string;
+  udf2?: string;
+  payerName?: string;
+  payerEmail?: string;
+  payerTel?: string;
+  widgetLogoUrl?: string;
 }
 
 /** 한국결제데이터 인증결제창에 POST할 필드. 키 이름의 대소문자는 문서 규격을 따른다. */
@@ -68,6 +93,8 @@ export interface PayDataKrPaymentResult {
   udf1?: string;
   udf2?: string;
   transactionId?: string;
+  trxId?: string;
+  trxDate?: string;
   cardId?: string;
   installment?: string;
   catId?: string;
@@ -129,6 +156,62 @@ export function payDataKrResultMessage(result: PayDataKrPaymentResult): string {
   return String(result.result_advanceMsg ?? result.advanceMsg ?? result.result_msg ?? result.resultMsg ?? '').trim();
 }
 
+/**
+ * v1.5 SDK의 중첩 응답과 webhook/구형 returnUrl의 평면 응답을 공통 형태로 맞춘다.
+ * 원문 객체의 나머지 필드는 그대로 보존해 결제 감사 로그에 저장할 수 있다.
+ */
+export function normalizePayDataKrResult(value: unknown): PayDataKrPaymentResult {
+  if (!isRecord(value)) return {};
+
+  const normalized: PayDataKrPaymentResult = { ...value };
+  const result = isRecord(value.result) ? value.result : undefined;
+  const pay = isRecord(value.pay) ? value.pay : undefined;
+  const card = pay && isRecord(pay.card) ? pay.card : undefined;
+
+  if (result) {
+    if (normalized.result_code === undefined && typeof result.resultCd === 'string') normalized.result_code = result.resultCd;
+    if (normalized.resultCd === undefined && typeof result.resultCd === 'string') normalized.resultCd = result.resultCd;
+    if (normalized.result_msg === undefined && typeof result.resultMsg === 'string') normalized.result_msg = result.resultMsg;
+    if (normalized.resultMsg === undefined && typeof result.resultMsg === 'string') normalized.resultMsg = result.resultMsg;
+    if (normalized.result_advanceMsg === undefined && typeof result.advanceMsg === 'string') normalized.result_advanceMsg = result.advanceMsg;
+    if (normalized.advanceMsg === undefined && typeof result.advanceMsg === 'string') normalized.advanceMsg = result.advanceMsg;
+    if (normalized.create === undefined && typeof result.create === 'string') normalized.create = result.create;
+  }
+
+  if (pay) {
+    if (normalized.authCd === undefined && typeof pay.authCd === 'string') normalized.authCd = pay.authCd;
+    if (normalized.tmnId === undefined && typeof pay.tmnId === 'string') normalized.tmnId = pay.tmnId;
+    if (normalized.trackId === undefined && typeof pay.trackId === 'string') normalized.trackId = pay.trackId;
+    if (normalized.amount === undefined && (typeof pay.amount === 'number' || typeof pay.amount === 'string')) normalized.amount = pay.amount;
+    if (normalized.transactionId === undefined) {
+      const transactionId = pay.transactionId ?? pay.trxId;
+      if (typeof transactionId === 'string') normalized.transactionId = transactionId;
+    }
+    if (normalized.trxId === undefined && typeof pay.trxId === 'string') normalized.trxId = pay.trxId;
+    if (normalized.transactionDate === undefined) {
+      const transactionDate = pay.transactionDate ?? pay.trxDate;
+      if (typeof transactionDate === 'string') normalized.transactionDate = transactionDate;
+    }
+    if (normalized.trxDate === undefined && typeof pay.trxDate === 'string') normalized.trxDate = pay.trxDate;
+    if (normalized.trxType === undefined && typeof pay.trxType === 'string') normalized.trxType = pay.trxType;
+    if (normalized.paymethod === undefined && typeof pay.paymethod === 'string') normalized.paymethod = pay.paymethod;
+    if (normalized.udf1 === undefined && typeof pay.udf1 === 'string') normalized.udf1 = pay.udf1;
+    if (normalized.udf2 === undefined && typeof pay.udf2 === 'string') normalized.udf2 = pay.udf2;
+    if (normalized.mchtId === undefined && typeof pay.mchtId === 'string') normalized.mchtId = pay.mchtId;
+  }
+
+  if (card) {
+    if (normalized.cardId === undefined && typeof card.cardId === 'string') normalized.cardId = card.cardId;
+    if (normalized.installment === undefined && (typeof card.installment === 'number' || typeof card.installment === 'string')) normalized.installment = String(card.installment);
+    if (normalized.card_bin === undefined && typeof card.bin === 'string') normalized.card_bin = card.bin;
+    if (normalized.card_last4 === undefined && typeof card.last4 === 'string') normalized.card_last4 = card.last4;
+    if (normalized.card_issuer === undefined && typeof card.issuer === 'string') normalized.card_issuer = card.issuer;
+    if (normalized.card_type === undefined && typeof card.cardType === 'string') normalized.card_type = card.cardType;
+  }
+
+  return normalized;
+}
+
 export function payDataKrAmount(value: unknown): number | undefined {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
   if (typeof value === 'string' && !/^\d+$/.test(value.trim())) return undefined;
@@ -164,7 +247,7 @@ export class PayDataKrPaymentProvider {
   constructor(private readonly config: PayDataKrConfig) {}
 
   get checkoutUrl(): string {
-    return absoluteUrl(this.config.checkoutUrl, '한국결제데이터 결제창 URL');
+    return absoluteUrl(this.config.checkoutUrl ?? '', '한국결제데이터 결제창 URL');
   }
 
   buildCheckoutParams(input: {

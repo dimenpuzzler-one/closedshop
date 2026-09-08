@@ -14,11 +14,11 @@ function requiredHttpsUrl(value: string | undefined, label: string): string {
   }
 }
 
-/** publicKey는 결제창에 전달되지만 Pay Key는 서버 API 인증에만 사용한다. */
+/** publicKey는 SDK 결제창에 전달되지만 Pay Key는 서버 API 인증에만 사용한다. */
 export function payDataKrConfigured(): boolean {
-  if (!process.env.PAYDATAKR_PUBLIC_KEY || !process.env.PAYDATAKR_PAY_KEY || !process.env.PAYDATAKR_CHECKOUT_URL) return false;
+  if (!process.env.PAYDATAKR_PUBLIC_KEY || !process.env.PAYDATAKR_PAY_KEY) return false;
   try {
-    payDataKrCheckoutUrl();
+    payDataKrPublicKey();
     payDataKrApiBaseUrl();
     payDataKrReturnUrl();
     payDataKrWebhookUrl();
@@ -28,8 +28,11 @@ export function payDataKrConfigured(): boolean {
   }
 }
 
-export function payDataKrCheckoutUrl(): string {
-  return requiredHttpsUrl(process.env.PAYDATAKR_CHECKOUT_URL, 'PAYDATAKR_CHECKOUT_URL');
+export function payDataKrPublicKey(): string {
+  const publicKey = process.env.PAYDATAKR_PUBLIC_KEY?.trim();
+  if (!publicKey) throw new Error('PAYDATAKR_PUBLIC_KEY 환경변수가 필요합니다.');
+  if (!publicKey.startsWith('pk_')) throw new Error('PAYDATAKR_PUBLIC_KEY는 pk_로 시작해야 합니다.');
+  return publicKey;
 }
 
 export function payDataKrApiBaseUrl(): string {
@@ -53,9 +56,8 @@ export function getPayDataKrProvider(): PayDataKrPaymentProvider {
     throw new Error('PAYDATAKR_PUBLIC_KEY / PAYDATAKR_PAY_KEY 환경변수가 설정되지 않았습니다.');
   }
   return new PayDataKrPaymentProvider({
-    publicKey,
+    publicKey: payDataKrPublicKey(),
     payKey,
-    checkoutUrl: payDataKrCheckoutUrl(),
     apiBaseUrl: payDataKrApiBaseUrl(),
   });
 }

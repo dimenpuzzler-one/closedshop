@@ -84,9 +84,8 @@ pnpm --filter admin dev
 | `L1_COMMISSION_RATE`                   | 1단계 추천 수수료율                                   |
 | `L2_COMMISSION_RATE`                   | 2단계 추천 수수료율                                   |
 | `COMMISSION_APPROVAL_DAYS`             | 수수료 승인 대기 일수                                 |
-| `PAYDATAKR_PUBLIC_KEY`                 | 한국결제데이터 결제창 publicKey                        |
+| `PAYDATAKR_PUBLIC_KEY`                 | 한국결제데이터 v1.5 SDK publicKey (`pk_` 접두사)       |
 | `PAYDATAKR_PAY_KEY`                    | 한국결제데이터 API 인증 Pay Key(서버 전용)             |
-| `PAYDATAKR_CHECKOUT_URL`               | 한국결제데이터 인증결제창 action URL                   |
 | `PAYDATAKR_API_BASE_URL`               | 한국결제데이터 REST API 기준 URL                       |
 | `PAYDATAKR_RECEIPT_BASE_URL`           | 한국결제데이터 매출전표 기준 URL                       |
 | `JUSO_API_KEY`                         | 행정안전부 주소 검색 승인키(서버 전용)                |
@@ -94,9 +93,9 @@ pnpm --filter admin dev
 
 `SUPABASE_SERVICE_ROLE_KEY`, `PAYDATAKR_PAY_KEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
 
-운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`, `PAYDATAKR_CHECKOUT_URL`을 입력하고 재배포합니다. `PAYDATAKR_CHECKOUT_URL`에는 한국결제데이터에서 제공한 `결제창호출.html`의 실제 `action` URL을 입력합니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
+운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 고객몰은 공식 v1.5 SDK(`https://api.paydatakr.com/js/clientside-1.1.0.js`)로 결제창을 열며 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 사용하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
 
-관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항입니다. 운영 활성화 전에는 업체의 실제 결제창 URL과 키 매핑, 상세 조회 응답을 확인하고 테스트 결제·환불을 검증해야 합니다. 현재 조회 검증은 응답 최상위 또는 `pay` 객체의 주문번호·거래번호·금액이 모두 일치해야 통과하며, 성공 코드만 있는 응답은 주문을 확정하지 않습니다.
+관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항입니다. 공식 SDK 응답은 `result`/`pay` 중첩 구조, webhook 응답은 평면 구조이므로 서버에서 공통 형태로 정규화합니다. 운영 활성화 전에는 제한된 테스트 결제·환불을 검증해야 합니다. 현재 조회 검증은 응답 최상위 또는 `pay` 객체의 주문번호·거래번호·금액이 모두 일치해야 통과하며, 성공 코드만 있는 응답은 주문을 확정하지 않습니다.
 
 최근 정적 점검과 리팩토링 내용, 남은 운영 전 과제는 [레포 점검 기록](docs/repository-review-20260908.md)에 정리했습니다.
 

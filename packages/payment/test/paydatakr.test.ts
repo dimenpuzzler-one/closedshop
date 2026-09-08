@@ -3,6 +3,7 @@ import {
   PAYDATAKR_SUCCESS,
   PayDataKrPaymentProvider,
   isPayDataKrCancellation,
+  normalizePayDataKrResult,
   payDataKrAmount,
   payDataKrResultCode,
 } from '../src/paydatakr';
@@ -59,6 +60,31 @@ describe('PayDataKr result helpers', () => {
     expect(payDataKrAmount('1,004')).toBeUndefined();
     expect(payDataKrAmount('1004')).toBe(1004);
     expect(isPayDataKrCancellation('cancel')).toBe(true);
+  });
+
+  it('normalizes the v1.5 SDK response without losing the nested payload', () => {
+    const raw = {
+      result: { resultCd: PAYDATAKR_SUCCESS, resultMsg: '정상', advanceMsg: '정상승인' },
+      pay: {
+        trxId: 'TRX1',
+        trackId: 'ORDER1',
+        trxDate: '20260908120000',
+        amount: 1004,
+        card: { cardId: 'card_test', last4: '4242', installment: 0 },
+      },
+    };
+    const normalized = normalizePayDataKrResult(raw);
+
+    expect(payDataKrResultCode(normalized)).toBe(PAYDATAKR_SUCCESS);
+    expect(normalized).toMatchObject({
+      trackId: 'ORDER1',
+      transactionId: 'TRX1',
+      amount: 1004,
+      transactionDate: '20260908120000',
+      card_last4: '4242',
+      result_advanceMsg: '정상승인',
+      pay: raw.pay,
+    });
   });
 });
 

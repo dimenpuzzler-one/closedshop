@@ -14,14 +14,14 @@ import {
   payDataKrResultCode,
   payDataKrResultMessage,
   PAYDATAKR_SUCCESS,
-  type PayDataKrCheckoutParams,
-  type PayDataKrPaymentResult,
+  normalizePayDataKrResult,
+  type PayDataKrSdkCheckoutParams,
 } from '@closed-commerce/payment';
 import { logServerError, logServerEvent } from '@closed-commerce/observability';
 import { calculateTwoDepthCommissions } from '@closed-commerce/referral';
 import type { CommissionSnapshot, Product, PromotionCode, ReferralNode } from '@closed-commerce/types';
 import type { CreateOrderInput } from '@closed-commerce/validation';
-import { getPayDataKrProvider, payDataKrReturnUrl, payDataKrWebhookUrl } from '@/lib/paydatakr-config';
+import { getPayDataKrProvider, payDataKrPublicKey, payDataKrWebhookUrl } from '@/lib/paydatakr-config';
 
 export class OrderServiceError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -46,7 +46,7 @@ export interface PreparedOrderResult {
   orderId: string;
   orderNumber: string;
   amount: number;
-  checkoutParams: PayDataKrCheckoutParams;
+  checkoutParams: PayDataKrSdkCheckoutParams;
 }
 
 function fail(status: number, message: string): never {
@@ -287,24 +287,21 @@ export async function prepareOrder(
       reservedLines.push(line);
     }
 
-    const firstLine = lines[0];
-    const productName = lines.length > 1 && firstLine
-      ? `${firstLine.productName} 외 ${lines.length - 1}건`
-      : firstLine?.productName ?? '딜키 주문';
-
-    const checkoutParams = getPayDataKrProvider().buildCheckoutParams({
-      trackId: orderNumber,
+    const checkoutParams: PayDataKrSdkCheckoutParams = {
       amount: totals.paidAmount,
-      productName,
-      quantity: lines.reduce((sum, line) => sum + line.quantity, 0),
-      unitPrice: firstLine?.unitPrice,
-      productDescription: firstLine?.optionName,
+      publicKey: payDataKrPublicKey(),
+      payRoute: 'regular',
+      trackId: orderNumber,
+      products: lines.map((line) => ({
+        name: line.optionName ? `${line.productName} (${line.optionName})` : line.productName,
+        price: line.unitPrice,
+        qty: line.quantity,
+        desc: line.optionName,
+      })),
       payerName: input.address.senderName || input.address.recipientName,
       payerTel: input.address.senderPhone || input.address.phone,
-      returnUrl: payDataKrReturnUrl(),
       webhookUrl: payDataKrWebhookUrl(),
-      cancelReturnUrl: `${process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, '') ?? ''}/checkout`,
-    });
+    };
 
     logServerEvent('order.prepare', requestId, { stage: 'ready', orderId, orderNumber, amount: totals.paidAmount });
     return { orderId, orderNumber, amount: totals.paidAmount, checkoutParams };
@@ -331,14 +328,15 @@ async function releaseReservations(client: AppSupabaseClient, lines: CatalogLine
  * 두 주소에서 같은 함수가 호출될 수 있으므로 payments.order_id 유일 제약으로 중복 처리를 막는다.
  */
 export async function finalizePayDataKrOrder(
-  input: { result: PayDataKrPaymentResult; source: 'return' | 'webhook' },
+  input: { result: unknown; source: 'return' | 'webhook' },
   requestId = 'no-request-id',
 ): Promise<PersistedOrderResult> {
   const client = createServiceRoleSupabaseClient();
-  const orderNumber = typeof input.result.trackId === 'string' ? input.result.trackId.trim() : '';
-  const transactionId = String(input.result.transactionId ?? '').trim();
-  const resultCode = payDataKrResultCode(input.result);
-  const resultMessage = payDataKrResultMessage(input.result);
+  const result = normalizePayDataKrResult(input.result);
+  const orderNumber = typeof result.trackId === 'string' ? result.trackId.trim() : '';
+  const transactionId = String(result.transactionId ?? '').trim();
+  const resultCode = payDataKrResultCode(result);
+  const resultMessage = payDataKrResultMessage(result);
   if (!orderNumber) fail(400, '가맹점 주문번호(trackId)가 없습니다.');
   if (resultCode !== PAYDATAKR_SUCCESS) {
     fail(402, resultMessage || '결제가 승인되지 않았습니다.');
@@ -391,12 +389,12 @@ export async function finalizePayDataKrOrder(
     fail(502, '결제 결과를 확인하지 못했습니다. 잠시 후 주문 내역을 확인해 주세요.');
   }
 
-  const gatewayAmount = payDataKrAmount(input.result.amount);
+  const gatewayAmount = payDataKrAmount(result.amount);
   if (gatewayAmount === undefined || gatewayAmount !== order.paid_amount) {
     logServerError('order.finalize', requestId, new Error('approved amount mismatch'), {
       orderId: order.id,
       expected: order.paid_amount,
-      received: input.result.amount,
+      received: result.amount,
       source: input.source,
     });
     fail(400, '결제 금액이 주문 금액과 일치하지 않아 결제를 중단했습니다.');
@@ -428,7 +426,7 @@ export async function finalizePayDataKrOrder(
       amount: gatewayAmount,
       paid_at: paidAt,
       // 분쟁·대사에 필요한 한국결제데이터 결과 원문을 보관한다.
-      raw_payload: input.result as unknown as Json,
+      raw_payload: input.result as Json,
     })
     .eq('order_id', order.id)
     .eq('status', 'pending');

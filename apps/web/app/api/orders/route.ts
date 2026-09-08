@@ -8,7 +8,7 @@ import { calculateTwoDepthCommissions, findValidReferralCode } from '@closed-com
 import { orderCreateSchema } from '@closed-commerce/validation';
 import { createServerAppClient } from '@/lib/supabase-server';
 import { prepareOrder, OrderServiceError } from '@/lib/order-service';
-import { payDataKrCheckoutUrl, payDataKrConfigured } from '@/lib/paydatakr-config';
+import { payDataKrConfigured } from '@/lib/paydatakr-config';
 
 export async function POST(request: Request) {
   const requestId = newRequestId();
@@ -55,8 +55,8 @@ export async function POST(request: Request) {
         logServerEvent('web.orders.create', requestId, { stage: 'start', userId: data.user.id, itemCount: input.items.length });
         // 주문만 만들고 재고를 잡는다. 결제는 한국결제데이터 인증창을 거쳐 결과 URL에서 확정된다.
         const result = await prepareOrder(input, data.user.id, requestId);
-        // 결제창 주소와 필드는 서버가 알려준다. 클라이언트에 따로 하드코딩하지 않는다.
-        return NextResponse.json({ ...result, checkoutUrl: payDataKrCheckoutUrl(), requestId });
+        // SDK에 필요한 공개 설정만 내려준다. Pay Key와 결제창 URL은 서버 응답에 포함하지 않는다.
+        return NextResponse.json({ ...result, requestId });
       } catch (caught) {
         if (caught instanceof OrderServiceError) {
           logServerError('web.orders.create', requestId, caught, { stage: 'order_service', status: caught.status, userId: data.user.id });

@@ -7,7 +7,6 @@ export function getPayDataKrProvider(): PayDataKrPaymentProvider {
   return new PayDataKrPaymentProvider({
     publicKey: process.env.PAYDATAKR_PUBLIC_KEY?.trim() || 'admin-refund-only',
     payKey,
-    checkoutUrl: process.env.PAYDATAKR_CHECKOUT_URL?.trim() || 'https://api.paydatakr.com',
     apiBaseUrl: process.env.PAYDATAKR_API_BASE_URL?.trim() || 'https://api.paydatakr.com',
   });
 }

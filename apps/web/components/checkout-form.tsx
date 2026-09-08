@@ -3,8 +3,9 @@
 import { useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { APP_NAME_KO } from '@closed-commerce/config';
-import type { PayDataKrCheckoutParams } from '@closed-commerce/payment';
+import type { PayDataKrSdkCheckoutParams } from '@closed-commerce/payment';
 import { Price } from '@closed-commerce/ui';
 import {
   saveShippingAddress,
@@ -24,36 +25,24 @@ type OrderResult = {
   orderNumber?: string;
   error?: string;
   requestId?: string;
-  checkoutParams?: PayDataKrCheckoutParams;
-  checkoutUrl?: string;
+  status?: 'paid' | 'cancelled' | 'failed' | 'processing' | 'unknown';
+  code?: string;
+  checkoutParams?: PayDataKrSdkCheckoutParams;
 };
+
+type PayDataKrSdk = {
+  pay: (config: PayDataKrSdkCheckoutParams & { responseFunction: (data: unknown) => void }) => void;
+};
+
+declare global {
+  interface Window {
+    paynix?: PayDataKrSdk;
+  }
+}
 
 type CheckoutFormProps = {
   initialAddresses: SavedShippingAddress[];
 };
-
-/**
- * 결제창 주소와 필드는 서버(/api/orders)가 내려준다. 결제창 규격의 대소문자까지
- * 그대로 유지해야 하므로 SDK 없이 HTML form POST로 전달한다.
- */
-function submitPayDataKrForm(action: string, params: PayDataKrCheckoutParams) {
-  window.name = params.parentTargetNm;
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = action;
-  form.target = '_self';
-  form.acceptCharset = 'UTF-8';
-  Object.entries(params).forEach(([name, value]) => {
-    if (value === undefined) return;
-    const field = document.createElement('input');
-    field.type = 'hidden';
-    field.name = name;
-    field.value = String(value);
-    form.appendChild(field);
-  });
-  document.body.appendChild(form);
-  form.submit();
-}
 
 function text(form: FormData, key: string): string {
   // FormData.get()의 File을 String()으로 바꾸면 "[object File]"이 된다.
@@ -77,6 +66,22 @@ async function readResponse(response: Response): Promise<OrderResult> {
     error:
       `서버가 예상과 다른 응답을 보냈습니다. (HTTP ${response.status}) ${bodyText.slice(0, 160)}`.trim(),
   };
+}
+
+async function postPayDataKrResult(raw: unknown): Promise<{ response: Response; result: OrderResult }> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch('/api/payments/paydatakr/return?mode=json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(raw),
+    });
+    const result = await readResponse(response);
+    // webhook이 먼저 payments 행을 선점한 짧은 구간에는 한 번 더 결과를 확인한다.
+    if (response.status !== 409 || attempt === 2) return { response, result };
+    await new Promise((resolve) => window.setTimeout(resolve, 800));
+  }
+  throw new Error('결제 결과를 처리하지 못했습니다.');
 }
 
 export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
@@ -136,6 +141,11 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!window.paynix) {
+      setStatus('error');
+      setMessage('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
     const form = new FormData(event.currentTarget);
     setStatus('submitting');
     setMessage('');
@@ -202,7 +212,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         );
         return;
       }
-      if (!result.checkoutParams || !result.checkoutUrl) {
+      if (!result.checkoutParams) {
         setStatus('error');
         setMessage(
           `결제창을 열 준비를 하지 못했습니다.${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
@@ -212,8 +222,39 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
 
       const params = result.checkoutParams;
       setMessage('결제창을 여는 중입니다…');
-      // 한국결제데이터 인증결제는 결제창 호출 페이지를 HTML form으로 전송한다.
-      submitPayDataKrForm(result.checkoutUrl, params);
+      const sdk = window.paynix;
+      if (!sdk) throw new Error('결제 모듈을 불러오지 못했습니다.');
+
+      const handlePaymentResult = async (paymentResult: unknown) => {
+        try {
+          setMessage('결제 결과를 확인하는 중입니다…');
+          const callback = await postPayDataKrResult(paymentResult);
+          const nextStatus = callback.result.status === 'paid'
+            ? 'paid'
+            : callback.result.status === 'cancelled'
+              ? 'cancelled'
+              : callback.result.status === 'unknown'
+                ? 'unknown'
+                : 'failed';
+          const target = new URL('/checkout/result', window.location.origin);
+          target.searchParams.set('status', nextStatus);
+          if (callback.result.orderNumber) target.searchParams.set('orderNumber', callback.result.orderNumber);
+          if (callback.result.message) target.searchParams.set('message', callback.result.message);
+          if (callback.result.code) target.searchParams.set('code', callback.result.code);
+          if (callback.result.requestId) target.searchParams.set('requestId', callback.result.requestId);
+          window.location.assign(target.toString());
+        } catch (caught) {
+          setStatus('error');
+          setMessage(`결제 결과를 처리하지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`);
+        }
+      };
+
+      sdk.pay({
+        ...params,
+        responseFunction: (paymentResult) => {
+          void handlePaymentResult(paymentResult);
+        },
+      });
     } catch (caught) {
       setStatus('error');
       setMessage(
@@ -250,7 +291,13 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
   }
 
   return (
-    <form className="two-column" onSubmit={submit} autoComplete="off">
+    <>
+      <Script
+        src="https://api.paydatakr.com/js/clientside-1.1.0.js"
+        strategy="afterInteractive"
+        onError={() => setMessage('결제 모듈을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.')}
+      />
+      <form className="two-column" onSubmit={submit} autoComplete="off">
       <div className="card stack">
         <div className="row checkout-shipping-heading">
           <div>
@@ -487,6 +534,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           </strong>
         </div>
       </aside>
-    </form>
+      </form>
+    </>
   );
 }
