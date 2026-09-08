@@ -33,8 +33,9 @@ export function ProductDetailImages({ images, productName }: { images: ProductIm
               // 전부 lazy로 둔다. 예전에는 첫 장만 eager였는데, 상품 이미지가
               // 대표 1장 + 상세 1장이면 그 "첫 장"이 바로 13,400px짜리였다.
               loading="lazy"
-              // 원본이 이미 폭 1000px의 웹용 이미지라 서버에서 다시 만들 것이 없다.
-              unoptimized
+              // 원본은 Storage에 보존하고, next.config의 image/webp 포맷으로
+              // 고객 브라우저에는 필요한 폭의 WebP 파생본만 내려보낸다.
+              quality={80}
             />
           </div>
         ))}

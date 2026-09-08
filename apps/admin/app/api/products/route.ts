@@ -17,7 +17,7 @@ const MAX_TOTAL_UPLOAD_BYTES = 4 * 1024 * 1024;
 const MAX_DETAIL_IMAGES = 8;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-type UploadCandidate = { file: File; sortOrder: number };
+type UploadCandidate = { file: File; sortOrder: number; role: 'thumbnail' | 'detail' };
 
 function extensionFor(type: string) {
   return type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
@@ -48,9 +48,9 @@ function getUploadCandidates(formData: FormData) {
   const thumbnail = formData.get('thumbnail');
   const detailImages = formData.getAll('detailImages');
   const candidates: UploadCandidate[] = [];
-  if (thumbnail instanceof File && thumbnail.size > 0) candidates.push({ file: thumbnail, sortOrder: 0 });
+  if (thumbnail instanceof File && thumbnail.size > 0) candidates.push({ file: thumbnail, sortOrder: 0, role: 'thumbnail' });
   detailImages.forEach((entry, index) => {
-    if (entry instanceof File && entry.size > 0) candidates.push({ file: entry, sortOrder: index + 1 });
+    if (entry instanceof File && entry.size > 0) candidates.push({ file: entry, sortOrder: index + 1, role: 'detail' });
   });
   return candidates;
 }
@@ -246,7 +246,7 @@ export const POST = withAdmin(
       failFromSupabase('재고를 저장하지 못했습니다. 상품 등록은 취소되었습니다.', inventoryError, 'inventory_insert_failed');
     }
 
-    const uploadedImages: { storagePath: string; sortOrder: number }[] = [];
+    const uploadedImages: { storagePath: string; sortOrder: number; role: 'thumbnail' | 'detail' }[] = [];
     for (const image of images) {
       const storagePath = `${product.id}/${String(image.sortOrder).padStart(2, '0')}-${randomUUID()}.${extensionFor(image.file.type)}`;
       const { error: uploadError } = await client.storage
@@ -260,7 +260,7 @@ export const POST = withAdmin(
           'storage_upload_failed',
         );
       }
-      uploadedImages.push({ storagePath, sortOrder: image.sortOrder });
+      uploadedImages.push({ storagePath, sortOrder: image.sortOrder, role: image.role });
     }
 
     if (uploadedImages.length) {
@@ -270,6 +270,7 @@ export const POST = withAdmin(
           storage_path: image.storagePath,
           alt_text: parsed.data.name,
           sort_order: image.sortOrder,
+          role: image.role,
         })),
       );
       if (imageRowError) {

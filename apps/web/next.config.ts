@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   images: {
+    // Storage 원본은 유지하고, 고객 브라우저에는 WebP 파생본을 우선 제공한다.
     formats: ['image/webp'],
     remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co', pathname: '/storage/v1/object/public/product-images/**' }],
   },

@@ -332,8 +332,8 @@ export function ProductCreateForm({ categories }: { categories: CategoryGroup[] 
         <label className="field"><span className="field-label">상세페이지 설명</span><textarea className="textarea" name="description" maxLength={4000} placeholder="고객이 상세 페이지에서 볼 상품 설명" /></label>
         <WithdrawalField />
         <div className="form-grid">
-          <ImagePicker label="썸네일 이미지(선택, 여러 장)" name="thumbnail" multiple hint="JPG, PNG, WEBP / 원본 화질 / 한 장 최대 20MB / 여러 장 고르면 상세페이지 상단에 갤러리로 보입니다" />
-          <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="원본 화질 유지 / 전체 사진 최대 21장 / 한 번에 최대 200MB" />
+          <ImagePicker label="썸네일 이미지(선택, 여러 장)" name="thumbnail" multiple hint="JPG, PNG, WEBP / 원본은 보존 / 고객 화면에는 WebP 최적화본 제공 / 한 장 최대 20MB" />
+          <ImagePicker label="상세페이지 이미지(선택, 여러 장)" name="detailImages" multiple hint="원본은 보존 / 고객 화면에는 WebP 최적화본 제공 / 전체 사진 최대 21장 / 한 번에 최대 200MB" />
         </div>
         <button className="button button-primary" disabled={form.busy}>{form.busy ? '등록 중…' : '상품 등록'}</button>
         <FormFeedback error={form.error} message={form.message} />

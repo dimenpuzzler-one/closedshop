@@ -211,7 +211,7 @@ export function ProductEditPanel({ product, categories }: { product: Product; ca
         <strong>사진 {images.length}장</strong>
         <span className="field-hint">
           <strong>대표 사진</strong>이 목록 썸네일과 상세 상단에 쓰이고, <strong>상세 이미지</strong>는 상세페이지 아래에 쌓입니다.
-          원본 해상도를 유지하며 한 장 20MB, 상품당 21장까지 올릴 수 있습니다.
+          원본은 Storage에 보존되며, 고객 화면에는 WebP 최적화본이 제공됩니다. 한 장 20MB, 상품당 21장까지 올릴 수 있습니다.
         </span>
         {images.length ? (
           <div className="image-preview-grid">
