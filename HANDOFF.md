@@ -137,7 +137,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 - `packages/payment/src/paydatakr.ts` — 인증결제 폼·환불 API·결과 파싱
 - `apps/web/lib/paydatakr-config.ts` — 설정과 callback URL
-- `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizePayDataKrOrder()` / `cancelPendingOrder()`
+- `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizePayDataKrOrder()`; 미인증 실패 통보는 DB 취소를 하지 않으며 미완료 주문은 만료 작업으로 정리
 - `apps/web/app/api/payments/paydatakr/return/route.ts` — 브라우저 리턴 수신
 - `apps/web/app/api/payments/paydatakr/webhook/route.ts` — JSON 웹훅 수신
 - `apps/web/components/checkout-form.tsx` — 결제창 호출
@@ -147,7 +147,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 - 결제창은 `publicKey`, `certflag=cardcert`, `paysvctype=0000`, `paymethod=card`, `Unit=00`을 사용합니다.
 - `PAYDATAKR_PAY_KEY`는 서버의 `Authorization` 헤더에만 사용합니다.
 - `trackId`는 중복되지 않는 가맹점 주문번호이며 최대 50자입니다.
-- 최소 결제금액 **1,000원**
+- 기존 쇼핑몰 최소 주문금액 **1,000원** (새 PG의 최소 금액으로 확인된 값은 아님)
 - return/webhook 요청은 외부에서 오므로 **금액·주문번호를 그대로 믿지 않습니다.** 주문번호로 DB의 주문을 찾아 저장된 금액과 대조합니다.
 - 웹훅은 문서상 재통보가 없으므로 수신 처리 후 `result=0000`을 회신하고, 별도 조회 기능으로 대사를 보완해야 합니다.
 - 이중 확정 방지: `payments.order_id` UNIQUE로 선점합니다.
@@ -164,7 +164,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 - `public.expire_stale_pending_orders(p_minutes integer default 20)`
   20분 넘은 `payment_pending` 주문을 `cancelled`로 바꾸고 예약 재고를 되돌립니다. 취소 건수를 반환합니다.
-  20분은 한국결제데이터 인증결제 세션보다 충분히 긴 정리 유예시간 — 진행 중인 결제는 건드리지 않습니다.
+  20분은 기존 정리 유예시간입니다. 새 PG 세션 유효시간과 승인 통보 지연에 안전한지는 실연동 검증이 필요합니다.
 - **pg_cron 이 5분마다 실행**: 잡 이름 `expire-stale-pending-orders`, 스케줄 `*/5 * * * *`
 - `prepareOrder()`가 재고를 세기 **직전에 한 번 더** 호출합니다. 방금 결제창을 닫고 다시 들어온 고객이 cron을 기다리지 않게 하려고요.
 

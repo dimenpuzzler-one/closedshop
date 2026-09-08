@@ -47,8 +47,8 @@ export default async function CheckoutResultPage({
                 재고는 서버가 이미 풀었지만 그 사실을 알 수 없으므로 확인 경로를 함께 안내한다.
               */}
               <p className="muted">
-                카드 승인이 이루어지지 않아 주문은 취소되었습니다. 결제 문자를 받으셨다면
-                아래 연락처로 문의해 주세요.
+                주문 내역에서 결제 상태를 확인해 주세요. 결제 문자를 받았는데 주문이 확인되지 않으면
+                다시 결제하기 전에 아래 연락처로 문의해 주세요.
               </p>
               <p className="muted">
                 고객센터 <a href={`tel:${COMPANY.phone}`}>{COMPANY.phone}</a> · <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>

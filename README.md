@@ -96,7 +96,9 @@ pnpm --filter admin dev
 
 운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`, `PAYDATAKR_CHECKOUT_URL`을 입력하고 재배포합니다. `PAYDATAKR_CHECKOUT_URL`에는 한국결제데이터에서 제공한 `결제창호출.html`의 실제 `action` URL을 입력합니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
 
-관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항이며, 환경변수 입력과 재배포가 끝나면 별도 코드 변경 없이 결제·환불 연동을 사용할 수 있습니다.
+관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항입니다. 운영 활성화 전에는 업체의 실제 결제창 URL과 키 매핑, 상세 조회 응답을 확인하고 테스트 결제·환불을 검증해야 합니다. 현재 조회 검증은 응답 최상위 또는 `pay` 객체의 주문번호·거래번호·금액이 모두 일치해야 통과하며, 성공 코드만 있는 응답은 주문을 확정하지 않습니다.
+
+최근 정적 점검과 리팩토링 내용, 남은 운영 전 과제는 [레포 점검 기록](docs/repository-review-20260908.md)에 정리했습니다.
 
 Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주문 흐름을 확인할 수 있습니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
 

@@ -2,7 +2,9 @@
   "$schema": "https://turborepo.dev/schema.json",
   "globalDependencies": [
     ".env",
-    ".env.local"
+    ".env.local",
+    "eslint.config.mjs",
+    "tsconfig.json"
   ],
   "globalEnv": [
     "NODE_ENV",

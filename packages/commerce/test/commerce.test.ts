@@ -19,6 +19,15 @@ const line = (overrides: Partial<CatalogLine> = {}): CatalogLine => ({
 });
 
 describe('commerce totals', () => {
+  it('allocates small discounts without exceeding the order discount or a line subtotal', () => {
+    const lines = Array.from({ length: 4 }, () => line({ unitPrice: 1 }));
+    expect(allocateDiscount(lines, 4, 2)).toEqual([1, 1, 0, 0]);
+    for (let amount = 0; amount <= 4; amount++) {
+      const shares = allocateDiscount(lines, 4, amount);
+      expect(shares.reduce((sum, value) => sum + value, 0)).toBe(amount);
+      expect(shares.every((value) => value >= 0 && value <= 1)).toBe(true);
+    }
+  });
   it('snapshots discount and commissionable amount from the same order base', () => {
     const result = calculateCartTotalsFromLines([line({ quantity: 2 })], {
       id: 'promo',

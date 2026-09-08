@@ -70,7 +70,7 @@ export function HomeCategoryGrid({ categories, products }: { categories: string[
         return (
           <Link href={categoryHref(name)} className="home-category-card" key={name}>
             <span className={`home-category-art ${fallback.background}`}>
-              {imageUrl ? <Image src={imageUrl} alt="" fill sizes="(max-width: 850px) 50vw, 16vw" unoptimized /> : <><span className={fallback.decoration} aria-hidden="true" /> <strong aria-hidden="true">{meta.icon}</strong></>}
+              {imageUrl ? <Image src={imageUrl} alt="" fill sizes="(max-width: 580px) 50vw, (max-width: 1100px) 33vw, 17vw" /> : <><span className={fallback.decoration} aria-hidden="true" /> <strong aria-hidden="true">{meta.icon}</strong></>}
             </span>
             <span className="home-category-copy"><strong>{name}</strong><small>{meta.description}</small></span>
             <span className="home-category-arrow" aria-hidden="true">›</span>
@@ -89,7 +89,7 @@ function HomeProductTile({ product, index, showPrice, referralCode, compact = fa
   return (
     <article className={`home-product-tile${compact ? ' home-product-tile-compact' : ''}`}>
       <Link href={href} className={`home-product-art ${PRODUCT_FALLBACK[index % PRODUCT_FALLBACK.length]}`} aria-label={`${product.name} 상세 보기`}>
-        {imageUrl ? <Image src={imageUrl} alt={product.name} fill sizes="(max-width: 680px) 50vw, (max-width: 1050px) 33vw, 25vw" unoptimized /> : <><span className="home-product-brand">DEALKEY</span><strong>{product.name}</strong><span className="home-product-shine" aria-hidden="true" /></>}
+        {imageUrl ? <Image src={imageUrl} alt={product.name} fill sizes={compact ? '(max-width: 580px) 50vw, (max-width: 1100px) 33vw, 17vw' : '(max-width: 580px) 50vw, 25vw'} /> : <><span className="home-product-brand">DEALKEY</span><strong>{product.name}</strong><span className="home-product-shine" aria-hidden="true" /></>}
         {compact ? null : <span className="home-product-badge">{badge}</span>}
         <span className="home-product-heart" aria-hidden="true">♡</span>
       </Link>
@@ -116,7 +116,7 @@ export function HomeMiniProduct({ product, showPrice, referralCode, index }: { p
   return (
     <Link href={href} className="home-mini-product">
       <span className={`home-mini-art ${PRODUCT_FALLBACK[index % PRODUCT_FALLBACK.length]}`}>
-        {imageUrl ? <Image src={imageUrl} alt="" fill sizes="120px" unoptimized /> : <span aria-hidden="true">{product.category === '식품' ? '🥩' : product.category === '건강' ? '🌿' : '✦'}</span>}
+        {imageUrl ? <Image src={imageUrl} alt="" fill sizes="120px" /> : <span aria-hidden="true">{product.category === '식품' ? '🥩' : product.category === '건강' ? '🌿' : '✦'}</span>}
       </span>
       <span className="home-mini-copy"><strong>{product.name}</strong><small>{showPrice ? <><span>회원가 </span><Price amount={product.basePrice ?? product.options[0]?.price ?? product.price} /></> : '회원 전용가'}</small></span>
     </Link>

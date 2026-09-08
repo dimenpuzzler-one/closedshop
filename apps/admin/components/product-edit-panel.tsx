@@ -1,5 +1,7 @@
 'use client';
 
+import { readResponse, type ApiResult } from '@/lib/client-response';
+
 import Image from 'next/image';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -9,7 +11,6 @@ import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
 import { CategorySelect, ImagePicker, ShippingRuleFields, WithdrawalField } from './admin-create-forms';
 import type { CategoryGroup } from '@/lib/admin-data';
 
-type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] } };
 
 const FIELD_LABELS: Record<string, string> = {
   name: '상품명', category: '카테고리', shortDescription: '짧은 소개', description: '상세 설명',
@@ -18,21 +19,6 @@ const FIELD_LABELS: Record<string, string> = {
   withdrawalRestriction: '청약철회 제한 안내', homeSortOrder: '홈 진열 순서',
 };
 
-async function readResponse(response: Response): Promise<ApiResult> {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    try {
-      return (await response.json()) as ApiResult;
-    } catch {
-      return { error: `서버 응답을 해석하지 못했습니다. (HTTP ${response.status})` };
-    }
-  }
-  const body = await response.text().catch(() => '');
-  if (response.status === 413) {
-    return { error: '요청 용량이 서버 한도를 넘었습니다. 이미지 파일은 직접 업로드 경로를 사용해야 합니다.', code: 'payload_too_large' };
-  }
-  return { error: `서버가 예상과 다른 응답을 보냈습니다. (HTTP ${response.status}) ${body.slice(0, 160)}`.trim(), code: 'non_json_response' };
-}
 
 function describeFailure(response: Response, result: ApiResult) {
   const base = result.error ?? '처리하지 못했습니다.';

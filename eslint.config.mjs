@@ -40,6 +40,8 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...nextPlugin.configs.recommended.rules,
+      // 두 앱 모두 App Router를 사용하므로 Pages Router 전용 탐색을 비활성화한다.
+      '@next/next/no-html-link-for-pages': 'off',
 
       // 결과를 버리는 비동기 호출을 막는다. 재고 해제/보상 로직이 실패해도
       // 아무도 모르던 원인이 정확히 이것이었다.

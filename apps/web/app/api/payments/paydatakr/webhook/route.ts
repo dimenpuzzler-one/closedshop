@@ -1,12 +1,11 @@
 import {
   isPayDataKrCancellation,
   payDataKrResultCode,
-  payDataKrResultMessage,
   PAYDATAKR_SUCCESS,
   type PayDataKrPaymentResult,
 } from '@closed-commerce/payment';
 import { logServerError, logServerEvent, newRequestId } from '@closed-commerce/observability';
-import { cancelPendingOrder, finalizePayDataKrOrder } from '@/lib/order-service';
+import { finalizePayDataKrOrder } from '@/lib/order-service';
 
 function acknowledgement(result: '0000' | '9999'): Response {
   return new Response(`result=${result}`, {
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return acknowledgement('9999');
     const result = body as PayDataKrPaymentResult;
     const resultCode = payDataKrResultCode(result);
-    const orderNumber = result.trackId?.trim() ?? '';
+    const orderNumber = typeof result.trackId === 'string' ? result.trackId.trim() : '';
     logServerEvent('payment.paydatakr.webhook', requestId, {
       stage: 'received',
       resultCode,
@@ -30,8 +29,8 @@ export async function POST(request: Request) {
       transactionId: result.transactionId,
     });
 
+    // 인증되지 않은 실패 통보로 재고를 해제하지 않는다. 미완료 주문은 만료 작업에서 정리한다.
     if (isPayDataKrCancellation(resultCode) || resultCode !== PAYDATAKR_SUCCESS) {
-      if (orderNumber) await cancelPendingOrder(orderNumber, `결제 실패 ${resultCode}: ${payDataKrResultMessage(result)}`, requestId);
       return acknowledgement('0000');
     }
 

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { getCommissionRule } from '@closed-commerce/config';
 import {
   allocateDiscount,
@@ -10,6 +10,7 @@ import {
 import { createServiceRoleSupabaseClient, type AppSupabaseClient, type Json } from '@closed-commerce/db';
 import {
   payDataKrAmount,
+  verifyPayDataKrLookup,
   payDataKrResultCode,
   payDataKrResultMessage,
   PAYDATAKR_SUCCESS,
@@ -232,14 +233,14 @@ export async function prepareOrder(
     fail(400, 'Promotion Code의 조건을 충족하지 않았습니다.');
   }
   if (totals.paidAmount < 1000) {
-    // 한국결제데이터 최소 결제 금액. 이 아래로는 결제창 자체가 열리지 않는다.
+    // 기존 쇼핑몰의 최소 주문 금액 정책. PG의 최소 금액은 별도 확인이 필요하다.
     fail(400, '결제 금액이 최소 결제 금액(1,000원)보다 적습니다.');
   }
 
   const orderId = randomUUID();
   // trackId는 50자 이내, 환불 API의 rootTrackId는 문서상 13자 이내라 새 주문번호도 13자로 만든다.
-  // 날짜 6자 + UUID 난수 5자로 일자별 충돌 가능성을 충분히 낮춘다.
-  const orderNumber = `DK${new Date().toISOString().slice(2, 10).replaceAll('-', '')}${orderId.replaceAll('-', '').slice(0, 5).toUpperCase()}`;
+  // 20비트 난수 대신 64비트 난수를 base36으로 표현해 같은 날 주문 충돌을 줄인다.
+  const orderNumber = randomBytes(8).readBigUInt64BE().toString(36).toUpperCase().padStart(13, '0');
 
   const reservedLines: CatalogLine[] = [];
   let orderCreated = false;
@@ -325,24 +326,6 @@ async function releaseReservations(client: AppSupabaseClient, lines: CatalogLine
   });
 }
 
-/** 결제대기 주문에 걸린 재고를 되돌리고 주문을 취소 처리한다. */
-export async function cancelPendingOrder(orderNumber: string, reason: string, requestId = 'no-request-id'): Promise<void> {
-  const client = createServiceRoleSupabaseClient();
-  const { data: order } = await client.from('orders').select('id, status').eq('order_number', orderNumber).maybeSingle();
-  // 이미 결제된 주문을 실수로 취소하면 안 된다.
-  if (!order || order.status !== 'payment_pending') return;
-
-  const { data: items } = await client.from('order_items').select('product_id, quantity').eq('order_id', order.id);
-  await releaseReservations(
-    client,
-    (items ?? []).map((item) => ({ productId: item.product_id, quantity: item.quantity } as CatalogLine)),
-    order.id,
-    requestId,
-  );
-  await client.from('orders').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', order.id).eq('status', 'payment_pending');
-  logServerEvent('order.cancel', requestId, { orderId: order.id, orderNumber, reason });
-}
-
 /**
  * 2단계: 한국결제데이터가 returnUrl 또는 webhookUrl로 보낸 승인 결과를 검증하고 주문을 확정한다.
  * 두 주소에서 같은 함수가 호출될 수 있으므로 payments.order_id 유일 제약으로 중복 처리를 막는다.
@@ -352,17 +335,15 @@ export async function finalizePayDataKrOrder(
   requestId = 'no-request-id',
 ): Promise<PersistedOrderResult> {
   const client = createServiceRoleSupabaseClient();
-  const orderNumber = input.result.trackId?.trim() ?? '';
+  const orderNumber = typeof input.result.trackId === 'string' ? input.result.trackId.trim() : '';
   const transactionId = String(input.result.transactionId ?? '').trim();
   const resultCode = payDataKrResultCode(input.result);
   const resultMessage = payDataKrResultMessage(input.result);
   if (!orderNumber) fail(400, '가맹점 주문번호(trackId)가 없습니다.');
   if (resultCode !== PAYDATAKR_SUCCESS) {
-    await cancelPendingOrder(orderNumber, `결제 실패 ${resultCode}`, requestId);
     fail(402, resultMessage || '결제가 승인되지 않았습니다.');
   }
   if (!transactionId) {
-    await cancelPendingOrder(orderNumber, '거래번호 누락', requestId);
     fail(400, '결제 거래번호가 없어 주문을 확정하지 못했습니다.');
   }
 
@@ -403,7 +384,8 @@ export async function finalizePayDataKrOrder(
 
   // returnUrl/webhookUrl은 외부에서 POST할 수 있으므로 거래번호를 서버에서 재조회한다.
   try {
-    await getPayDataKrProvider().lookup(transactionId);
+    const lookupResult = await getPayDataKrProvider().lookup(transactionId);
+    verifyPayDataKrLookup(lookupResult, { trackId: order.order_number, transactionId, amount: order.paid_amount });
   } catch (error) {
     logServerError('order.finalize', requestId, error, { stage: 'lookup', orderId: order.id, transactionId, source: input.source });
     fail(502, '결제 결과를 확인하지 못했습니다. 잠시 후 주문 내역을 확인해 주세요.');
@@ -417,7 +399,6 @@ export async function finalizePayDataKrOrder(
       received: input.result.amount,
       source: input.source,
     });
-    await cancelPendingOrder(order.order_number, 'amount mismatch', requestId);
     fail(400, '결제 금액이 주문 금액과 일치하지 않아 결제를 중단했습니다.');
   }
 
@@ -432,29 +413,6 @@ export async function finalizePayDataKrOrder(
   if (claimError) {
     if (claimError.code === '23505') {
       logServerEvent('order.finalize', requestId, { stage: 'duplicate_notification', orderId: order.id, source: input.source });
-      const { data: existing } = await client.from('payments').select('provider_payment_id, amount, paid_at, status').eq('order_id', order.id).maybeSingle();
-      if (existing?.status === 'paid') {
-        return {
-          orderId: order.id,
-          orderNumber: order.order_number,
-          payment: {
-            paymentId: existing.provider_payment_id ?? transactionId,
-            orderId: order.id,
-            amount: existing.amount,
-            status: 'paid',
-            paidAt: existing.paid_at ?? new Date().toISOString(),
-          },
-          totals: {
-            grossAmount: order.gross_amount,
-            discountAmount: order.discount_amount,
-            shippingAmount: order.shipping_amount,
-            paidAmount: order.paid_amount,
-            commissionableAmount: order.commissionable_amount,
-            quantity: 0,
-          },
-          commissionPreview: [],
-        };
-      }
       fail(409, '결제 결과를 처리 중입니다. 잠시 후 주문 내역을 확인해 주세요.');
     }
     logServerError('order.finalize', requestId, claimError, { stage: 'payment_claim', orderId: order.id });

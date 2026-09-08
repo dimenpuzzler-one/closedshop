@@ -57,7 +57,6 @@ export function HomeHeroCarousel({ slides, intervalSeconds = 6 }: { slides: Home
                     fill
                     sizes="100vw"
                     priority={index === 0}
-                    unoptimized
                   />
                 </div>
               ) : (
@@ -80,7 +79,6 @@ export function HomeHeroCarousel({ slides, intervalSeconds = 6 }: { slides: Home
                         fill
                         sizes="(max-width: 850px) 100vw, 55vw"
                         priority={index === 0}
-                        unoptimized
                       />
                     ) : (
                       <>

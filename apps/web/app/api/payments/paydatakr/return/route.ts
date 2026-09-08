@@ -7,7 +7,7 @@ import {
   type PayDataKrPaymentResult,
 } from '@closed-commerce/payment';
 import { logServerError, logServerEvent, newRequestId } from '@closed-commerce/observability';
-import { cancelPendingOrder, finalizePayDataKrOrder, OrderServiceError } from '@/lib/order-service';
+import { finalizePayDataKrOrder, OrderServiceError } from '@/lib/order-service';
 
 /** 한국결제데이터가 결제 결과를 고객 브라우저로 POST하는 주소. */
 export async function POST(request: Request) {
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       if (typeof value === 'string') result[key] = value;
     });
     const resultCode = payDataKrResultCode(result);
-    const orderNumber = result.trackId?.trim() ?? '';
+    const orderNumber = typeof result.trackId === 'string' ? result.trackId.trim() : '';
     const message = payDataKrResultMessage(result);
     logServerEvent('payment.paydatakr.return', requestId, {
       stage: 'received',
@@ -36,12 +36,11 @@ export async function POST(request: Request) {
       transactionId: result.transactionId,
     });
 
+    // 인증되지 않은 실패 통보로 재고를 해제하지 않는다. 미완료 주문은 만료 작업에서 정리한다.
     if (isPayDataKrCancellation(resultCode)) {
-      if (orderNumber) await cancelPendingOrder(orderNumber, '고객 취소', requestId);
       return redirectTo({ status: 'cancelled', message: '결제를 취소하셨습니다.', requestId });
     }
     if (resultCode !== PAYDATAKR_SUCCESS) {
-      if (orderNumber) await cancelPendingOrder(orderNumber, `결제 실패 ${resultCode}`, requestId);
       return redirectTo({
         status: 'failed',
         message: message || '결제가 승인되지 않았습니다.',

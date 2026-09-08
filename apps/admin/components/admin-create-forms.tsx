@@ -1,5 +1,7 @@
 'use client';
 
+import { readResponse, type ApiResult, type ValidationDetails } from '@/lib/client-response';
+
 import Image from 'next/image';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -8,8 +10,6 @@ import { slugify } from '@closed-commerce/validation';
 import type { CategoryGroup } from '@/lib/admin-data';
 import { formatBytes, uploadProductImages } from '@/lib/product-image-upload';
 
-type ValidationDetails = { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
-type ApiResult = { message?: string; error?: string; code?: string; requestId?: string; productId?: string; details?: ValidationDetails };
 
 const NUMERIC_KEYS = [
   'basePrice', 'onlinePrice', 'shippingFee', 'shippingBundleQuantity', 'stock', 'homeSortOrder',
@@ -33,33 +33,7 @@ function formatValidationDetails(details?: ValidationDetails) {
   return [...(details.formErrors ?? []), ...fieldMessages].join(' / ');
 }
 
-/**
- * 예전에는 응답이 JSON이 아니면(413, 502, 타임아웃 등) response.json()이 그대로 throw했고,
- * 그 예외를 아무도 잡지 않아 화면에 오류가 전혀 표시되지 않았다.
- * "상품 등록은 안되요"인데 메시지가 없던 이유가 이것이다.
- */
-async function readResponse(response: Response): Promise<ApiResult> {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    try {
-      return (await response.json()) as ApiResult;
-    } catch {
-      return { error: `서버 응답(JSON)을 해석하지 못했습니다. (HTTP ${response.status})` };
-    }
-  }
-  const text = await response.text().catch(() => '');
-  if (response.status === 413) {
-    return {
-      error: '요청 용량이 서버 한도를 넘었습니다. 이미지 파일은 직접 업로드 경로를 사용해야 합니다.',
-      code: 'payload_too_large',
-    };
-  }
-  return {
-    error: `서버가 예상과 다른 응답을 보냈습니다. (HTTP ${response.status}) ${text.slice(0, 200)}`.trim(),
-    code: 'non_json_response',
-  };
-}
-
+/** 서버 검증 메시지에 필드명과 처리번호를 붙인다. */
 function describeFailure(response: Response, result: ApiResult) {
   const base = result.error ?? '저장하지 못했습니다.';
   const validation = formatValidationDetails(result.details);

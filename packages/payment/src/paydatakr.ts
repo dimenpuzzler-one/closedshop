@@ -129,10 +129,11 @@ export function payDataKrResultMessage(result: PayDataKrPaymentResult): string {
   return String(result.result_advanceMsg ?? result.advanceMsg ?? result.result_msg ?? result.resultMsg ?? '').trim();
 }
 
-export function payDataKrAmount(value: string | number | undefined): number | undefined {
-  if (value === undefined || value === null || String(value).trim() === '') return undefined;
+export function payDataKrAmount(value: unknown): number | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+  if (typeof value === 'string' && !/^\d+$/.test(value.trim())) return undefined;
   const amount = Number(value);
-  return Number.isFinite(amount) ? Math.trunc(amount) : undefined;
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : undefined;
 }
 
 export function isPayDataKrCancellation(code: string | undefined | null): boolean {
@@ -181,7 +182,7 @@ export class PayDataKrPaymentProvider {
     cancelReturnUrl: string;
     popupType?: PayDataKrPopupType;
   }): PayDataKrCheckoutParams {
-    const amount = Math.trunc(input.amount);
+    const amount = input.amount;
     if (!Number.isSafeInteger(amount) || amount <= 0) throw new PayDataKrError('E001', '결제 금액이 올바르지 않습니다.');
     const trackId = requiredText(input.trackId, 50, 'trackId');
     const payerName = requiredText(input.payerName, 40, '구매자 성명');
@@ -216,94 +217,84 @@ export class PayDataKrPaymentProvider {
   }
 
   async refund(input: PayDataKrRefundInput, options?: { timeoutMs?: number }): Promise<PayDataKrRefundResponse> {
-    const url = `${absoluteUrl(this.config.apiBaseUrl, '한국결제데이터 API URL')}/api/refund`;
+    if (input.amount !== undefined && payDataKrAmount(input.amount) === undefined) {
+      throw new PayDataKrError('E001', '환불 금액이 올바르지 않습니다.');
+    }
+    return this.request('/api/refund', {
+      method: 'POST',
+      body: JSON.stringify({
+        refund: { ...input, trxType: 'ONTR' },
+        metadata: {},
+      }),
+    }, options) as Promise<PayDataKrRefundResponse>;
+  }
+
+  async lookup(transactionId: string, options?: { timeoutMs?: number }): Promise<PayDataKrLookupResponse> {
+    const identifier = requiredText(transactionId, 100, '거래번호');
+    return this.request(`/api/get/${encodeURIComponent(identifier)}`, { method: 'GET' }, options);
+  }
+
+  /** 조회·환불의 HTTP/JSON 오류와 본문 수신까지 포함한 제한 시간을 한 곳에서 처리한다. */
+  private async request(path: string, init: RequestInit, options?: { timeoutMs?: number }): Promise<PayDataKrLookupResponse> {
+    const url = `${absoluteUrl(this.config.apiBaseUrl, '한국결제데이터 API URL')}${path}`;
+    if (!this.config.payKey.trim()) throw new PayDataKrError('E001', 'Pay Key가 필요합니다.');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options?.timeoutMs ?? 20_000);
-    let response: Response;
     try {
-      response = await fetch(url, {
-        method: 'POST',
+      const response = await fetch(url, {
+        ...init,
+        cache: 'no-store',
+        redirect: 'error',
         headers: {
           Authorization: this.config.payKey,
           Accept: 'application/json',
           'Content-Type': 'application/json; charset=utf-8',
         },
-        body: JSON.stringify({
-          refund: {
-            trxType: 'ONTR',
-            trackId: input.trackId,
-            amount: input.amount,
-            rootTrxId: input.rootTrxId,
-            rootTrackId: input.rootTrackId,
-            rootTrxDay: input.rootTrxDay,
-            webhookUrl: input.webhookUrl ?? '',
-            udf1: input.udf1 ?? '',
-            udf2: input.udf2 ?? '',
-          },
-          metadata: {},
-        }),
         signal: controller.signal,
       });
+      if (!response.ok) throw new PayDataKrError(`HTTP_${response.status}`, '결제사 요청에 실패했습니다.');
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new PayDataKrError('E010', '결제사 응답을 해석하지 못했습니다.');
+      }
+      if (!isRecord(payload) || !isRecord(payload.result) || typeof payload.result.resultCd !== 'string') {
+        throw new PayDataKrError('E010', '결제사 응답 형식이 올바르지 않습니다.');
+      }
+      if (payload.result.resultCd !== PAYDATAKR_SUCCESS) {
+        throw new PayDataKrError(payload.result.resultCd, '결제사가 요청을 승인하지 않았습니다.');
+      }
+      return payload;
     } catch (error) {
-      throw new PayDataKrError('EB001', `한국결제데이터에 연결하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+      if (error instanceof PayDataKrError) throw error;
+      throw new PayDataKrError('EB001', '결제사 연결이 실패하거나 응답 시간이 초과되었습니다.');
     } finally {
       clearTimeout(timer);
     }
-
-    const body = await response.text();
-    let payload: PayDataKrRefundResponse;
-    try {
-      payload = JSON.parse(body) as PayDataKrRefundResponse;
-    } catch {
-      throw new PayDataKrError('E010', `한국결제데이터 응답을 해석하지 못했습니다. (HTTP ${response.status})`, body.slice(0, 200));
-    }
-    if (payload.result?.resultCd !== PAYDATAKR_SUCCESS) {
-      throw new PayDataKrError(
-        payload.result?.resultCd ?? `HTTP_${response.status}`,
-        payload.result?.advanceMsg || payload.result?.resultMsg || '결제 취소에 실패했습니다.',
-        payload,
-      );
-    }
-    return payload;
   }
+}
 
-  /** 결제 결과를 거래번호로 서버에서 재조회한다. return/webhook 값만 믿고 주문을 확정하지 않는다. */
-  async lookup(transactionId: string, options?: { timeoutMs?: number }): Promise<PayDataKrLookupResponse> {
-    const identifier = requiredText(transactionId, 100, '거래번호');
-    const url = `${absoluteUrl(this.config.apiBaseUrl, '한국결제데이터 API URL')}/api/get/${encodeURIComponent(identifier)}`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), options?.timeoutMs ?? 20_000);
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: this.config.payKey,
-          Accept: 'application/json',
-        },
-        signal: controller.signal,
-      });
-    } catch (error) {
-      throw new PayDataKrError('EB001', `한국결제데이터 조회에 연결하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      clearTimeout(timer);
-    }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
-    const body = await response.text();
-    let payload: PayDataKrLookupResponse;
-    try {
-      payload = JSON.parse(body) as PayDataKrLookupResponse;
-    } catch {
-      throw new PayDataKrError('E010', `한국결제데이터 조회 응답을 해석하지 못했습니다. (HTTP ${response.status})`, body.slice(0, 200));
-    }
-    const resultCode = payload.result?.resultCd ?? '';
-    if (resultCode !== PAYDATAKR_SUCCESS) {
-      throw new PayDataKrError(
-        resultCode || `HTTP_${response.status}`,
-        payload.result?.advanceMsg || payload.result?.resultMsg || '결제 결과를 확인하지 못했습니다.',
-        payload,
-      );
-    }
-    return payload;
+/** 콜백 값이 아닌 서버 재조회 결과의 동일 거래 객체에서 주문·금액·거래번호를 대조한다.
+ * 상세 조회 응답에서 필드를 확인할 수 없으면 성공 코드만으로 승인하지 않는다.
+ */
+export function verifyPayDataKrLookup(
+  payload: PayDataKrLookupResponse,
+  expected: { trackId: string; transactionId: string; amount: number },
+): void {
+  // pay 객체 또는 최상위 거래 필드만 검사한다. 실제 응답 규격 확인이 필요하다.
+  // 가맹점이 지정하는 metadata/udf를 승인 거래 정보로 해석하지 않는다.
+  const candidates = [payload, ...(isRecord(payload.pay) ? [payload.pay] : [])];
+  const matched = candidates.some((record) =>
+    record.trackId === expected.trackId &&
+    (record.transactionId ?? record.trxId) === expected.transactionId &&
+    payDataKrAmount(record.amount) === expected.amount
+  );
+  if (payload.result?.resultCd !== PAYDATAKR_SUCCESS || !matched) {
+    throw new PayDataKrError('verification_failed', '결제 조회 결과의 주문번호·거래번호·금액을 확인하지 못했습니다.');
   }
 }

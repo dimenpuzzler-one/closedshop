@@ -1,5 +1,7 @@
 'use client';
 
+import { readResponse, type ApiResult } from '@/lib/client-response';
+
 import Image from 'next/image';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
@@ -10,30 +12,9 @@ import type { AdminHomeBanner, AdminStoreSettings } from '@/lib/admin-data';
 import { HomeProductOrderEditor } from './home-product-order-editor';
 import { HomepagePreview } from './homepage-preview';
 
-type ApiResult = {
-  message?: string;
-  error?: string;
-  code?: string;
-  requestId?: string;
-  upload?: { path: string; token: string };
-  details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
-};
-
 const ALLOWED_BANNER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_BANNER_BYTES = 20 * 1024 * 1024;
 
-async function readResponse(response: Response): Promise<ApiResult> {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    try {
-      return (await response.json()) as ApiResult;
-    } catch {
-      return { error: `서버 응답을 해석하지 못했습니다. (HTTP ${response.status})` };
-    }
-  }
-  const body = await response.text().catch(() => '');
-  return { error: `서버가 예상과 다른 응답을 보냈습니다. (HTTP ${response.status}) ${body.slice(0, 160)}`.trim() };
-}
 
 function describeFailure(response: Response, result: ApiResult) {
   const fields = Object.entries(result.details?.fieldErrors ?? {})

@@ -249,15 +249,18 @@ export function calculateCartTotalsFromLines(
 /**
  * 주문 라인별 할인 배분. 단순 반올림은 합계가 주문 할인액과 어긋나
  * order_items.commissionable_amount 합 != orders.commissionable_amount가 됐다.
- * 마지막 라인에 잔차를 몰아 합계를 정확히 맞춘다.
+ * 내림한 뒤 소수부가 큰 라인부터 1원씩 배분해 합계와 라인별 상한을 지킨다.
  */
 export function allocateDiscount(lines: CatalogLine[], grossAmount: number, discountAmount: number): number[] {
   if (lines.length === 0) return [];
   if (grossAmount <= 0 || discountAmount <= 0) return lines.map(() => 0);
-  const shares = lines.map((line) => Math.round((discountAmount * line.unitPrice * line.quantity) / grossAmount));
-  const drift = discountAmount - shares.reduce((sum, share) => sum + share, 0);
-  const lastIndex = shares.length - 1;
-  shares[lastIndex] = Math.max(0, (shares[lastIndex] ?? 0) + drift);
+  const cappedDiscount = Math.min(grossAmount, discountAmount);
+  const proportional = lines.map((line) => (cappedDiscount * line.unitPrice * line.quantity) / grossAmount);
+  const shares = proportional.map(Math.floor);
+  const remainder = cappedDiscount - shares.reduce((sum, share) => sum + share, 0);
+  const ranked = proportional.map((share, index) => ({ index, fraction: share - Math.floor(share) }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+  for (const { index } of ranked.slice(0, remainder)) shares[index] = (shares[index] ?? 0) + 1;
   return shares;
 }
 

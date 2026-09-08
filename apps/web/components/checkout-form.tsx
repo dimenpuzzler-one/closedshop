@@ -37,6 +37,7 @@ type CheckoutFormProps = {
  * 그대로 유지해야 하므로 SDK 없이 HTML form POST로 전달한다.
  */
 function submitPayDataKrForm(action: string, params: PayDataKrCheckoutParams) {
+  window.name = params.parentTargetNm;
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = action;
