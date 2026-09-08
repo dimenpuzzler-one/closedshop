@@ -233,8 +233,8 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
             ? 'paid'
             : callback.result.status === 'cancelled'
               ? 'cancelled'
-              : callback.result.status === 'unknown'
-                ? 'unknown'
+                : callback.result.status === 'unknown' || callback.result.status === 'processing'
+                  ? 'unknown'
                 : 'failed';
           const target = new URL('/checkout/result', window.location.origin);
           target.searchParams.set('status', nextStatus);
