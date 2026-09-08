@@ -101,6 +101,32 @@ pnpm --filter admin dev
 
 Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주문 흐름을 확인할 수 있습니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
 
+## PayDataKR 테스트 결제
+
+고객몰은 한국결제데이터 공식 v1.5 JavaScript SDK로 결제창을 호출합니다. 별도의 결제창 action URL은 사용하지 않습니다.
+
+```text
+결제하기
+  → POST /api/orders
+  → 주문 생성·재고 예약(payment_pending)
+  → PayDataKR SDK 결제창
+  → responseFunction(JSON) + webhookUrl(JSON)
+  → 서버가 응답을 정규화하고 Pay Key로 /api/get 재조회
+  → 주문번호·거래번호·금액 검증
+  → payments 저장·주문 paid 확정
+  → /checkout/result
+```
+
+테스트 순서는 다음과 같습니다.
+
+1. [고객몰](https://dealkey.co.kr)에 로그인합니다.
+2. 판매 중인 상품을 장바구니에 담고 주문서에서 배송지를 입력합니다.
+3. `결제하기`를 눌러 PayDataKR 결제창에서 제공받은 테스트 카드 정보로 승인합니다.
+4. 고객몰 결과 화면이 `결제가 완료되었습니다.`로 표시되고 주문 조회에서 주문 상태가 `paid`인지 확인합니다.
+5. 필요하면 [관리자](https://admin.dealkey.co.kr) 주문 화면에서 원거래 거래번호·승인일을 확인한 뒤 전액 환불을 검증합니다.
+
+현재 운영 배포에는 `PAYDATAKR_PUBLIC_KEY`와 `PAYDATAKR_PAY_KEY`가 설정되어 있으며, 두 키의 실제 값과 카드 승인·환불 결과는 Git이나 README에 기록하지 않습니다. 실제 테스트 승인은 아직 실행하지 않은 상태입니다.
+
 ## Supabase 설정
 
 원격 프로젝트를 연결한 뒤 마이그레이션을 적용합니다.
@@ -256,7 +282,7 @@ git diff --check
 
 | 서비스 | Vercel Root Directory | Build                                | 함수 리전            |
 | ------ | --------------------- | ------------------------------------ | -------------------- |
-| 고객용 | `apps/web`            | `pnpm turbo build --filter=web...`   | 프로젝트 설정에 따름 |
+| 고객용 | `apps/web`            | `pnpm turbo build --filter=web...`   | `icn1` (서울)        |
 | 관리자 | `apps/admin`          | `pnpm turbo build --filter=admin...` | `icn1` (서울)        |
 
 Supabase 운영 프로젝트는 서울 리전(`ap-northeast-2`)에 있으므로 관리자 함수는 `apps/admin/vercel.json`의 `regions: ["icn1"]`로 서울에서 실행합니다. 리전을 바꿔도 브라우저·Storage 다운로드가 자동으로 빨라지는 것은 아니며, DB 왕복과 함수 로그를 함께 확인해야 합니다.
@@ -325,7 +351,7 @@ Supabase 프로젝트가 `ap-northeast-2`(서울)에 있습니다. 리전 지정
 ## 알려진 제한
 
 - 운영 결제는 한국결제데이터 인증결제이며 `MockPaymentProvider`는 환경변수가 없는 로컬 데모 주문에서만 사용합니다.
-- 한국결제데이터 결제 결과는 `returnUrl`과 `webhookUrl`에서 같은 주문 확정 흐름으로 처리하고, 관리자 환불은 `/api/refund` 성공 응답을 받은 뒤에만 DB 상태를 변경합니다.
+- 한국결제데이터 결제 결과는 SDK `responseFunction`과 `webhookUrl`에서 같은 주문 확정 흐름으로 처리하고, 관리자 환불은 `/api/refund` 성공 응답을 받은 뒤에만 DB 상태를 변경합니다.
 - 비회원 카탈로그 경로는 온라인가만 공개하고 회원가를 애플리케이션 코드(`stripPrices`)에서 제거합니다. 온라인가 미입력 상품은 비회원에게 가격 준비 중으로 표시됩니다.
 - 카테고리는 DB 제약이 아니므로 migration이나 직접 SQL로 `products.category`를 바꾸면 마스터 목록과 어긋날 수 있습니다.
 - 배송비는 주문 전체 수량 기준 단일 규칙입니다. 상품마다 카툰 수량이 다르면 상품 컬럼 추가가 필요합니다.
