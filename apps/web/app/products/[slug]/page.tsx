@@ -117,7 +117,6 @@ export default async function ProductDetailPage({
                 </div>
               ) : null}
               <hr className="divider" />
-              <p className="muted">배송비 {shippingCopy}</p>
               {/*
                 전자상거래법 제17조 제2항 단서: 청약철회 제한 사유를 "미리 명확하게 표시"하지
                 않으면 판매자는 제한을 주장할 수 없다. 결제 직전, 구매 버튼 바로 위에 둔다.

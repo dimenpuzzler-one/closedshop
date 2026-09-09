@@ -127,6 +127,8 @@ Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주
 
 현재 운영 배포에는 `PAYDATAKR_PUBLIC_KEY`와 `PAYDATAKR_PAY_KEY`가 설정되어 있으며, 두 키의 실제 값과 카드 승인·환불 결과는 Git이나 README에 기록하지 않습니다. 실제 테스트 승인은 아직 실행하지 않은 상태입니다.
 
+`localhost`에 환경변수가 없으면 고객몰은 로컬 데모 모드로 실행됩니다. 데모 모드에서는 실제 결제창을 열지 않고 주문 API가 `payment_demo_mode`(503)를 반환하므로, 테스트 결제는 [운영 고객몰](https://dealkey.co.kr)에서 하거나 로컬에 Supabase·PayDataKR 환경변수를 설정한 뒤 진행합니다.
+
 ## Supabase 설정
 
 원격 프로젝트를 연결한 뒤 마이그레이션을 적용합니다.

@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCommissionRule } from '@closed-commerce/config';
-import { DEMO_REFERRAL_CODES, DEMO_REFERRAL_GRAPH, summarizeOrderInput } from '@closed-commerce/commerce';
 import { resolveRuntimeMode } from '@closed-commerce/db';
 import { logServerError, logServerEvent, newRequestId } from '@closed-commerce/observability';
-import { MockPaymentProvider } from '@closed-commerce/payment';
-import { calculateTwoDepthCommissions, findValidReferralCode } from '@closed-commerce/referral';
 import { orderCreateSchema } from '@closed-commerce/validation';
 import { createServerAppClient } from '@/lib/supabase-server';
 import { prepareOrder, OrderServiceError } from '@/lib/order-service';
@@ -67,38 +63,17 @@ export async function POST(request: Request) {
       }
     }
 
-    // ---- 아래는 로컬 개발용 데모 경로 (production에서는 mode가 절대 'demo'가 되지 않는다) ----
-    const referral = input.referralCode ? findValidReferralCode(DEMO_REFERRAL_CODES, input.referralCode) : DEMO_REFERRAL_CODES[0];
-    if (!referral) return NextResponse.json({ error: '주문에는 유효한 Referral Code가 필요합니다.', requestId }, { status: 400 });
-    let summary;
-    try {
-      summary = summarizeOrderInput(input);
-    } catch (caught) {
-      return NextResponse.json(
-        { error: caught instanceof Error ? caught.message : '주문 금액을 계산하지 못했습니다.', requestId },
-        { status: 400 },
-      );
-    }
-    const buyerUserId = input.buyerUserId ?? 'user-demo';
-    const orderId = `order_${Date.now()}`;
-    const orderNumber = `CC-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${orderId.slice(-5)}`;
-    const payment = new MockPaymentProvider();
-    const paymentSession = await payment.createPayment({ orderId, amount: summary.paidAmount, customerName: input.address.recipientName });
-    const verified = await payment.verifyPayment({ paymentId: paymentSession.paymentId, orderId, amount: summary.paidAmount });
-    const commissions = calculateTwoDepthCommissions(
-      { orderId, buyerUserId, commissionableAmount: summary.commissionableAmount, createdAt: verified.paidAt, rule: getCommissionRule() },
-      { getReferrer: (userId) => DEMO_REFERRAL_GRAPH.get(userId) },
+    // 로컬 데모 모드에서는 가짜 결제 성공을 반환하지 않는다. 실제 결제창 URL·토큰이
+    // 없는데 200을 반환하면 고객 화면이 결제창을 열지 못한 원인을 오해하게 된다.
+    logServerEvent('web.orders.create', requestId, { stage: 'demo_blocked' });
+    return NextResponse.json(
+      {
+        error: '현재 로컬 데모 모드에서는 실제 결제창을 열 수 없습니다. 운영 사이트에서 테스트하거나 로컬에 Supabase·PayDataKR 환경변수를 설정해 주세요.',
+        code: 'payment_demo_mode',
+        requestId,
+      },
+      { status: 503 },
     );
-    return NextResponse.json({
-      orderNumber,
-      orderId,
-      payment: verified,
-      totals: summary,
-      commissionPreview: commissions.commissions.map(({ depth, beneficiaryName, commissionAmount, status }) => ({ depth, beneficiaryName, commissionAmount, status })),
-      message: '[DEMO] 결제가 검증되고 주문이 생성되었습니다. 실제로 저장되지 않았습니다.',
-      mode: 'demo',
-      requestId,
-    });
   } catch (error) {
     logServerError('web.orders.create', requestId, error, { stage: 'outer' });
     return NextResponse.json({ error: '주문을 처리하지 못했습니다.', requestId }, { status: 500 });
