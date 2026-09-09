@@ -533,9 +533,9 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .home-hero-media { min-height: 220px; }
   .home-hero-controls { right: 22px; }
   .home-hero.image-banners .home-hero-controls { right: 12px; bottom: 10px; gap: 7px; }
-  /* PC 권장 배너(8:3)는 유지하되, 모바일에서는 2:1 영역으로 세로를 키워 읽기 쉽게 표시한다. */
+  /* PC 권장 배너(8:3)를 모바일 2:1 영역 안에서 원본 전체가 보이게 한다. */
   .home-hero.image-banners .home-hero-track { aspect-ratio: 2 / 1; }
-  .home-hero.image-banners .home-hero-full-media img { object-fit: cover; }
+  .home-hero.image-banners .home-hero-full-media img { object-fit: contain; }
   .home-hero.image-banners .home-hero-arrow { width: 26px; height: 26px; font-size: 19px; }
   .home-hero.image-banners .home-hero-dot { width: 18px; }
   .home-access-grid { gap: 16px; }
@@ -642,8 +642,8 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 
 /* ---------------------------------------------------------------------------
    딜키 홈 리뉴얼
-   참고 시안의 순서를 따라 혜택 → 카테고리 → 베스트 → 회원가 → 이용방법 →
-   기획전 → 기업견적 → 회원가입 CTA가 자연스럽게 이어지도록 구성한다.
+   혜택 → 카테고리 → 카테고리별 상품 → 회원가 → 이용방법 →
+   기업견적 → 회원가입 CTA 순서로 구성한다.
 --------------------------------------------------------------------------- */
 .announcement-bar { background: #1d1b17; color: #f7eee0; font-size: 11px; }
 .announcement-inner { min-height: 30px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
@@ -710,9 +710,12 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .home-category-copy small { min-height: 2.8em; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .home-category-arrow { position: absolute; right: 10px; bottom: 11px; color: var(--gold-deep); font-size: 20px; line-height: .8; }
 
-.home-best-section { padding-top: 38px; background: #fffdf9; border-top: 1px solid #eee8df; }
+.home-category-products-section { padding-top: 38px; background: #fffdf9; border-top: 1px solid #eee8df; }
+.home-category-product-sections { display: grid; gap: 34px; }
+.home-category-product-section { min-width: 0; }
+.home-category-product-section + .home-category-product-section { padding-top: 34px; border-top: 1px solid #eee8df; }
+.home-category-product-section .home-section-title-row { margin-bottom: 18px; }
 .home-product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.home-product-grid-compact { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .home-product-tile { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 7px 22px rgba(61, 45, 24, .06); transition: transform .18s ease, box-shadow .18s ease; }
 .home-product-tile:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(61, 45, 24, .13); }
 .home-product-art { position: relative; display: flex; min-width: 0; aspect-ratio: 1.18 / 1; align-items: flex-end; justify-content: center; overflow: hidden; padding: 16px; color: #fffdf9; }
@@ -768,17 +771,6 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .home-step h3 { margin-bottom: 6px; font-family: var(--serif); font-size: 17px; }
 .home-step p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 
-.home-collection-section { background: #f8f4ec; }
-.home-collection-tabs { display: flex; gap: 8px; overflow-x: auto; margin: -3px 0 18px; padding-bottom: 4px; scrollbar-width: none; }
-.home-collection-tabs::-webkit-scrollbar { display: none; }
-.home-collection-tabs a { flex: 0 0 auto; padding: 8px 15px; border: 1px solid #e0d8ca; border-radius: 999px; background: #fff; color: #6f6659; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.home-collection-tabs a.active, .home-collection-tabs a:hover { border-color: #9c7540; background: #9c7540; color: #fff; }
-.home-product-grid-compact .home-product-art { aspect-ratio: 1.05 / 1; padding: 11px; }
-.home-product-grid-compact .home-product-info { padding: 10px; }
-.home-product-grid-compact .home-product-name h3 { min-height: 2.6em; font-size: 13px; }
-.home-product-grid-compact .home-product-footer { display: block; }
-.home-product-grid-compact .home-product-footer .product-price { font-size: 12px; }
-
 .home-business-section { padding-top: 36px; padding-bottom: 36px; background: #fffdf9; }
 .home-business-card { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 28px; align-items: center; overflow: hidden; padding: 28px 32px; border: 1px solid var(--line); border-radius: 17px; background: #f6f1e8; }
 .home-business-card h2 { margin-bottom: 8px; }
@@ -806,8 +798,6 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .nav { gap: 12px; }
   .header-search { width: 178px; }
   .home-category-grid { grid-template-columns: repeat(3, 1fr); }
-  .home-product-grid-compact { grid-template-columns: repeat(3, 1fr); }
-  .home-product-grid-compact .home-product-art { aspect-ratio: 1.18 / 1; }
 }
 
 @media (max-width: 850px) {
@@ -846,7 +836,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .hero-trust-points { gap: 7px; padding-top: 22px; font-size: 9px; }
   .hero-trust-points span { gap: 4px; }
   .home-features-section { padding-top: 12px; }
-  .home-category-section, .home-best-section { padding-top: 38px; }
+  .home-category-section, .home-category-products-section { padding-top: 38px; }
   .home-section-title-row { align-items: flex-start; flex-direction: column; gap: 12px; }
   .home-section-title-row > .button { align-self: flex-end; margin-top: -4px; }
   .home-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -855,15 +845,13 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .home-category-copy strong { font-size: 16px; }
   .home-category-copy small { min-height: 0; font-size: 9px; }
   .home-category-arrow { right: 8px; bottom: 9px; }
-  .home-product-grid, .home-product-grid-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .home-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .home-product-art { aspect-ratio: 1.05 / 1; padding: 11px; }
   .home-product-art > strong { font-size: 17px; }
   .home-product-info { padding: 10px; }
   .home-product-name h3 { font-size: 14px; }
   .home-product-footer { align-items: stretch; flex-direction: column; gap: 6px; }
   .home-product-footer .button, .home-product-lock { justify-content: center; width: 100%; }
-  .home-product-grid-compact .home-product-footer { display: block; }
-  .home-product-grid-compact .home-product-lock { display: flex; margin-top: 5px; }
   .home-member-card { gap: 18px; padding: 18px; }
   .home-mini-products { gap: 7px; }
   .home-mini-copy { padding: 7px; }

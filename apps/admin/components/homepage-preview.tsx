@@ -28,7 +28,9 @@ export function HomepagePreview({
   );
   const previewCategories = useMemo(() => {
     const productCategories = [...new Set(visible.map((product) => product.category))];
-    return [...categories.filter((category) => productCategories.includes(category)), ...productCategories.filter((category) => !categories.includes(category))];
+    // 운영 설정에 등록된 카테고리만 고객 홈에 노출한다. 상품에 남은
+    // 예전/오타 카테고리는 미리보기에서도 섞이지 않아야 실제 홈과 같다.
+    return [...new Set(categories)].filter((category) => productCategories.includes(category));
   }, [categories, visible]);
   const firstBanner = banners.find((banner) => banner.isActive);
 

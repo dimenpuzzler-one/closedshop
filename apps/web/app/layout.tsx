@@ -4,7 +4,6 @@ import { COMPANY } from '@closed-commerce/config';
 import { SiteHeader } from '@/components/site-header';
 import { AttributionTracker } from '@/components/attribution-tracker';
 import { Container } from '@closed-commerce/ui';
-import { loadCategories } from '@/lib/catalog-data';
 import { loadStoreSettings } from '@/lib/store-settings';
 import './globals.css';
 
@@ -15,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [settings, categories] = await Promise.all([loadStoreSettings(), loadCategories()]);
+  const settings = await loadStoreSettings();
   const bodyClassName = `theme-${settings.siteTheme} width-${settings.siteWidth} density-${settings.siteDensity}`;
   return <html lang="ko">
     {/*
@@ -38,7 +37,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       />
     </head>
     <body className={bodyClassName}>
-      <SiteHeader categories={categories} />
+      <SiteHeader />
       <AttributionTracker />
       <main>{children}</main>
       <footer className="footer">

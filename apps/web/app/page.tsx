@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Container, SectionHeading } from '@closed-commerce/ui';
 import { ReferralGate } from '@/components/referral-gate';
 import { HomeHeroCarousel, type HomeHeroSlide } from '@/components/home-hero-carousel';
-import { HomeCategoryGrid, HomeFeatureStrip, HomeMiniProduct, HomeProductGrid, categoryHref } from '@/components/home-catalog-sections';
+import { HomeCategoryGrid, HomeCategoryProductSections, HomeFeatureStrip, HomeMiniProduct } from '@/components/home-catalog-sections';
 import { loadCategories, loadVisibleCatalog } from '@/lib/catalog-data';
 import { loadStoreSettings } from '@/lib/store-settings';
 
@@ -78,8 +78,6 @@ export default async function HomePage() {
   const heroSlides = configuredSlides.length > 0 ? configuredSlides : fallbackSlides;
 
   const featuredProducts = catalog.products.slice(0, 4);
-  const collectionProducts = catalog.products.slice(0, 6);
-  const productCategories = [...new Set(catalog.products.map((product) => product.category))];
 
   return (
     <>
@@ -98,10 +96,9 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      <section className="section home-best-section">
+      <section className="section home-category-products-section">
         <Container>
-          <div className="home-section-title-row"><div><p className="eyebrow">BEST PRODUCTS</p><h2>지금 가장 인기 있는 상품</h2><p className="muted">지금 사랑받는 베스트 상품을 특별한 회원가로 만나보세요.</p></div><Link href="/products" className="button button-ghost">전체보기 <span aria-hidden="true">›</span></Link></div>
-          <HomeProductGrid products={featuredProducts} showPrice={catalog.priceVisible} referralCode={catalog.validReferralCode} />
+          <HomeCategoryProductSections categories={categories} products={catalog.products} showPrice={catalog.priceVisible} referralCode={catalog.validReferralCode} />
         </Container>
       </section>
 
@@ -127,14 +124,6 @@ export default async function HomePage() {
           <div className="home-steps-grid">
             {[['01', '⌁', '초대코드 입력', '초대받은 코드를 입력하고 회원가입을 시작합니다.'], ['02', '♙', '회원가입', '간단한 정보로 딜키 회원이 되어주세요.'], ['03', '♙', '회원가 확인', '로그인하면 특별한 회원가가 열립니다.'], ['04', '🛒', '원하는 상품 주문', '특별한 가격으로 마음을 전해보세요.']].map(([number, icon, title, description]) => <div className="home-step" key={number}><span className="home-step-number">{number}</span><span className="home-step-icon" aria-hidden="true">{icon}</span><h3>{title}</h3><p>{description}</p></div>)}
           </div>
-        </Container>
-      </section>
-
-      <section className="section home-collection-section">
-        <Container>
-          <div className="home-section-title-row"><div><p className="eyebrow">SPECIAL COLLECTION</p><h2>특별한 순간을 위한 추천 상품</h2><p className="muted">소중한 분께, 더 특별한 마음을 전해보세요.</p></div></div>
-          <div className="home-collection-tabs"><Link className="active" href="/products">명절 선물 BEST</Link>{productCategories.slice(0, 5).map((category) => <Link key={category} href={categoryHref(category)}>{category}</Link>)}</div>
-          <HomeProductGrid products={collectionProducts} showPrice={catalog.priceVisible} referralCode={catalog.validReferralCode} compact />
         </Container>
       </section>
 

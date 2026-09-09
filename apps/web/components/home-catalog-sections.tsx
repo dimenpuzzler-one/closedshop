@@ -54,7 +54,9 @@ export function HomeFeatureStrip() {
 
 export function HomeCategoryGrid({ categories, products }: { categories: string[]; products: Product[] }) {
   const productCategoryNames = new Set(products.map((product) => product.category));
-  const names = [...new Set([...categories, ...products.map((product) => product.category)])]
+  // 상품에 남아 있는 예전/오타 카테고리는 운영 설정에 등록된 카테고리가
+  // 아니므로 홈의 카테고리 카드에 다시 나타나면 안 된다.
+  const names = [...new Set(categories)]
     .filter((name) => Boolean(name) && productCategoryNames.has(name))
     .slice(0, 6);
   if (names.length === 0) return null;
@@ -77,6 +79,58 @@ export function HomeCategoryGrid({ categories, products }: { categories: string[
           </Link>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * 운영 설정에 등록된 카테고리 순서대로 상품을 나눠 보여준다.
+ * catalog.products 자체가 home_sort_order 순으로 정렬되어 있으므로
+ * 각 그룹에서도 운영자가 정한 상품 순서를 그대로 유지한다.
+ */
+export function HomeCategoryProductSections({
+  categories,
+  products,
+  showPrice,
+  referralCode,
+}: {
+  categories: string[];
+  products: Product[];
+  showPrice: boolean;
+  referralCode?: string;
+}) {
+  const productByCategory = new Map<string, Product[]>();
+  products.forEach((product) => {
+    const current = productByCategory.get(product.category) ?? [];
+    current.push(product);
+    productByCategory.set(product.category, current);
+  });
+
+  const groups = [...new Set(categories)]
+    .map((category) => ({ category, products: productByCategory.get(category) ?? [] }))
+    .filter((group) => group.products.length > 0);
+
+  if (groups.length === 0) {
+    return <div className="home-empty-products">아직 등록된 상품이 없습니다.</div>;
+  }
+
+  return (
+    <div className="home-category-product-sections">
+      {groups.map((group) => (
+        <section className="home-category-product-section" key={group.category}>
+          <div className="home-section-title-row">
+            <div>
+              <p className="eyebrow">CATEGORY</p>
+              <h2>{group.category}</h2>
+              <p className="muted">이 카테고리에서 지금 만날 수 있는 상품입니다.</p>
+            </div>
+            <Link href={categoryHref(group.category)} className="button button-ghost">
+              전체보기 <span aria-hidden="true">›</span>
+            </Link>
+          </div>
+          <HomeProductGrid products={group.products} showPrice={showPrice} referralCode={referralCode} />
+        </section>
+      ))}
     </div>
   );
 }

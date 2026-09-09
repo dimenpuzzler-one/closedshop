@@ -23,9 +23,8 @@ async function getViewerName(): Promise<string | null> {
   }
 }
 
-export async function SiteHeader({ categories }: { categories: string[] }) {
+export async function SiteHeader() {
   const viewerName = await getViewerName();
-  const navCategories = categories.slice(0, 5);
   return (
     <>
       <div className="announcement-bar"><Container className="announcement-inner"><span><span aria-hidden="true">⚿</span> 초대코드가 있으신가요? 회원 전용 가격이 열립니다.</span><Link href="/#member-access">초대코드 입력하기 <span aria-hidden="true">›</span></Link><small>오늘도 특별한 기회를, DEALKEY</small></Container></div>
@@ -38,9 +37,7 @@ export async function SiteHeader({ categories }: { categories: string[] }) {
             <span className="brand-word">Dealkey</span>
           </Link>
           <nav className="nav" aria-label="주요 메뉴">
-            <Link href="/products">베스트</Link>
-            {navCategories.map((category) => <Link href={`/products?category=${encodeURIComponent(category)}`} key={category}>{category}</Link>)}
-            <Link href="/products">기획전</Link>
+            <Link href="/products">상품 둘러보기</Link>
             <Link href="/b2b">기업·단체 견적</Link>
           </nav>
           <div className="header-actions">
