@@ -99,6 +99,8 @@ pnpm --filter admin dev
 
 최근 정적 점검과 리팩토링 내용, 남은 운영 전 과제는 [레포 점검 기록](docs/repository-review-20260908.md)에 정리했습니다.
 
+다른 프로젝트에서 재사용할 수 있는 인증결제 구현·환경변수·callback·검증·환불 정리는 [PayDataKR 인증결제 재사용 문서](docs/paydatakr-authenticated-payment-reuse.md)를 참고합니다.
+
 Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그를 확인할 수 있지만 실제 주문·결제는 차단됩니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
 
 ## PayDataKR 테스트 결제
