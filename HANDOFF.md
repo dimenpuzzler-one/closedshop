@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-07 (Asia/Seoul)** — 한국결제데이터 인증결제 전환 반영
+> 마지막 갱신: **2026-09-09 (Asia/Seoul)** — PayDataKR 테스트 결제 승인·주문 확정 검증 완료
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -13,8 +13,10 @@
 
 **실제 결제 이력이 있습니다. 진짜 돈이 오갑니다.**
 
-- 첫 실결제: 2026-09-01 11:44 KST, 13,900원, 주문번호 `DK20260901C48E74B901`
-- PG사: **한국결제데이터(PayDataKR) 인증결제**로 전환 중
+- 기존 실결제: 2026-09-01 11:44 KST, 13,900원, 주문번호 `DK20260901C48E74B901`
+- PG사: **한국결제데이터(PayDataKR) 인증결제** 운영 적용 완료
+- PayDataKR 테스트 승인: 2026-09-09 12:53 KST, 1,000원, 주문번호 `19FI5JGU1A7LK`, 거래번호 `T260909294495`
+- 위 테스트 건에서 webhook·return 모두 `0000` 수신, Pay Key 거래 재조회·금액 검증·`order.finalize stage=paid`까지 확인
 - 기존 결제 이력은 삭제하거나 재매핑하지 않고, 신규 결제부터 `paydatakr`로 기록합니다.
 
 따라서 이제부터 주문/결제/재고 코드를 건드릴 때는 **운영 데이터가 이미 있다**는 전제로 작업해야 합니다.
@@ -357,7 +359,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
 ### 11.1 한국결제데이터 SDK와 키 역할
 
-현재 결제 경로는 `buildCheckoutParams()`로 만든 인증결제 필드를 `/kpdWebPayment/KpdCredit`에 form POST한다. SDK·위젯 토큰 경로는 사용하지 않는다. 별도의 `PAYDATAKR_CHECKOUT_URL`은 필요하지 않다. `PAYDATAKR_PAY_KEY`는 서버가 `/api/get`·환불 요청의 `Authorization` 헤더에만 사용한다. 2026-09-09 실제 신한카드 인증 화면까지 진입을 확인했으며 승인·환불은 미실행이다.
+현재 결제 경로는 `buildCheckoutParams()`로 만든 인증결제 필드를 `/kpdWebPayment/KpdCredit`에 form POST한다. SDK·위젯 토큰 경로는 사용하지 않는다. 별도의 `PAYDATAKR_CHECKOUT_URL`은 필요하지 않다. `PAYDATAKR_PAY_KEY`는 서버가 `/api/get`·환불 요청의 `Authorization` 헤더에만 사용한다. 2026-09-09 실제 신한카드 인증 화면 진입과 1,000원 테스트 승인, webhook·return 수신, Pay Key 재조회, 주문 `paid` 확정을 확인했다. 환불은 아직 실행하지 않았다.
 
 SDK callback은 중첩 `result`/`pay`, webhook은 평면 JSON으로 올 수 있으므로 서버가 먼저 공통 결과로 정규화한 뒤 Pay Key로 거래를 재조회한다. 결제창 URL이나 Pay Key를 클라이언트 코드에 하드코딩하지 않는다.
 
