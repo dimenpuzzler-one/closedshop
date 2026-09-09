@@ -14,7 +14,7 @@ function requiredHttpsUrl(value: string | undefined, label: string): string {
   }
 }
 
-/** publicKey는 위젯 세션 발급에 사용하지만 Pay Key는 서버 API 인증에만 사용한다. */
+/** publicKey는 인증결제 form에 사용하고 Pay Key는 서버 API 인증에만 사용한다. */
 export function payDataKrConfigured(): boolean {
   if (!process.env.PAYDATAKR_PUBLIC_KEY || !process.env.PAYDATAKR_PAY_KEY) return false;
   try {

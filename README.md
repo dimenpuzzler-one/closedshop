@@ -84,7 +84,7 @@ pnpm --filter admin dev
 | `L1_COMMISSION_RATE`                   | 1단계 추천 수수료율                                   |
 | `L2_COMMISSION_RATE`                   | 2단계 추천 수수료율                                   |
 | `COMMISSION_APPROVAL_DAYS`             | 수수료 승인 대기 일수                                 |
-| `PAYDATAKR_PUBLIC_KEY`                 | 한국결제데이터 v1.5 SDK publicKey (`pk_` 접두사)       |
+| `PAYDATAKR_PUBLIC_KEY`                 | 한국결제데이터 인증결제 publicKey (`pk_` 접두사)       |
 | `PAYDATAKR_PAY_KEY`                    | 한국결제데이터 API 인증 Pay Key(서버 전용)             |
 | `PAYDATAKR_API_BASE_URL`               | 한국결제데이터 REST API 기준 URL                       |
 | `PAYDATAKR_RECEIPT_BASE_URL`           | 한국결제데이터 매출전표 기준 URL                       |
@@ -93,23 +93,23 @@ pnpm --filter admin dev
 
 `SUPABASE_SERVICE_ROLE_KEY`, `PAYDATAKR_PAY_KEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
 
-운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 서버가 공식 `/api/widget`에 공개키로 일회성 결제 토큰을 발급한 뒤, 브라우저가 반환된 `routeUrl`에 토큰을 HTML form POST해 결제창을 엽니다. 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 사용하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
+운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 서버가 인증결제 form 필드를 만들고 브라우저가 `/kpdWebPayment/KpdCredit`에 POST하여 현재 창에서 결제합니다. `returnUrl`, `webhookUrl`, `cnclreturnUrl`을 모두 명시하며 SDK·일회성 위젯 토큰은 사용하지 않습니다. 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 필요하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
 
 관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항입니다. 공식 SDK 응답은 `result`/`pay` 중첩 구조, webhook 응답은 평면 구조이므로 서버에서 공통 형태로 정규화합니다. 운영 활성화 전에는 제한된 테스트 결제·환불을 검증해야 합니다. 현재 조회 검증은 응답 최상위 또는 `pay` 객체의 주문번호·거래번호·금액이 모두 일치해야 통과하며, 성공 코드만 있는 응답은 주문을 확정하지 않습니다.
 
 최근 정적 점검과 리팩토링 내용, 남은 운영 전 과제는 [레포 점검 기록](docs/repository-review-20260908.md)에 정리했습니다.
 
-Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주문 흐름을 확인할 수 있습니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
+Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그를 확인할 수 있지만 실제 주문·결제는 차단됩니다. 실제 회원·상품·주문·재고·결제 snapshot·추천 수수료·분석 데이터를 사용하려면 Supabase 연결과 migration 적용이 필요합니다.
 
 ## PayDataKR 테스트 결제
 
-고객몰은 서버에서 한국결제데이터 `/api/widget` 세션을 만든 뒤, 반환된 일회성 `routeUrl`에 `token`을 form POST해 결제창을 호출합니다. `PAYDATAKR_PAY_KEY`는 이 과정에 포함되지 않습니다.
+고객몰은 [공식 인증결제 규격](https://www.paydatakr.com/manual/kpayd-cert-pay-docs-v1.0.html)에 따라 `publicKey`, 주문 금액·번호, 상품·구매자 정보, 결과·취소 URL을 form POST합니다. `PAYDATAKR_PAY_KEY`는 브라우저에 전달하지 않습니다.
 
 ```text
 결제하기
   → POST /api/orders
   → 주문 생성·재고 예약(payment_pending)
-  → PayDataKR routeUrl에 token POST
+  → PayDataKR /kpdWebPayment/KpdCredit에 인증결제 필드 POST (popuptype=submit)
   → returnUrl + webhookUrl(JSON)
   → 서버가 응답을 정규화하고 Pay Key로 /api/get 재조회
   → 주문번호·거래번호·금액 검증
@@ -126,6 +126,8 @@ Supabase 환경 변수가 없으면 고객몰의 데모 카탈로그와 mock 주
 5. 필요하면 [관리자](https://admin.dealkey.co.kr) 주문 화면에서 원거래 거래번호·승인일을 확인한 뒤 전액 환불을 검증합니다.
 
 현재 운영 배포에는 `PAYDATAKR_PUBLIC_KEY`와 `PAYDATAKR_PAY_KEY`가 설정되어 있으며, 두 키의 실제 값과 카드 승인·환불 결과는 Git이나 README에 기록하지 않습니다. 실제 테스트 승인은 아직 실행하지 않은 상태입니다.
+
+2026-09-09 검증: 공식 인증결제 form으로 한국결제데이터 카드 선택 → 실제 신한카드 온라인 인증 화면 진입을 확인했습니다. 카드정보 입력·최종 승인·환불은 실행하지 않았습니다. 토큰이 유효하지 않으면 결과 URL까지 빈 값이 되는 위젯 경로를 제거했습니다. 취소 URL은 GET/POST 모두 받는 `/api/payments/paydatakr/cancel`이며 303으로 결과 화면에 이동합니다. 페이지에 직접 POST하여 발생하던 Server Actions 500 오류를 피합니다. 앞선 로컬 데모 진단은 운영 장애의 원인으로 확인된 내용이 아닙니다.
 
 `localhost`에 환경변수가 없으면 고객몰은 로컬 데모 모드로 실행됩니다. 데모 모드에서는 실제 결제창을 열지 않고 주문 API가 `payment_demo_mode`(503)를 반환하므로, 테스트 결제는 [운영 고객몰](https://dealkey.co.kr)에서 하거나 로컬에 Supabase·PayDataKR 환경변수를 설정한 뒤 진행합니다.
 
@@ -354,7 +356,7 @@ Supabase 프로젝트가 `ap-northeast-2`(서울)에 있습니다. 리전 지정
 ## 알려진 제한
 
 - 운영 결제는 한국결제데이터 인증결제이며 `MockPaymentProvider`는 환경변수가 없는 로컬 데모 주문에서만 사용합니다.
-- 한국결제데이터 결제 결과는 SDK `responseFunction`과 `webhookUrl`에서 같은 주문 확정 흐름으로 처리하고, 관리자 환불은 `/api/refund` 성공 응답을 받은 뒤에만 DB 상태를 변경합니다.
+- 한국결제데이터 결제 결과는 `returnUrl`과 `webhookUrl`에서 같은 주문 확정 흐름으로 처리하고, 관리자 환불은 `/api/refund` 성공 응답을 받은 뒤에만 DB 상태를 변경합니다.
 - 비회원 카탈로그 경로는 온라인가만 공개하고 회원가를 애플리케이션 코드(`stripPrices`)에서 제거합니다. 온라인가 미입력 상품은 비회원에게 가격 준비 중으로 표시됩니다.
 - 카테고리는 DB 제약이 아니므로 migration이나 직접 SQL로 `products.category`를 바꾸면 마스터 목록과 어긋날 수 있습니다.
 - 배송비는 주문 전체 수량 기준 단일 규칙입니다. 상품마다 카툰 수량이 다르면 상품 컬럼 추가가 필요합니다.

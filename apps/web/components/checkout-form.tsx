@@ -5,6 +5,7 @@ import type { FormEvent } from 'react';
 import Link from 'next/link';
 import { APP_NAME_KO } from '@closed-commerce/config';
 import { Price } from '@closed-commerce/ui';
+import type { PayDataKrCheckoutParams } from '@closed-commerce/payment';
 import {
   saveShippingAddress,
   setDefaultShippingAddress,
@@ -26,26 +27,28 @@ type OrderResult = {
   status?: 'paid' | 'cancelled' | 'failed' | 'processing' | 'unknown';
   code?: string;
   checkoutUrl?: string;
-  checkoutToken?: string;
+  checkoutParams?: PayDataKrCheckoutParams;
 };
 
 type CheckoutFormProps = {
   initialAddresses: SavedShippingAddress[];
 };
 
-/** 결제사가 발급한 일회성 토큰은 반드시 POST body로 전달한다. */
-function submitPayDataKrForm(action: string, token: string, target: string) {
-  window.name = 'kpdPayForm';
+/** 공식 인증결제 필드와 결과 URL을 현재 창에서 POST한다. */
+function submitPayDataKrForm(action: string, params: PayDataKrCheckoutParams) {
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = action;
-  form.target = target;
+  form.target = '_self';
   form.acceptCharset = 'UTF-8';
-  const field = document.createElement('input');
-  field.type = 'hidden';
-  field.name = 'token';
-  field.value = token;
-  form.appendChild(field);
+  for (const [name, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    const field = document.createElement('input');
+    field.type = 'hidden';
+    field.name = name;
+    field.value = String(value);
+    form.appendChild(field);
+  }
   document.body.appendChild(form);
   form.submit();
 }
@@ -131,14 +134,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // 주문 API 응답은 비동기이므로, 사용자 클릭 직후 결제 창을 먼저 열어
-    // 브라우저의 팝업 차단을 피한다. 차단된 경우에는 현재 창으로 전환한다.
-    window.name = 'kpdPayForm';
-    const paymentWindow = window.open(
-      '',
-      'kpayd-payment',
-      'popup,width=420,height=760,resizable=yes,scrollbars=yes',
-    );
+    if (status === 'submitting') return;
     const form = new FormData(event.currentTarget);
     setStatus('submitting');
     setMessage('');
@@ -154,7 +150,6 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           isDefault: true,
         });
         if (!saved.ok) {
-          paymentWindow?.close();
           setStatus('error');
           setMessage(saved.error);
           return;
@@ -165,7 +160,6 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       if (selectedAddressId !== 'new') {
         const remembered = await setDefaultShippingAddress(selectedAddressId);
         if (!remembered.ok) {
-          paymentWindow?.close();
           setStatus('error');
           setMessage(remembered.error);
           return;
@@ -205,14 +199,12 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         setMessage(
           `${result.error ?? '주문을 처리하지 못했습니다.'}${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
         );
-        paymentWindow?.close();
         return;
       }
-      if (!result.checkoutUrl || !result.checkoutToken) {
-        paymentWindow?.close();
+      if (!result.checkoutUrl || !result.checkoutParams?.returnUrl || !result.checkoutParams.cnclreturnUrl) {
         setStatus('error');
         setMessage(
-          `결제창을 열 준비를 하지 못했습니다.${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
+          `결제 정보를 준비하지 못했습니다. 페이지를 새로고침하고 다시 시도해 주세요.${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
         );
         return;
       }
@@ -220,12 +212,9 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       setMessage('결제창을 여는 중입니다…');
       submitPayDataKrForm(
         result.checkoutUrl,
-        result.checkoutToken,
-        paymentWindow ? 'kpayd-payment' : '_self',
+        result.checkoutParams,
       );
-      paymentWindow?.focus();
     } catch (caught) {
-      paymentWindow?.close();
       setStatus('error');
       setMessage(
         `주문을 보내지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`,

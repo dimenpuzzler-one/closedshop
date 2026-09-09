@@ -34,6 +34,6 @@ PAYDATAKR_PAY_KEY
 PAYDATAKR_API_BASE_URL
 ```
 
-The web checkout loads the official PayDataKR v1.5 SDK from `https://api.paydatakr.com/js/clientside-1.1.0.js`; no checkout action URL environment variable is required. `PAYDATAKR_API_BASE_URL` defaults to `https://api.paydatakr.com`. Once the values are entered in the appropriate Vercel project environments and redeployed, the PayDataKR flow is enabled without another code change.
+The web checkout POSTs the documented authentication form fields directly to `/kpdWebPayment/KpdCredit` in the current window (`popuptype=submit`). No browser SDK, widget token, or checkout URL environment variable is required. `PAYDATAKR_API_BASE_URL` defaults to `https://api.paydatakr.com`. The result and cancellation targets are API routes that accept cross-origin form POSTs and redirect with 303; do not point them directly at Next.js pages. Once the values are entered in the appropriate Vercel project environments and redeployed, the PayDataKR flow is enabled without another code change.
 
 Never add `SUPABASE_SERVICE_ROLE_KEY` to a `NEXT_PUBLIC_*` variable or client component. Apply the Supabase migration and seed before switching either project from demo fallback to production data.

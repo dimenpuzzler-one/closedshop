@@ -1,8 +1,8 @@
 /**
  * 한국결제데이터 인증결제 연동.
  *
- * 서버가 공식 /api/widget으로 일회성 결제 토큰을 발급하고, 브라우저는 그 토큰을
- * 결제사 form에 POST한다. 결제 결과는 returnUrl과 webhookUrl로 각각 전달된다.
+ * 서버가 인증결제 필드를 만들고 브라우저가 KpdCredit에 form POST한다.
+ * 결제 결과는 returnUrl과 webhookUrl로 각각 전달된다.
  * Pay Key는 서버 API 호출에만 사용하며 브라우저로 절대 전달하지 않는다.
  */
 
@@ -19,7 +19,7 @@ export type PayDataKrPopupType = 'popup' | 'layerpopup' | 'submit';
 export interface PayDataKrConfig {
   publicKey: string;
   payKey: string;
-  /** 구형 인증결제 form 호환용. 현재 결제창은 SDK가 고정 URL을 사용한다. */
+  /** 인증결제 form URL. 생략하면 API 기준 URL의 KpdCredit을 사용한다. */
   checkoutUrl?: string;
   apiBaseUrl: string;
 }
@@ -333,7 +333,7 @@ export class PayDataKrPaymentProvider {
 
   get checkoutUrl(): string {
     return absoluteUrl(
-      this.config.checkoutUrl ?? '',
+      this.config.checkoutUrl ?? `${absoluteUrl(this.config.apiBaseUrl, '한국결제데이터 API URL')}/kpdWebPayment/KpdCredit`,
       '한국결제데이터 결제창 URL',
     );
   }

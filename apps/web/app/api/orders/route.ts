@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         logServerEvent('web.orders.create', requestId, { stage: 'start', userId: data.user.id, itemCount: input.items.length });
         // 주문만 만들고 재고를 잡는다. 결제는 한국결제데이터 인증창을 거쳐 결과 URL에서 확정된다.
         const result = await prepareOrder(input, data.user.id, requestId);
-        // 서버가 발급한 일회성 위젯 URL·토큰만 내려준다. Pay Key는 응답에 포함하지 않는다.
+        // 서버가 검증한 인증결제 form 필드만 내려준다. Pay Key는 응답에 포함하지 않는다.
         return NextResponse.json({ ...result, requestId });
       } catch (caught) {
         if (caught instanceof OrderServiceError) {

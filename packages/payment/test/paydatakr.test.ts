@@ -44,9 +44,29 @@ describe('PayDataKr checkout parameters', () => {
       goods_qty: 2,
       HalbuInfo: '00',
       selcard: '',
+      returnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
+      webhookUrl: 'https://dealkey.co.kr/api/payments/paydatakr/webhook',
+      cnclreturnUrl: 'https://dealkey.co.kr/checkout',
     });
     expect(params.payerTel).toBe('01027111942');
     expect(JSON.stringify(params)).not.toContain(config.payKey);
+  });
+
+  it('uses the authentication form endpoint without a one-time token', () => {
+    const provider = new PayDataKrPaymentProvider({ ...config, checkoutUrl: undefined });
+    expect(provider.checkoutUrl).toBe('https://api.paydatakr.com/kpdWebPayment/KpdCredit');
+    expect(new URL(provider.checkoutUrl).search).toBe('');
+  });
+
+  it.each(['returnUrl', 'webhookUrl', 'cancelReturnUrl'] as const)('rejects a missing %s before starting checkout', (field) => {
+    const input = {
+      trackId: 'CHECK123', amount: 1000, productName: '테스트', payerName: '테스트',
+      returnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
+      webhookUrl: 'https://dealkey.co.kr/api/payments/paydatakr/webhook',
+      cancelReturnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/cancel',
+      [field]: '',
+    };
+    expect(() => new PayDataKrPaymentProvider(config).buildCheckoutParams(input)).toThrow();
   });
 });
 

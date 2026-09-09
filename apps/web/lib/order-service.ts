@@ -19,7 +19,7 @@ import {
   payDataKrResultMessage,
   PAYDATAKR_SUCCESS,
   normalizePayDataKrResult,
-  type PayDataKrSdkCheckoutParams,
+  type PayDataKrCheckoutParams,
 } from '@closed-commerce/payment';
 import { logServerError, logServerEvent } from '@closed-commerce/observability';
 import { calculateTwoDepthCommissions } from '@closed-commerce/referral';
@@ -32,7 +32,6 @@ import type {
 import type { CreateOrderInput } from '@closed-commerce/validation';
 import {
   getPayDataKrProvider,
-  payDataKrPublicKey,
   payDataKrReturnUrl,
   payDataKrWebhookUrl,
 } from '@/lib/paydatakr-config';
@@ -73,7 +72,7 @@ export interface PreparedOrderResult {
   orderNumber: string;
   amount: number;
   checkoutUrl: string;
-  checkoutToken: string;
+  checkoutParams: PayDataKrCheckoutParams;
 }
 
 function fail(status: number, message: string): never {
@@ -456,41 +455,35 @@ export async function prepareOrder(
       reservedLines.push(line);
     }
 
-    const checkoutParams: PayDataKrSdkCheckoutParams = {
+    const provider = getPayDataKrProvider();
+    const checkoutParams = provider.buildCheckoutParams({
       amount: totals.paidAmount,
-      publicKey: payDataKrPublicKey(),
-      payRoute: 'regular',
-      mode: 'popup',
       trackId: orderNumber,
-      products: lines.map((line) => ({
-        name: line.optionName
-          ? `${line.productName} (${line.optionName})`
-          : line.productName,
-        price: line.unitPrice,
-        qty: line.quantity,
-        desc: line.optionName,
-      })),
-      redirectUrl: payDataKrReturnUrl(),
+      productName: `${lines[0]?.productName ?? '주문 상품'}${lines.length > 1 ? ` 외 ${lines.length - 1}건` : ''}`,
+      // 여러 상품·할인·배송비를 포함한 주문 전체를 한 건의 결제 금액으로 전달한다.
+      quantity: 1,
+      unitPrice: totals.paidAmount,
+      returnUrl: payDataKrReturnUrl(),
+      cancelReturnUrl: new URL('/api/payments/paydatakr/cancel', payDataKrReturnUrl()).toString(),
       payerName: input.address.senderName || input.address.recipientName,
       payerTel: input.address.senderPhone || input.address.phone,
       webhookUrl: payDataKrWebhookUrl(),
-    };
-
-    const widgetSession =
-      await getPayDataKrProvider().createWidgetSession(checkoutParams);
+      popupType: 'submit',
+    });
 
     logServerEvent('order.prepare', requestId, {
       stage: 'ready',
       orderId,
       orderNumber,
       amount: totals.paidAmount,
+      checkoutMethod: 'cert-form',
     });
     return {
       orderId,
       orderNumber,
       amount: totals.paidAmount,
-      checkoutUrl: widgetSession.checkoutUrl,
-      checkoutToken: widgetSession.token,
+      checkoutUrl: provider.checkoutUrl,
+      checkoutParams,
     };
   } catch (error) {
     logServerError('order.prepare', requestId, error, {
