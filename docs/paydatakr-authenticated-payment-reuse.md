@@ -106,7 +106,7 @@ https://api.paydatakr.com/kpdWebPayment/KpdCredit
 | `trackId` | `ORDER-20260909-001` | 가맹점 주문번호. 결과 매칭의 기준 |
 | `payerName` | `홍길동` | 구매자명 |
 | `goods_name` | `테스트 상품` | 대표 상품명 |
-| `HalbuInfo` | `00` | `00`은 일시불, `02`~`12`는 해당 개월 할부. 할부 사용 여부는 결제사 가맹점 설정도 필요 |
+| `HalbuInfo` | `00` | `00`은 일시불, `02`~`12`는 해당 개월 할부 |
 | `selcard` | 빈 문자열 | 카드 미리 선택 시 카드 코드, 일반적으로 빈 값 |
 | `webhookUrl` | `https://.../webhook` | JSON 결과 통지 API |
 | `returnUrl` | `https://.../return` | 브라우저 결과 form POST API |
