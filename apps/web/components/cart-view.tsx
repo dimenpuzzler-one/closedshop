@@ -9,8 +9,12 @@ const DEFAULT_PRODUCT_IMAGE = '/brand/dealkey-mark-256.png';
 
 function productImageUrl(imageUrl?: string): string {
   if (!imageUrl) return DEFAULT_PRODUCT_IMAGE;
-  if (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/')) return imageUrl;
+  if (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/brand/')) return imageUrl;
   return DEFAULT_PRODUCT_IMAGE;
+}
+
+function hasProductImage(imageUrl?: string): boolean {
+  return Boolean(imageUrl && (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/brand/')));
 }
 
 export function CartView() {
@@ -67,7 +71,7 @@ export function CartView() {
               aria-label={`${line.productName} 상품 상세 보기`}
             >
               <Image
-                className={`cart-line-image-img${line.imageUrl ? '' : ' placeholder'}`}
+                className={`cart-line-image-img${hasProductImage(line.imageUrl) ? '' : ' placeholder'}`}
                 src={productImageUrl(line.imageUrl)}
                 alt={`${line.productName} 대표 이미지`}
                 fill

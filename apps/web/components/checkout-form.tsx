@@ -42,8 +42,12 @@ const PAYMENT_WINDOW_FEATURES = 'popup=yes,width=480,height=800,resizable=yes,sc
 
 function productImageUrl(imageUrl?: string): string {
   if (!imageUrl) return DEFAULT_PRODUCT_IMAGE;
-  if (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/')) return imageUrl;
+  if (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/brand/')) return imageUrl;
   return DEFAULT_PRODUCT_IMAGE;
+}
+
+function hasProductImage(imageUrl?: string): boolean {
+  return Boolean(imageUrl && (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/brand/')));
 }
 
 /** 공식 인증결제 필드를 새 결제창 또는 팝업 차단 시 현재 창에 POST한다. */
@@ -526,7 +530,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
                 aria-label={`${line.productName} 상품 상세 보기`}
               >
                 <Image
-                  className={line.imageUrl ? '' : 'placeholder'}
+                  className={hasProductImage(line.imageUrl) ? '' : 'placeholder'}
                   src={productImageUrl(line.imageUrl)}
                   alt={`${line.productName} 대표 이미지`}
                   fill
