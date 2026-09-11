@@ -252,18 +252,16 @@ function postPayDataKrForm(
 
 ```ts
 window.name = 'dealkeyPaymentParent';
-const paymentWindow = window.open('', 'dealkeyPaymentWindow', 'popup=yes,width=480,height=800');
-postPayDataKrForm(
-  result.checkoutUrl,
-  result.checkoutParams,
-  paymentWindow ? 'dealkeyPaymentWindow' : '_self',
-);
+const paymentWindow = window.open('about:blank', 'dealkeyPaymentWindow', 'popup=yes,width=480,height=800');
+// 결제 팝업 안에서 HalbuInfo를 선택한 뒤 같은 창에서 KpdCredit으로 POST한다.
+renderPaymentSelectionWindow(paymentWindow, result.checkoutUrl, result.checkoutParams);
 ```
 
 팝업이 브라우저 정책으로 차단되면 현재 창에서 결제창을 열어 결제 중단을 피한다. `HalbuInfo=00`은
 일시불 요청이고, 공식 매뉴얼의 `02`~`12`는 해당 개월 할부 요청이다. 이 구현은 결제 예정 금액이
-5만원 이상일 때 주문서에서 개월을 선택하고, 그 값을 서버가 검증해 전달한다. 5만원 미만이면 서버가
-`00`으로 강제한다. 매뉴얼에는 별도 승인 절차가 기재되어 있지 않다.
+5만원 이상일 때 결제 팝업에서 개월을 선택하고, 그 값을 KpdCredit form에 넣어 전달한다. 주문서
+앞단에는 할부 선택을 두지 않는다. 5만원 미만이면 서버가 `00`으로 강제한다. 매뉴얼에는 별도
+승인 절차가 기재되어 있지 않다.
 
 ## 7. 주문 생성 순서
 
