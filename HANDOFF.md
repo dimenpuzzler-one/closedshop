@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-11 (Asia/Seoul)** — 장바구니 대표 이미지·삭제 동작과 PayDataKR 팝업 결제 흐름 반영
+> 마지막 갱신: **2026-09-11 (Asia/Seoul)** — 장바구니 대표 이미지·삭제 동작과 결제 팝업 내 할부 선택 반영
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -132,7 +132,9 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
     고객: 결제하기
       → POST /api/orders          주문 생성 + 재고 예약(status=payment_pending), 인증결제 필드 반환
-      → PayDataKR /kpdWebPayment/KpdCredit     별도 결제창으로 form POST(popuptype=popup, 팝업 차단 시 현재 창)
+      → 결제 팝업에서 할부 개월 선택(5만원 이상)
+      → PayDataKR /kpdWebPayment/KpdCredit     같은 창으로 form POST(popuptype=submit)
+         (팝업 차단 시 현재 창으로 직접 전환)
       → 카드 인증
       → 한국결제데이터가 webhookUrl에 JSON POST
            결과코드·주문번호·금액·거래번호 검증 → payments row 선점 → 주문 확정 → result=0000 응답
@@ -147,7 +149,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 - `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizePayDataKrOrder()`; 미인증 실패 통보는 DB 취소를 하지 않으며 미완료 주문은 만료 작업으로 정리
 - `apps/web/app/api/payments/paydatakr/return/route.ts` — 브라우저 리턴 수신
 - `apps/web/app/api/payments/paydatakr/webhook/route.ts` — JSON 웹훅 수신
-- `apps/web/components/checkout-form.tsx` — 팝업을 우선 사용하고 차단 시 현재 창으로 전환하는 인증결제 form POST
+- `apps/web/components/checkout-form.tsx` — 결제 팝업 내 할부 선택 후 인증결제 form POST, 차단 시 현재 창으로 전환
 - `apps/web/app/api/payments/paydatakr/cancel/route.ts` — 취소 GET/POST를 303으로 결과 페이지에 연결
 
 ### 규칙
