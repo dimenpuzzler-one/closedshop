@@ -6,6 +6,7 @@ import {
   normalizePayDataKrResult,
   payDataKrAmount,
   payDataKrHalbuInfo,
+  payDataKrHalbuInfoForAmount,
   payDataKrResultCode,
 } from '../src/paydatakr';
 
@@ -84,7 +85,7 @@ describe('PayDataKr checkout parameters', () => {
     expect(
       new PayDataKrPaymentProvider({ ...config, halbuInfo: '03' }).buildCheckoutParams({
         trackId: 'CHECK-INSTALLMENT-1',
-        amount: 1000,
+        amount: 50000,
         productName: '테스트 상품',
         payerName: '테스트 구매자',
         returnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
@@ -94,6 +95,23 @@ describe('PayDataKr checkout parameters', () => {
     ).toBe('03');
     expect(() => payDataKrHalbuInfo('01')).toThrow();
     expect(() => payDataKrHalbuInfo('13')).toThrow();
+  });
+
+  it('forces one-time payment below the installment threshold', () => {
+    expect(payDataKrHalbuInfoForAmount(49999, '03')).toBe('00');
+    expect(payDataKrHalbuInfoForAmount(50000, '03')).toBe('03');
+    expect(
+      new PayDataKrPaymentProvider(config).buildCheckoutParams({
+        trackId: 'CHECK-INSTALLMENT-THRESHOLD',
+        amount: 49999,
+        productName: '테스트 상품',
+        payerName: '테스트 구매자',
+        returnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
+        webhookUrl: 'https://dealkey.co.kr/api/payments/paydatakr/webhook',
+        cancelReturnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/cancel',
+        halbuInfo: '03',
+      }).HalbuInfo,
+    ).toBe('00');
   });
 
   it.each(['returnUrl', 'webhookUrl', 'cancelReturnUrl'] as const)('rejects a missing %s before starting checkout', (field) => {

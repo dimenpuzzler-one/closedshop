@@ -471,6 +471,8 @@ export async function prepareOrder(
       // 인증결제는 별도 창에서 진행한다. 브라우저가 팝업을 차단한 경우
       // checkout-form이 같은 창으로 다시 제출해 결제를 계속할 수 있다.
       popupType: 'popup',
+      // 결제 provider가 5만원 미만 주문은 일시불로 강제 보정한다.
+      halbuInfo: input.halbuInfo,
     });
 
     logServerEvent('order.prepare', requestId, {

@@ -7,6 +7,8 @@
  */
 
 export const PAYDATAKR_SUCCESS = '0000';
+/** 카드 할부 선택을 노출할 수 있는 최소 결제금액(원). */
+export const PAYDATAKR_INSTALLMENT_MIN_AMOUNT = 50_000;
 export const PAYDATAKR_CANCELLED_CODES = new Set([
   '1001',
   '1002',
@@ -329,6 +331,15 @@ export function payDataKrHalbuInfo(value?: string): string {
   );
 }
 
+/** 결제금액이 기준 미만이면 결제사에 일시불만 요청한다. */
+export function payDataKrHalbuInfoForAmount(
+  amount: number,
+  value?: string,
+): string {
+  if (amount < PAYDATAKR_INSTALLMENT_MIN_AMOUNT) return '00';
+  return payDataKrHalbuInfo(value);
+}
+
 function absoluteUrl(value: string, label: string): string {
   try {
     const url = new URL(value);
@@ -366,6 +377,8 @@ export class PayDataKrPaymentProvider {
     webhookUrl: string;
     cancelReturnUrl: string;
     popupType?: PayDataKrPopupType;
+    /** 5만원 이상 주문에서 고객이 선택한 할부개월. */
+    halbuInfo?: string;
   }): PayDataKrCheckoutParams {
     const amount = input.amount;
     if (!Number.isSafeInteger(amount) || amount <= 0)
@@ -399,7 +412,10 @@ export class PayDataKrPaymentProvider {
       goods_qty:
         input.quantity === undefined ? undefined : Math.trunc(input.quantity),
       goods_desc: text(input.productDescription, 100) || undefined,
-      HalbuInfo: payDataKrHalbuInfo(this.config.halbuInfo),
+      HalbuInfo: payDataKrHalbuInfoForAmount(
+        amount,
+        input.halbuInfo ?? this.config.halbuInfo,
+      ),
       selcard: '',
       webhookUrl: absoluteUrl(input.webhookUrl, 'webhookUrl'),
       returnUrl: absoluteUrl(input.returnUrl, 'returnUrl'),

@@ -68,6 +68,23 @@ export const orderCreateSchema = z.object({
   items: z.array(cartItemSchema).min(1).max(100),
   referralCode: z.string().trim().max(32).optional(),
   promotionCode: z.string().trim().max(32).optional(),
+  /** 인증결제 할부개월. 금액 기준과 최종 적용 여부는 서버가 다시 검증한다. */
+  halbuInfo: z
+    .enum([
+      '00',
+      '02',
+      '03',
+      '04',
+      '05',
+      '06',
+      '07',
+      '08',
+      '09',
+      '10',
+      '11',
+      '12',
+    ])
+    .optional(),
   address: addressSchema,
 });
 

@@ -6,7 +6,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { APP_NAME_KO } from '@closed-commerce/config';
 import { Price } from '@closed-commerce/ui';
-import type { PayDataKrCheckoutParams } from '@closed-commerce/payment';
+import {
+  PAYDATAKR_INSTALLMENT_MIN_AMOUNT,
+  type PayDataKrCheckoutParams,
+} from '@closed-commerce/payment';
 import {
   saveShippingAddress,
   setDefaultShippingAddress,
@@ -134,8 +137,13 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
   );
   const [saveToBook, setSaveToBook] = useState(false);
   const [saveLabel, setSaveLabel] = useState('우리집');
+  const [paymentInstallment, setPaymentInstallment] = useState('00');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const installmentEnabled = Boolean(
+    quote &&
+      quote.totals.paidAmount >= PAYDATAKR_INSTALLMENT_MIN_AMOUNT,
+  );
 
   function chooseSavedAddress(address: SavedShippingAddress) {
     setSelectedAddressId(address.id);
@@ -208,6 +216,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       // 가입 시 고정된 referral_relationships에서 직접 결정한다.
       const body = {
         promotionCode: text(form, 'promotionCode') || undefined,
+        halbuInfo: installmentEnabled ? paymentInstallment : '00',
         items: (quote?.lines ?? []).map((line) => ({
           productId: line.productId,
           optionId: line.optionId,
@@ -466,6 +475,26 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
                 name="promotionCode"
                 placeholder="선택 입력"
               />
+            </label>
+            <label className="field">
+              <span className="field-label">카드 할부</span>
+              <select
+                className="select"
+                value={installmentEnabled ? paymentInstallment : '00'}
+                onChange={(event) => setPaymentInstallment(event.currentTarget.value)}
+                disabled={!installmentEnabled}
+              >
+                <option value="00">일시불</option>
+                {Array.from({ length: 11 }, (_, index) => index + 2).map((months) => {
+                  const value = String(months).padStart(2, '0');
+                  return <option value={value} key={value}>{months}개월</option>;
+                })}
+              </select>
+              <span className="field-hint">
+                {installmentEnabled
+                  ? `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상 주문에서 선택할 수 있습니다.`
+                  : `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상부터 선택할 수 있습니다.`}
+              </span>
             </label>
             <AddressSearchFields
               value={addressFields}
