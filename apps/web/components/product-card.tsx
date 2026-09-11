@@ -3,6 +3,8 @@ import Image from 'next/image';
 import type { Product } from '@closed-commerce/types';
 import { ProductPrice } from '@/components/product-price';
 
+const DEFAULT_PRODUCT_IMAGE = '/brand/dealkey-mark-256.png';
+
 /*
  * 목록·홈의 상품 카드에는 "담기"를 두지 않는다.
  *
@@ -14,12 +16,13 @@ import { ProductPrice } from '@/components/product-price';
 export function ProductCard({ product, referralCode, showPrice = true, compact = false }: { product: Product; referralCode?: string; showPrice?: boolean; compact?: boolean }) {
   // 추천 코드는 링크에 붙이지 않아도 된다. 귀속은 가입 시 고정되고 서버가 세션에서 읽는다.
   const href = referralCode ? `/products/${product.slug}?ref=${encodeURIComponent(referralCode)}` : `/products/${product.slug}`;
-  // 데모 카탈로그의 예시 경로는 실제 파일을 포함하지 않을 수 있다. 깨진 이미지 요청 대신
-  // 카드의 브랜드 배경을 폴백으로 보여주고, 운영 Storage URL은 그대로 사용한다.
-  const imageUrl = /^https?:\/\//.test(product.imageUrl) || product.imageUrl.startsWith('/brand/') ? product.imageUrl : '';
+  // 데모 카탈로그의 예시 경로가 없거나 이미지가 아직 등록되지 않은 상품도
+  // 동일한 대표 이미지 자리에서 확인할 수 있게 브랜드 마크를 기본 이미지로 사용한다.
+  const hasProductImage = /^https?:\/\//.test(product.imageUrl) || product.imageUrl.startsWith('/brand/');
+  const imageUrl = hasProductImage ? product.imageUrl : DEFAULT_PRODUCT_IMAGE;
   return <article className={`card product-card${compact ? ' product-card-compact' : ''}`}>
     <Link href={href} className="product-visual" aria-label={`${product.name} 상세 보기`}>
-      {imageUrl ? <Image className="product-image" src={imageUrl} alt={product.name} fill sizes="(max-width: 850px) 50vw, 25vw" /> : null}
+      <Image className={`product-image${hasProductImage ? '' : ' placeholder'}`} src={imageUrl} alt={`${product.name} 대표 이미지`} fill sizes="(max-width: 850px) 50vw, 25vw" />
     </Link>
     <div className="product-body">
       <Link href={href} className="product-copy" title={product.name}>

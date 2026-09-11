@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { APP_NAME_KO } from '@closed-commerce/config';
 import { Price } from '@closed-commerce/ui';
 import type { PayDataKrCheckoutParams } from '@closed-commerce/payment';
@@ -34,12 +35,27 @@ type CheckoutFormProps = {
   initialAddresses: SavedShippingAddress[];
 };
 
-/** 공식 인증결제 필드와 결과 URL을 현재 창에서 POST한다. */
-function submitPayDataKrForm(action: string, params: PayDataKrCheckoutParams) {
+const DEFAULT_PRODUCT_IMAGE = '/brand/dealkey-mark-256.png';
+const PAYMENT_PARENT_WINDOW_NAME = 'dealkeyPaymentParent';
+const PAYMENT_WINDOW_NAME = 'dealkeyPaymentWindow';
+const PAYMENT_WINDOW_FEATURES = 'popup=yes,width=480,height=800,resizable=yes,scrollbars=yes';
+
+function productImageUrl(imageUrl?: string): string {
+  if (!imageUrl) return DEFAULT_PRODUCT_IMAGE;
+  if (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/')) return imageUrl;
+  return DEFAULT_PRODUCT_IMAGE;
+}
+
+/** 공식 인증결제 필드를 새 결제창 또는 팝업 차단 시 현재 창에 POST한다. */
+function submitPayDataKrForm(
+  action: string,
+  params: PayDataKrCheckoutParams,
+  target: string,
+) {
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = action;
-  form.target = '_self';
+  form.target = target;
   form.acceptCharset = 'UTF-8';
   for (const [name, value] of Object.entries(params)) {
     if (value === undefined) continue;
@@ -51,6 +67,20 @@ function submitPayDataKrForm(action: string, params: PayDataKrCheckoutParams) {
   }
   document.body.appendChild(form);
   form.submit();
+}
+
+function openPaymentWindow(): Window | null {
+  try {
+    // PayDataKR가 returnUrl을 부모창으로 보낼 때 사용할 이름을 먼저 맞춘다.
+    window.name = PAYMENT_PARENT_WINDOW_NAME;
+    return window.open('', PAYMENT_WINDOW_NAME, PAYMENT_WINDOW_FEATURES);
+  } catch {
+    return null;
+  }
+}
+
+function closePaymentWindow(paymentWindow: Window | null) {
+  if (paymentWindow && !paymentWindow.closed) paymentWindow.close();
 }
 
 function text(form: FormData, key: string): string {
@@ -136,6 +166,8 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
     event.preventDefault();
     if (status === 'submitting') return;
     const form = new FormData(event.currentTarget);
+    // 팝업 허용 여부는 사용자 클릭 직후에만 안정적으로 확인할 수 있다.
+    const paymentWindow = openPaymentWindow();
     setStatus('submitting');
     setMessage('');
 
@@ -150,6 +182,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           isDefault: true,
         });
         if (!saved.ok) {
+          closePaymentWindow(paymentWindow);
           setStatus('error');
           setMessage(saved.error);
           return;
@@ -160,6 +193,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       if (selectedAddressId !== 'new') {
         const remembered = await setDefaultShippingAddress(selectedAddressId);
         if (!remembered.ok) {
+          closePaymentWindow(paymentWindow);
           setStatus('error');
           setMessage(remembered.error);
           return;
@@ -195,6 +229,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       const result = await readResponse(response);
 
       if (!response.ok) {
+        closePaymentWindow(paymentWindow);
         setStatus('error');
         setMessage(
           `${result.error ?? '주문을 처리하지 못했습니다.'}${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
@@ -202,6 +237,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         return;
       }
       if (!result.checkoutUrl || !result.checkoutParams?.returnUrl || !result.checkoutParams.cnclreturnUrl) {
+        closePaymentWindow(paymentWindow);
         setStatus('error');
         setMessage(
           `결제 정보를 준비하지 못했습니다. 페이지를 새로고침하고 다시 시도해 주세요.${result.requestId ? ` (오류번호 ${result.requestId})` : ''}`,
@@ -209,12 +245,21 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
         return;
       }
 
-      setMessage('결제창을 여는 중입니다…');
+      const paymentTarget = paymentWindow && !paymentWindow.closed
+        ? PAYMENT_WINDOW_NAME
+        : '_self';
+      setMessage(
+        paymentTarget === PAYMENT_WINDOW_NAME
+          ? '새 결제창을 여는 중입니다…'
+          : '브라우저가 팝업을 차단해 현재 창에서 결제창을 엽니다…',
+      );
       submitPayDataKrForm(
         result.checkoutUrl,
         result.checkoutParams,
+        paymentTarget,
       );
     } catch (caught) {
+      closePaymentWindow(paymentWindow);
       setStatus('error');
       setMessage(
         `주문을 보내지 못했습니다: ${caught instanceof Error ? caught.message : String(caught)}`,
@@ -472,11 +517,24 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           <h3>주문 상품</h3>
           {quote.lines.map((line) => (
             <div
-              className="row"
+              className="checkout-order-line"
               key={`${line.productId}-${line.optionId ?? 'default'}`}
             >
-              <span>
-                {line.productName} × {line.quantity}
+              <Link
+                className="checkout-order-line-image"
+                href={`/products/${line.slug}`}
+                aria-label={`${line.productName} 상품 상세 보기`}
+              >
+                <Image
+                  className={line.imageUrl ? '' : 'placeholder'}
+                  src={productImageUrl(line.imageUrl)}
+                  alt={`${line.productName} 대표 이미지`}
+                  fill
+                  sizes="58px"
+                />
+              </Link>
+              <span className="checkout-order-line-copy">
+                <span>{line.productName} × {line.quantity}</span>
                 <small className="muted" style={{ display: 'block' }}>
                   {line.shippingFee === 0
                     ? '무료배송'

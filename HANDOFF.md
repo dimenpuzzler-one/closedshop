@@ -1,6 +1,6 @@
 # Dealkey(딜키) 핸드오프 문서
 
-> 마지막 갱신: **2026-09-09 (Asia/Seoul)** — PayDataKR 테스트 결제 승인·주문 확정 검증 및 홈 카테고리·메뉴 진열 개선 완료
+> 마지막 갱신: **2026-09-11 (Asia/Seoul)** — 장바구니 대표 이미지·삭제 동작과 PayDataKR 팝업 결제 흐름 반영
 > 저장소: https://github.com/dimenpuzzler-one/closedshop
 > 이전 판(2026-08-21)은 결제 이전 상태 기준이라 상당 부분이 더 이상 맞지 않습니다. 이 문서가 최신입니다.
 
@@ -20,6 +20,9 @@
 - 기존 결제 이력은 삭제하거나 재매핑하지 않고, 신규 결제부터 `paydatakr`로 기록합니다.
 - 대표님 요청에 따라 고객 홈은 운영 설정에 등록된 카테고리만 카테고리별 상품 섹션으로 노출하고, 관리자는 카테고리별 드롭다운 또는 드래그로 상품을 재정렬할 수 있습니다.
 - 고객몰 상단 메뉴는 카테고리 링크를 제거하고 `상품 둘러보기`와 `기업·단체 견적`만 노출합니다.
+- 장바구니와 주문서에는 상품 대표 이미지가 표시되고, 이미지가 없으면 `/brand/dealkey-mark-256.png`를 기본 이미지로 사용합니다. 수량 변경·삭제와 `상품 더 담기`가 제공됩니다.
+- 결제 버튼은 `popuptype=popup`으로 이름 있는 결제창에 전송하며, 브라우저 팝업 차단 시 현재 창으로 자동 전환합니다.
+- 현재 `HalbuInfo=00`이라 일시불만 요청합니다. 할부는 한국결제데이터 가맹점 설정 승인이 먼저 필요하고, 승인 후 문서 기준 `02`~`12`개월 정책을 확인해 파라미터를 바꿔야 합니다.
 
 따라서 이제부터 주문/결제/재고 코드를 건드릴 때는 **운영 데이터가 이미 있다**는 전제로 작업해야 합니다.
 `orders`, `payments`, `commissions`에 실제 거래 기록이 있습니다. 주문 row를 지우면 매출·정산이 어긋납니다.
@@ -128,7 +131,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 
     고객: 결제하기
       → POST /api/orders          주문 생성 + 재고 예약(status=payment_pending), 인증결제 필드 반환
-      → PayDataKR /kpdWebPayment/KpdCredit     현재 창에서 form POST(popuptype=submit)
+      → PayDataKR /kpdWebPayment/KpdCredit     별도 결제창으로 form POST(popuptype=popup, 팝업 차단 시 현재 창)
       → 카드 인증
       → 한국결제데이터가 webhookUrl에 JSON POST
            결과코드·주문번호·금액·거래번호 검증 → payments row 선점 → 주문 확정 → result=0000 응답
@@ -143,7 +146,7 @@ Vercel 목록의 최신 Production 커밋을 보고, 실제로 내려오는 JS�
 - `apps/web/lib/order-service.ts` — `prepareOrder()` / `finalizePayDataKrOrder()`; 미인증 실패 통보는 DB 취소를 하지 않으며 미완료 주문은 만료 작업으로 정리
 - `apps/web/app/api/payments/paydatakr/return/route.ts` — 브라우저 리턴 수신
 - `apps/web/app/api/payments/paydatakr/webhook/route.ts` — JSON 웹훅 수신
-- `apps/web/components/checkout-form.tsx` — 현재 창에서 인증결제 form POST
+- `apps/web/components/checkout-form.tsx` — 팝업을 우선 사용하고 차단 시 현재 창으로 전환하는 인증결제 form POST
 - `apps/web/app/api/payments/paydatakr/cancel/route.ts` — 취소 GET/POST를 303으로 결과 페이지에 연결
 
 ### 규칙

@@ -12,7 +12,7 @@
 | PG 기본 URL | `https://api.paydatakr.com` |
 | 결제창 endpoint | `POST /kpdWebPayment/KpdCredit` |
 | 전송 방식 | 브라우저 HTML form POST |
-| 권장 화면 방식 | `popuptype=submit` — 현재 창에서 진행 |
+| 화면 방식 | `popuptype=popup` — 별도 결제창에서 진행, 팝업 차단 시 현재 창으로 fallback |
 | 결제 결과 | `returnUrl` form POST + `webhookUrl` JSON POST |
 | 취소 결과 | `cnclreturnUrl` API route로 GET/POST 수신 후 303 redirect |
 | 서버 인증 | 조회·환불 API에 `Authorization: {PAYDATAKR_PAY_KEY}` |
@@ -94,7 +94,7 @@ https://api.paydatakr.com/kpdWebPayment/KpdCredit
 | --- | --- | --- |
 | `publicKey` | `pk_xxx` | 한국결제데이터가 발급한 공개키 |
 | `certflag` | `cardcert` | 카드 인증결제 고정값 |
-| `popuptype` | `submit` | `popup`, `layerpopup`, `submit` 중 선택. 현재 창 방식은 `submit` |
+| `popuptype` | `popup` | `popup`, `layerpopup`, `submit` 중 선택. 모바일에서 `layerpopup`은 사용하지 않음 |
 | `paysvctype` | `0000` | 일반결제 고정값 |
 | `paymethod` | `card` | 신용카드 고정값 |
 | `parentTargetNm` | `paymentParent` | 결제 결과 창의 부모 target 이름. 문서상 필수 |
@@ -103,7 +103,7 @@ https://api.paydatakr.com/kpdWebPayment/KpdCredit
 | `trackId` | `ORDER-20260909-001` | 가맹점 주문번호. 결과 매칭의 기준 |
 | `payerName` | `홍길동` | 구매자명 |
 | `goods_name` | `테스트 상품` | 대표 상품명 |
-| `HalbuInfo` | `00` | 일시불 고정값 |
+| `HalbuInfo` | `00` | `00`은 일시불, `02`~`12`는 해당 개월 할부. 할부 사용 여부는 결제사 가맹점 설정도 필요 |
 | `selcard` | 빈 문자열 | 카드 미리 선택 시 카드 코드, 일반적으로 빈 값 |
 | `webhookUrl` | `https://.../webhook` | JSON 결과 통지 API |
 | `returnUrl` | `https://.../return` | 브라우저 결과 form POST API |
@@ -171,7 +171,7 @@ function buildPayDataKrForm(input: {
   return {
     publicKey: input.publicKey,
     certflag: 'cardcert',
-    popuptype: 'submit',
+    popuptype: 'popup',
     paysvctype: '0000',
     paymethod: 'card',
     parentTargetNm: 'paymentParent',
@@ -222,11 +222,12 @@ PG 결제창은 `fetch`나 XHR 대신 form POST로 연다. cross-origin form POS
 function postPayDataKrForm(
   action: string,
   params: Record<string, string | number | undefined>,
+  target: string,
 ) {
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = action;
-  form.target = '_self';
+  form.target = target;
   form.acceptCharset = 'UTF-8';
 
   for (const [name, value] of Object.entries(params)) {
@@ -243,13 +244,23 @@ function postPayDataKrForm(
 }
 ```
 
-주문 API가 성공한 뒤 다음처럼 호출한다.
+주문 API가 성공한 뒤, 사용자 클릭 직후 확보한 팝업을 대상으로 다음처럼 호출한다. 부모창 이름은
+`parentTargetNm`과 맞춰야 하며, 팝업이 차단된 경우에는 `target='_self'`로 다시 제출한다.
 
 ```ts
-postPayDataKrForm(result.checkoutUrl, result.checkoutParams);
+window.name = 'dealkeyPaymentParent';
+const paymentWindow = window.open('', 'dealkeyPaymentWindow', 'popup=yes,width=480,height=800');
+postPayDataKrForm(
+  result.checkoutUrl,
+  result.checkoutParams,
+  paymentWindow ? 'dealkeyPaymentWindow' : '_self',
+);
 ```
 
-결제 결과를 부모창으로 돌려보내야 하는 별도 popup 설계를 사용할 때는 `window.name`과 `parentTargetNm`을 정확히 맞춰야 한다. 구현 복잡도와 팝업 차단 문제를 줄이려면 현재 방식처럼 `popuptype=submit`과 `target=_self`를 권장한다.
+팝업이 브라우저 정책으로 차단되면 현재 창에서 결제창을 열어 결제 중단을 피한다. `HalbuInfo=00`은
+일시불 요청이므로, 할부를 노출하려면 한국결제데이터에 가맹점의 카드 할부 사용을 먼저 신청하고,
+승인된 개월 수(문서 기준 `02`~`12`)를 전달하는 운영 정책을 확인해야 한다. `02`~`12`가 고객 선택 목록인지
+특정 개월 고정인지도 결제사에 확인한 뒤 값을 바꾼다.
 
 ## 7. 주문 생성 순서
 
@@ -478,7 +489,8 @@ Supabase와 PayDataKR 환경변수가 없는 로컬 데모 모드는 실제 주�
 
 - [ ] `KpdCredit`에 HTML form POST하는지 확인
 - [ ] `form.acceptCharset = 'UTF-8'` 설정
-- [ ] `popuptype=submit`, `form.target='_self'` 조합 확인
+- [ ] `window.name`과 `parentTargetNm`을 동일하게 설정
+- [ ] `popuptype=popup`, 팝업 차단 시 `form.target='_self'` fallback 확인
 - [ ] PG callback URL을 페이지에 직접 지정하지 않고 API route로 지정
 - [ ] 결제 버튼 중복 클릭 방지
 - [ ] 카드정보·비밀번호·Pay Key를 쇼핑몰 서버가 수집하지 않는지 확인

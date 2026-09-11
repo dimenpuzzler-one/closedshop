@@ -58,6 +58,25 @@ describe('PayDataKr checkout parameters', () => {
     expect(new URL(provider.checkoutUrl).search).toBe('');
   });
 
+  it('supports the documented popup payment mode', () => {
+    const params = new PayDataKrPaymentProvider(config).buildCheckoutParams({
+      trackId: 'CHECK-POPUP-1',
+      amount: 1000,
+      productName: '테스트 상품',
+      payerName: '테스트 구매자',
+      returnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
+      webhookUrl: 'https://dealkey.co.kr/api/payments/paydatakr/webhook',
+      cancelReturnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/cancel',
+      popupType: 'popup',
+    });
+
+    expect(params).toMatchObject({
+      popuptype: 'popup',
+      parentTargetNm: 'dealkeyPaymentParent',
+      HalbuInfo: '00',
+    });
+  });
+
   it.each(['returnUrl', 'webhookUrl', 'cancelReturnUrl'] as const)('rejects a missing %s before starting checkout', (field) => {
     const input = {
       trackId: 'CHECK123', amount: 1000, productName: '테스트', payerName: '테스트',

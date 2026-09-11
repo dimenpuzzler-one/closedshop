@@ -1,8 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Price } from '@closed-commerce/ui';
 import { useCartQuote } from './use-cart-quote';
+
+const DEFAULT_PRODUCT_IMAGE = '/brand/dealkey-mark-256.png';
+
+function productImageUrl(imageUrl?: string): string {
+  if (!imageUrl) return DEFAULT_PRODUCT_IMAGE;
+  if (/^https?:\/\//.test(imageUrl) || imageUrl.startsWith('/')) return imageUrl;
+  return DEFAULT_PRODUCT_IMAGE;
+}
 
 export function CartView() {
   const { quote, state, error, update, remove } = useCartQuote();
@@ -51,39 +60,54 @@ export function CartView() {
           </div>
         ) : null}
         {quote.lines.map((line) => (
-          <div className="card row" key={`${line.productId}-${line.optionId ?? 'default'}`}>
-            <div>
-              <h3>{line.productName}</h3>
-              <p className="muted">{line.optionName}</p>
-              <Price amount={line.unitPrice} />
-              <p className="muted" style={{ fontSize: '0.82rem', margin: '0.35rem 0 0' }}>
-                배송: {line.shippingFee === 0
-                  ? '무료배송'
-                  : `${line.shippingBundleQuantity ?? quote.shippingPolicy.cartonQuantity}개까지 ${line.shippingFee.toLocaleString('ko-KR')}원 · 초과 시 묶음 단위 추가`}
-              </p>
-              {line.availableStock !== undefined && line.availableStock <= 5 ? (
-                <p className="muted">재고 {line.availableStock}개</p>
-              ) : null}
-            </div>
-            <div className="row">
-              <button className="button button-ghost" onClick={() => update(line.productId, line.optionId, line.quantity - 1)} type="button" aria-label="수량 줄이기">−</button>
-              <strong>{line.quantity}</strong>
-              <button
-                className="button button-ghost"
-                onClick={() =>
-                  update(
-                    line.productId,
-                    line.optionId,
-                    line.availableStock === undefined ? line.quantity + 1 : Math.min(line.quantity + 1, Math.max(line.availableStock, 1)),
-                  )
-                }
-                type="button"
-                aria-label="수량 늘리기"
-                disabled={line.availableStock !== undefined && line.quantity >= line.availableStock}
-              >
-                ＋
-              </button>
-              <button className="button button-ghost" onClick={() => remove(line.productId, line.optionId)} type="button">삭제</button>
+          <div className="card cart-line" key={`${line.productId}-${line.optionId ?? 'default'}`}>
+            <Link
+              className="cart-line-image"
+              href={`/products/${line.slug}`}
+              aria-label={`${line.productName} 상품 상세 보기`}
+            >
+              <Image
+                className={`cart-line-image-img${line.imageUrl ? '' : ' placeholder'}`}
+                src={productImageUrl(line.imageUrl)}
+                alt={`${line.productName} 대표 이미지`}
+                fill
+                sizes="96px"
+              />
+            </Link>
+            <div className="cart-line-content">
+              <div>
+                <h3>{line.productName}</h3>
+                <p className="muted">{line.optionName}</p>
+                <Price amount={line.unitPrice} />
+                <p className="muted" style={{ fontSize: '0.82rem', margin: '0.35rem 0 0' }}>
+                  배송: {line.shippingFee === 0
+                    ? '무료배송'
+                    : `${line.shippingBundleQuantity ?? quote.shippingPolicy.cartonQuantity}개까지 ${line.shippingFee.toLocaleString('ko-KR')}원 · 초과 시 묶음 단위 추가`}
+                </p>
+                {line.availableStock !== undefined && line.availableStock <= 5 ? (
+                  <p className="muted">재고 {line.availableStock}개</p>
+                ) : null}
+              </div>
+              <div className="row cart-line-actions">
+                <button className="button button-ghost" onClick={() => update(line.productId, line.optionId, line.quantity - 1)} type="button" aria-label="수량 줄이기">−</button>
+                <strong>{line.quantity}</strong>
+                <button
+                  className="button button-ghost"
+                  onClick={() =>
+                    update(
+                      line.productId,
+                      line.optionId,
+                      line.availableStock === undefined ? line.quantity + 1 : Math.min(line.quantity + 1, Math.max(line.availableStock, 1)),
+                    )
+                  }
+                  type="button"
+                  aria-label="수량 늘리기"
+                  disabled={line.availableStock !== undefined && line.quantity >= line.availableStock}
+                >
+                  ＋
+                </button>
+                <button className="button button-ghost" onClick={() => remove(line.productId, line.optionId)} type="button">삭제</button>
+              </div>
             </div>
           </div>
         ))}
@@ -97,6 +121,7 @@ export function CartView() {
         </p>
         <hr className="divider" />
         <div className="row total-line"><strong>결제 예정</strong><strong><Price amount={quote.totals.paidAmount} /></strong></div>
+        <Link className="button button-secondary" href="/products">상품 더 담기</Link>
         <Link className="button button-primary" href="/checkout">주문서 작성</Link>
       </aside>
     </div>

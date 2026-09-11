@@ -468,7 +468,9 @@ export async function prepareOrder(
       payerName: input.address.senderName || input.address.recipientName,
       payerTel: input.address.senderPhone || input.address.phone,
       webhookUrl: payDataKrWebhookUrl(),
-      popupType: 'submit',
+      // 인증결제는 별도 창에서 진행한다. 브라우저가 팝업을 차단한 경우
+      // checkout-form이 같은 창으로 다시 제출해 결제를 계속할 수 있다.
+      popupType: 'popup',
     });
 
     logServerEvent('order.prepare', requestId, {

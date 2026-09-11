@@ -102,6 +102,7 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .product-card { overflow: hidden; padding: 0; display: flex; flex-direction: column; height: 100%; }
 .product-visual { min-height: 190px; padding: 18px; display: flex; align-items: flex-end; background: linear-gradient(140deg, #f2ead9, #ddcdb0); position: relative; }
 .product-image { object-fit: cover; z-index: 0; }
+.product-image.placeholder { object-fit: contain; padding: 32px; opacity: .72; }
 .product-visual:before { content: 'PREMIUM\A JERKY'; white-space: pre; display: block; color: rgba(90, 70, 40, .45); font-size: 12px; letter-spacing: .12em; line-height: 1.4; }
 .product-body { padding: 22px; display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .product-copy { display: block; min-width: 0; }
@@ -189,6 +190,19 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
 .page-header-row .button { flex: 0 0 auto; margin-top: 4px; }
 .breadcrumb { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .two-column { display: grid; grid-template-columns: 1.2fr .8fr; gap: 24px; align-items: start; }
+.cart-line { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 18px; align-items: stretch; }
+.cart-line-image { position: relative; width: 96px; min-height: 96px; overflow: hidden; border-radius: 14px; background: #f2ead9; border: 1px solid var(--line); align-self: start; }
+.cart-line-image-img { object-fit: cover; }
+.cart-line-image-img.placeholder { object-fit: contain; padding: 20px; opacity: .72; }
+.cart-line-content { min-width: 0; display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; }
+.cart-line-content h3 { overflow-wrap: anywhere; }
+.cart-line-actions { flex: 0 0 auto; }
+.checkout-order-line { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.checkout-order-line-image { position: relative; width: 58px; height: 58px; overflow: hidden; border-radius: 10px; background: #f2ead9; border: 1px solid var(--line); }
+.checkout-order-line-image img { object-fit: cover; }
+.checkout-order-line-image img.placeholder { object-fit: contain; padding: 12px; opacity: .72; }
+.checkout-order-line-copy { min-width: 0; }
+.checkout-order-line-copy span { display: block; overflow-wrap: anywhere; }
 .product-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .product-gallery-image { min-height: 220px; border-radius: 20px; overflow: hidden; position: relative; background: #f2ead9; }
 .product-gallery-image.featured { grid-column: 1 / -1; min-height: 460px; }
@@ -299,6 +313,14 @@ h3 { letter-spacing: -.03em; margin-bottom: 8px; }
   .address-modal { max-height: calc(100vh - 16px); padding: 18px; }
   .page-header-row { flex-direction: column; gap: 12px; }
   .page-header-row .button { margin-top: 0; }
+  .cart-line { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .cart-line-image { width: 72px; min-height: 72px; border-radius: 12px; }
+  .cart-line-image-img.placeholder { padding: 14px; }
+  .cart-line-content { align-items: stretch; flex-direction: column; gap: 12px; }
+  .cart-line-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .checkout-order-line { grid-template-columns: 48px minmax(0, 1fr); }
+  .checkout-order-line-image { width: 48px; height: 48px; }
+  .checkout-order-line > .price { grid-column: 2; justify-self: end; }
 }
 
 /* 비회원에게 보이는 가격 자리 문구. 두 줄로 접히면 카드 높이가 어긋난다. */
