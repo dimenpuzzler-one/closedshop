@@ -477,7 +477,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
               />
             </label>
             <label className="field">
-              <span className="field-label">카드 할부</span>
+              <span className="field-label">카드 할부 (결제 전 선택)</span>
               <select
                 className="select"
                 value={installmentEnabled ? paymentInstallment : '00'}
@@ -492,7 +492,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
               </select>
               <span className="field-hint">
                 {installmentEnabled
-                  ? `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상 주문에서 선택할 수 있습니다.`
+                  ? `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상 주문에서 원하는 개월을 선택한 뒤 결제하세요.`
                   : `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상부터 선택할 수 있습니다.`}
               </span>
             </label>
