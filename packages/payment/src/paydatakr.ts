@@ -22,6 +22,8 @@ export interface PayDataKrConfig {
   /** 인증결제 form URL. 생략하면 API 기준 URL의 KpdCredit을 사용한다. */
   checkoutUrl?: string;
   apiBaseUrl: string;
+  /** 할부개월. 00은 일시불이며, 02~12는 해당 개월 할부 요청이다. */
+  halbuInfo?: string;
 }
 
 /** 한국결제데이터 v1.5 JavaScript SDK에 전달할 상품 정보. */
@@ -315,6 +317,18 @@ function requiredText(
   return normalized;
 }
 
+/** KPD 인증결제 문서의 할부개월 형식을 검증한다. 기본값은 일시불이다. */
+export function payDataKrHalbuInfo(value?: string): string {
+  const normalized = value?.trim() || '00';
+  if (normalized === '00' || /^(0[2-9]|1[0-2])$/.test(normalized)) {
+    return normalized;
+  }
+  throw new PayDataKrError(
+    'E001',
+    'HalbuInfo는 00(일시불) 또는 02~12(할부) 형식이어야 합니다.',
+  );
+}
+
 function absoluteUrl(value: string, label: string): string {
   try {
     const url = new URL(value);
@@ -385,7 +399,7 @@ export class PayDataKrPaymentProvider {
       goods_qty:
         input.quantity === undefined ? undefined : Math.trunc(input.quantity),
       goods_desc: text(input.productDescription, 100) || undefined,
-      HalbuInfo: '00',
+      HalbuInfo: payDataKrHalbuInfo(this.config.halbuInfo),
       selcard: '',
       webhookUrl: absoluteUrl(input.webhookUrl, 'webhookUrl'),
       returnUrl: absoluteUrl(input.returnUrl, 'returnUrl'),

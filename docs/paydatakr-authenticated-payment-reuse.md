@@ -60,6 +60,9 @@ PAYDATAKR_PAY_KEY=xxxxxxxxxxxxxxxxx
 # 선택값. 비워두면 https://api.paydatakr.com 사용
 PAYDATAKR_API_BASE_URL=https://api.paydatakr.com
 
+# 선택값. 기본 00(일시불). 02~12는 해당 개월 할부
+PAYDATAKR_HALBU_INFO=00
+
 # 결과·통지 URL을 만들 때 사용하는 쇼핑몰 절대 URL
 NEXT_PUBLIC_WEB_URL=https://your-shop.example.com
 ```
@@ -258,9 +261,9 @@ postPayDataKrForm(
 ```
 
 팝업이 브라우저 정책으로 차단되면 현재 창에서 결제창을 열어 결제 중단을 피한다. `HalbuInfo=00`은
-일시불 요청이므로, 할부를 노출하려면 한국결제데이터에 가맹점의 카드 할부 사용을 먼저 신청하고,
-승인된 개월 수(문서 기준 `02`~`12`)를 전달하는 운영 정책을 확인해야 한다. `02`~`12`가 고객 선택 목록인지
-특정 개월 고정인지도 결제사에 확인한 뒤 값을 바꾼다.
+일시불 요청이고, 공식 매뉴얼의 `02`~`12`는 해당 개월 할부 요청이다. 매뉴얼에는 별도 승인 절차가
+기재되어 있지 않다. `02`~`12`가 고객 선택 목록인지 특정 개월 고정인지는 결제창 동작 또는 결제사 답변으로
+확인한 뒤 운영값을 바꾼다.
 
 ## 7. 주문 생성 순서
 

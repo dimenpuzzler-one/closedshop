@@ -1,4 +1,7 @@
-import { PayDataKrPaymentProvider } from '@closed-commerce/payment';
+import {
+  PayDataKrPaymentProvider,
+  payDataKrHalbuInfo,
+} from '@closed-commerce/payment';
 
 const PAYDATAKR_API_DEFAULT = 'https://api.paydatakr.com';
 
@@ -22,6 +25,7 @@ export function payDataKrConfigured(): boolean {
     payDataKrApiBaseUrl();
     payDataKrReturnUrl();
     payDataKrWebhookUrl();
+    payDataKrHalbuInfo(process.env.PAYDATAKR_HALBU_INFO);
     return true;
   } catch {
     return false;
@@ -59,6 +63,7 @@ export function getPayDataKrProvider(): PayDataKrPaymentProvider {
     publicKey: payDataKrPublicKey(),
     payKey,
     apiBaseUrl: payDataKrApiBaseUrl(),
+    halbuInfo: payDataKrHalbuInfo(process.env.PAYDATAKR_HALBU_INFO),
   });
 }
 

@@ -5,6 +5,7 @@ import {
   isPayDataKrCancellation,
   normalizePayDataKrResult,
   payDataKrAmount,
+  payDataKrHalbuInfo,
   payDataKrResultCode,
 } from '../src/paydatakr';
 
@@ -75,6 +76,24 @@ describe('PayDataKr checkout parameters', () => {
       parentTargetNm: 'dealkeyPaymentParent',
       HalbuInfo: '00',
     });
+  });
+
+  it('uses a configured installment term and rejects unsupported values', () => {
+    expect(payDataKrHalbuInfo()).toBe('00');
+    expect(payDataKrHalbuInfo('03')).toBe('03');
+    expect(
+      new PayDataKrPaymentProvider({ ...config, halbuInfo: '03' }).buildCheckoutParams({
+        trackId: 'CHECK-INSTALLMENT-1',
+        amount: 1000,
+        productName: '테스트 상품',
+        payerName: '테스트 구매자',
+        returnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/return',
+        webhookUrl: 'https://dealkey.co.kr/api/payments/paydatakr/webhook',
+        cancelReturnUrl: 'https://dealkey.co.kr/api/payments/paydatakr/cancel',
+      }).HalbuInfo,
+    ).toBe('03');
+    expect(() => payDataKrHalbuInfo('01')).toThrow();
+    expect(() => payDataKrHalbuInfo('13')).toThrow();
   });
 
   it.each(['returnUrl', 'webhookUrl', 'cancelReturnUrl'] as const)('rejects a missing %s before starting checkout', (field) => {
