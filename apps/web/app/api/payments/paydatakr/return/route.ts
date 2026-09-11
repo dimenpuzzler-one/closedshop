@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       logServerError('payment.paydatakr.return', requestId, error, { stage: 'finalize', status: error.status });
       return jsonMode
         ? jsonResponse({ status: error.status === 409 ? 'processing' : 'failed', message: error.message }, error.status)
-        : redirectTo({ status: 'failed', message: error.message, requestId });
+        : redirectTo({ status: error.status === 409 ? 'processing' : 'failed', message: error.message, requestId });
     }
     logServerError('payment.paydatakr.return', requestId, error, { stage: 'unhandled' });
     const failure = {

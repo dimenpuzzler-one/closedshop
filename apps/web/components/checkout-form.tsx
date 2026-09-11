@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -64,7 +64,10 @@ function submitPayDataKrForm(
   form.action = action;
   form.target = target;
   form.acceptCharset = 'UTF-8';
-  for (const [name, value] of Object.entries(params)) {
+  for (const [name, value] of Object.entries({
+    ...params,
+    popuptype: target === '_self' ? 'submit' : 'popup',
+  })) {
     if (value === undefined) continue;
     const field = document.createElement('input');
     field.type = 'hidden';
@@ -74,13 +77,115 @@ function submitPayDataKrForm(
   }
   document.body.appendChild(form);
   form.submit();
+  window.setTimeout(() => form.remove(), 0);
+}
+
+/**
+ * KPD의 인증결제 endpoint는 HalbuInfo 한 값을 받기 때문에, 결제창을
+ * 열기 전 주문서가 아니라 결제 팝업 안에서 고객이 개월 수를 고르게 한다.
+ * 선택을 마치면 같은 팝업에서 KPD 인증결제 화면으로 POST한다.
+ */
+function renderPaymentSelectionWindow(
+  paymentWindow: Window,
+  action: string,
+  params: PayDataKrCheckoutParams,
+  installmentEnabled: boolean,
+) {
+  const doc = paymentWindow.document;
+  doc.open();
+  doc.write(
+    '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>결제 방법 선택</title></head><body></body></html>',
+  );
+  doc.close();
+
+  const style = doc.createElement('style');
+  style.textContent = `
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f7f5f0; color: #2b241d; }
+    main { max-width: 420px; margin: 0 auto; padding: 32px 24px; }
+    h1 { margin: 0 0 10px; font-size: 22px; }
+    p { margin: 0 0 24px; color: #6e6256; line-height: 1.55; }
+    label { display: block; margin-bottom: 8px; font-weight: 700; }
+    select, button { width: 100%; box-sizing: border-box; border-radius: 10px; font: inherit; }
+    select { padding: 13px 12px; border: 1px solid #d8cbb9; background: #fff; }
+    button { margin-top: 18px; padding: 14px; border: 0; background: #16130f; color: #fff; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .amount { margin-bottom: 26px; padding: 14px; border-radius: 10px; background: #fff; font-size: 18px; font-weight: 700; }
+    .hint { margin-top: 10px; font-size: 13px; }
+  `;
+  doc.head.appendChild(style);
+
+  const main = doc.createElement('main');
+  const title = doc.createElement('h1');
+  title.textContent = '결제 방법 선택';
+  main.appendChild(title);
+  const description = doc.createElement('p');
+  description.textContent = '할부 개월을 선택한 뒤 결제창으로 이동합니다.';
+  main.appendChild(description);
+  const amount = doc.createElement('div');
+  amount.className = 'amount';
+  amount.textContent = `결제 금액 ${Number(params.amount).toLocaleString('ko-KR')}원`;
+  main.appendChild(amount);
+
+  const label = doc.createElement('label');
+  label.textContent = '카드 할부';
+  main.appendChild(label);
+  const select = doc.createElement('select');
+  select.name = 'HalbuInfo';
+  select.setAttribute('aria-label', '카드 할부');
+  const choices = installmentEnabled
+    ? ['00', ...Array.from({ length: 11 }, (_, index) => String(index + 2).padStart(2, '0'))]
+    : ['00'];
+  for (const value of choices) {
+    const option = doc.createElement('option');
+    option.value = value;
+    option.textContent = value === '00' ? '일시불' : `${Number(value)}개월`;
+    select.appendChild(option);
+  }
+  main.appendChild(select);
+  const hint = doc.createElement('p');
+  hint.className = 'hint';
+  hint.textContent = installmentEnabled
+    ? '5만원 이상 결제에서 카드사별 할부 가능 여부가 적용됩니다.'
+    : '5만원 미만 결제는 일시불만 가능합니다.';
+  main.appendChild(hint);
+
+  const button = doc.createElement('button');
+  button.type = 'button';
+  button.textContent = '결제창 열기';
+  button.addEventListener('click', () => {
+    button.disabled = true;
+    button.textContent = '결제창을 여는 중…';
+    const form = doc.createElement('form');
+    form.method = 'POST';
+    form.action = action;
+    form.target = '_self';
+    form.acceptCharset = 'UTF-8';
+    for (const [name, value] of Object.entries({
+      ...params,
+      HalbuInfo: select.value,
+      popuptype: 'submit',
+    })) {
+      if (value === undefined) continue;
+      const field = doc.createElement('input');
+      field.type = 'hidden';
+      field.name = name;
+      field.value = String(value);
+      form.appendChild(field);
+    }
+    doc.body.appendChild(form);
+    form.submit();
+  });
+  main.appendChild(button);
+  doc.body.appendChild(main);
+  paymentWindow.focus();
 }
 
 function openPaymentWindow(): Window | null {
   try {
     // PayDataKR가 returnUrl을 부모창으로 보낼 때 사용할 이름을 먼저 맞춘다.
     window.name = PAYMENT_PARENT_WINDOW_NAME;
-    return window.open('', PAYMENT_WINDOW_NAME, PAYMENT_WINDOW_FEATURES);
+    return window.open('about:blank', PAYMENT_WINDOW_NAME, PAYMENT_WINDOW_FEATURES);
   } catch {
     return null;
   }
@@ -137,13 +242,38 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
   );
   const [saveToBook, setSaveToBook] = useState(false);
   const [saveLabel, setSaveLabel] = useState('우리집');
-  const [paymentInstallment, setPaymentInstallment] = useState('00');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'awaiting' | 'error'>('idle');
+  const [activePaymentWindow, setActivePaymentWindow] = useState<Window | null>(null);
   const [message, setMessage] = useState('');
   const installmentEnabled = Boolean(
     quote &&
       quote.totals.paidAmount >= PAYDATAKR_INSTALLMENT_MIN_AMOUNT,
   );
+
+  useEffect(() => {
+    if (status !== 'awaiting' || !activePaymentWindow) return;
+    const timer = window.setInterval(() => {
+      if (activePaymentWindow.closed) {
+        window.clearInterval(timer);
+        setActivePaymentWindow(null);
+        setStatus('idle');
+        setMessage('결제창이 닫혔습니다. 결제를 진행하셨다면 주문 내역을 먼저 확인해 주세요.');
+        return;
+      }
+      try {
+        // 결제사가 결과를 팝업에 반환하는 경우에도 원래 주문서에서 결과를 보여준다.
+        const resultUrl = activePaymentWindow.location;
+        if (resultUrl.origin === window.location.origin && resultUrl.pathname === '/checkout/result') {
+          window.clearInterval(timer);
+          window.location.assign(resultUrl.href);
+          activePaymentWindow.close();
+        }
+      } catch {
+        // KPD·카드사 화면의 cross-origin 접근은 허용되지 않는다.
+      }
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [activePaymentWindow, status]);
 
   function chooseSavedAddress(address: SavedShippingAddress) {
     setSelectedAddressId(address.id);
@@ -176,7 +306,7 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (status === 'submitting') return;
+    if (status === 'submitting' || status === 'awaiting') return;
     const form = new FormData(event.currentTarget);
     // 팝업 허용 여부는 사용자 클릭 직후에만 안정적으로 확인할 수 있다.
     const paymentWindow = openPaymentWindow();
@@ -216,7 +346,6 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       // 가입 시 고정된 referral_relationships에서 직접 결정한다.
       const body = {
         promotionCode: text(form, 'promotionCode') || undefined,
-        halbuInfo: installmentEnabled ? paymentInstallment : '00',
         items: (quote?.lines ?? []).map((line) => ({
           productId: line.productId,
           optionId: line.optionId,
@@ -261,16 +390,24 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
       const paymentTarget = paymentWindow && !paymentWindow.closed
         ? PAYMENT_WINDOW_NAME
         : '_self';
-      setMessage(
-        paymentTarget === PAYMENT_WINDOW_NAME
-          ? '새 결제창을 여는 중입니다…'
-          : '브라우저가 팝업을 차단해 현재 창에서 결제창을 엽니다…',
-      );
-      submitPayDataKrForm(
-        result.checkoutUrl,
-        result.checkoutParams,
-        paymentTarget,
-      );
+      if (paymentTarget === PAYMENT_WINDOW_NAME) {
+        renderPaymentSelectionWindow(
+          paymentWindow!,
+          result.checkoutUrl,
+          result.checkoutParams,
+          installmentEnabled,
+        );
+        setActivePaymentWindow(paymentWindow);
+        setStatus('awaiting');
+        setMessage('결제창에서 결제 방법을 선택한 뒤 결제를 진행해 주세요.');
+      } else {
+        setMessage('브라우저가 팝업을 차단해 현재 창에서 결제창을 엽니다…');
+        submitPayDataKrForm(
+          result.checkoutUrl,
+          result.checkoutParams,
+          paymentTarget,
+        );
+      }
     } catch (caught) {
       closePaymentWindow(paymentWindow);
       setStatus('error');
@@ -476,26 +613,6 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
                 placeholder="선택 입력"
               />
             </label>
-            <label className="field">
-              <span className="field-label">카드 할부 (결제 전 선택)</span>
-              <select
-                className="select"
-                value={installmentEnabled ? paymentInstallment : '00'}
-                onChange={(event) => setPaymentInstallment(event.currentTarget.value)}
-                disabled={!installmentEnabled}
-              >
-                <option value="00">일시불</option>
-                {Array.from({ length: 11 }, (_, index) => index + 2).map((months) => {
-                  const value = String(months).padStart(2, '0');
-                  return <option value={value} key={value}>{months}개월</option>;
-                })}
-              </select>
-              <span className="field-hint">
-                {installmentEnabled
-                  ? `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상 주문에서 원하는 개월을 선택한 뒤 결제하세요.`
-                  : `${PAYDATAKR_INSTALLMENT_MIN_AMOUNT.toLocaleString('ko-KR')}원 이상부터 선택할 수 있습니다.`}
-              </span>
-            </label>
             <AddressSearchFields
               value={addressFields}
               onChange={updateAddressFields}
@@ -531,11 +648,17 @@ export function CheckoutForm({ initialAddresses }: CheckoutFormProps) {
           <div className="form-actions">
             <button
               className="button button-primary button-large"
-              disabled={status === 'submitting'}
+              disabled={status === 'submitting' || status === 'awaiting'}
             >
-              {status === 'submitting' ? '결제창 준비 중…' : '결제하기'}
+              {status === 'submitting' ? '결제창 준비 중…' : status === 'awaiting' ? '결제 진행 중…' : '결제하기'}
             </button>
           </div>
+          {status === 'awaiting' ? (
+            <button type="button" className="button button-secondary" onClick={() => activePaymentWindow?.focus()}>
+              결제창 다시 보기
+            </button>
+          ) : null}
+          {message && status !== 'error' ? <Link href="/account/orders">주문 내역 확인</Link> : null}
           {message ? (
             <p
               className={`form-message${status === 'error' ? ' form-error' : ''}`}

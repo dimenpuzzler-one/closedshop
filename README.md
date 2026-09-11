@@ -94,7 +94,7 @@ pnpm --filter admin dev
 
 `SUPABASE_SERVICE_ROLE_KEY`, `PAYDATAKR_PAY_KEY`, `JUSO_API_KEY`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다. 커밋·브라우저 번들·에러 메시지에 값이 들어가면 안 됩니다.
 
-운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 서버가 인증결제 form 필드를 만들고 브라우저가 `/kpdWebPayment/KpdCredit`에 POST하여 별도 결제창에서 결제합니다. 브라우저가 팝업을 차단하면 현재 창으로 자동 전환합니다. `returnUrl`, `webhookUrl`, `cnclreturnUrl`을 모두 명시하며 SDK·일회성 위젯 토큰은 사용하지 않습니다. 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 필요하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. `PAYDATAKR_HALBU_INFO`는 선택사항이며 기본값은 `00`입니다. 주문서에서는 결제 예정 금액이 5만원 이상일 때 `00` 또는 `02`~`12`개월을 선택하고, 5만원 미만이면 서버가 `00`으로 강제합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
+운영 결제를 켤 때는 고객몰 Vercel 프로젝트에 `PAYDATAKR_PUBLIC_KEY`, `PAYDATAKR_PAY_KEY`를 입력하고 재배포합니다. 서버가 인증결제 form 필드를 만들고 브라우저가 `/kpdWebPayment/KpdCredit`에 POST하여 별도 결제창에서 결제합니다. 결제 팝업이 열리면 그 안에서 할부 개월을 선택한 뒤 KPD 인증결제 화면으로 이동합니다. 브라우저가 팝업을 차단하면 현재 창으로 자동 전환합니다. `returnUrl`, `webhookUrl`, `cnclreturnUrl`을 모두 명시하며 SDK·일회성 위젯 토큰은 사용하지 않습니다. 별도의 `PAYDATAKR_CHECKOUT_URL` 환경변수는 필요하지 않습니다. `PAYDATAKR_API_BASE_URL`과 `PAYDATAKR_RECEIPT_BASE_URL`은 비워두면 공식 기본 URL을 사용합니다. `PAYDATAKR_HALBU_INFO`는 선택사항이며 기본값은 `00`입니다. 결제 예정 금액이 5만원 이상이면 결제 팝업에서 `00` 또는 `02`~`12`개월을 선택하고, 5만원 미만이면 서버가 `00`으로 강제합니다. 운영 `NEXT_PUBLIC_WEB_URL`은 반드시 `https://`로 설정해야 합니다.
 
 관리자 환불을 사용하려면 관리자 Vercel 프로젝트에도 `PAYDATAKR_PAY_KEY`를 입력합니다. `PAYDATAKR_API_BASE_URL`은 선택사항입니다. 공식 SDK 응답은 `result`/`pay` 중첩 구조, webhook 응답은 평면 구조이므로 서버에서 공통 형태로 정규화합니다. 운영 활성화 전에는 제한된 테스트 결제·환불을 검증해야 합니다. 현재 조회 검증은 응답 최상위 또는 `pay` 객체의 주문번호·거래번호·금액이 모두 일치해야 통과하며, 성공 코드만 있는 응답은 주문을 확정하지 않습니다.
 
